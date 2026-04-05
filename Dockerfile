@@ -1,5 +1,6 @@
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /app
+RUN groupadd -r app && useradd -r -g app app
 
 COPY .mvn .mvn
 COPY mvnw mvnw
@@ -12,8 +13,11 @@ RUN ./mvnw -q -DskipTests package
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
+RUN groupadd -r app && useradd -r -g app app
 
-COPY --from=builder /app/target/*.jar app.jar
+COPY --from=builder /app/target/*.jar /app/app.jar
+RUN chown app:app /app/app.jar
+USER app
 
 EXPOSE 8080
 

@@ -6,8 +6,11 @@ services:
     image: mealguide-api:prod
     container_name: mealguide-app
     depends_on:
-      - postgres
-      - redis
+      postgres:
+          condition: service_healthy
+      redis:
+        condition: service_healthy
+
     ports:
       - "${APP_PORT:-8080}:8080"
     environment:
@@ -25,8 +28,6 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: mealguide-postgres
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USERNAME}
@@ -35,16 +36,24 @@ services:
     volumes:
       - postgres-prod-data:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     container_name: mealguide-redis
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
     command: redis-server --appendonly yes
     volumes:
       - redis-prod-data:/data
     restart: unless-stopped
+    healthcheck:
+            test: [ "CMD", "redis-cli", "ping" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
 
 volumes:
   postgres-prod-data:
