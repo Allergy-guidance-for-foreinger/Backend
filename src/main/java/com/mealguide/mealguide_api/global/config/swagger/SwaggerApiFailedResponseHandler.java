@@ -31,6 +31,10 @@ public class SwaggerApiFailedResponseHandler {
         if (apiResponses == null) return;
 
         ApiResponses responses = operation.getResponses();
+        if (responses == null) {
+            responses = new ApiResponses();
+            operation.setResponses(responses);
+        }
 
         List<SwaggerApiFailedResponse> apiFailedResponses = Arrays.asList(apiResponses.errors());
 
