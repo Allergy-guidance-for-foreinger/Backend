@@ -86,6 +86,10 @@ public class JwtTokenProvider implements TokenProviderPort {
     }
 
     private String generateRefreshToken(Long userId, String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) {
+            throw new ServiceException(ErrorCode.JWT_INVALID);
+        }
+
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(jwtProperties.getRefreshTokenExpirationSeconds());
 

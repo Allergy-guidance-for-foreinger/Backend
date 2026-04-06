@@ -947,9 +947,69 @@ This document records implementation history and follow-up context.
 - External API contract changed: No
 
 ### Implementation Notes
-- Removed the custom `ObjectMapper` bean from `RestClientConfig`.
-- The application now relies on Spring Boot's default Jackson `ObjectMapper` bean instead of overriding it in user configuration.
+- `RestClientConfig` now provides an `ObjectMapper` only as a fallback with `@ConditionalOnMissingBean(ObjectMapper.class)`.
+- If Spring Boot auto-configures the default Jackson mapper, that bean is used unchanged.
+- If no `ObjectMapper` bean exists in the running context, the fallback bean uses `JsonMapper.builder().findAndAddModules().build()`.
 - `RestClient.Builder` registration remains unchanged.
+
+---
+
+## 2026-04-06
+
+### Task
+- Remove `ObjectMapper` bean dependency from security exception handlers to avoid startup failure.
+
+### Affected Layers
+- `global.auth.security`
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/global/auth/security/RestAccessDeniedHandler.java`
+- `src/main/java/com/mealguide/mealguide_api/global/auth/security/RestAuthenticationEntryPoint.java`
+- `docs/work-context.md`
+
+### Why
+- The running context still reported missing `ObjectMapper` injection for security handlers.
+- These handlers only need simple JSON serialization for error responses, so they should not block startup on a shared bean.
+
+### DB Impact
+- Schema changed by this task: No
+
+### API Impact
+- External API contract changed: No
+
+### Implementation Notes
+- Replaced constructor-injected `ObjectMapper` usage with an internal static `JsonMapper`.
+- Security error response shape stays the same.
+
+---
+
+## 2026-04-06
+
+### Task
+- Add minimum length validation for JWT secrets at configuration binding time.
+
+### Affected Layers
+- `global.auth.jwt`
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/global/auth/jwt/JwtProperties.java`
+- `docs/work-context.md`
+
+### Why
+- `Keys.hmacShaKeyFor()` requires a sufficiently long secret key and otherwise fails at runtime.
+- Configuration errors should be rejected during property binding instead of surfacing later during JWT provider initialization.
+
+### DB Impact
+- Schema changed by this task: No
+
+### API Impact
+- External API contract changed: No
+
+### Implementation Notes
+- Added `@Size(min = 32)` to both `accessSecret` and `refreshSecret`.
+- Existing `@NotBlank` and expiration-time validation remain unchanged.
 
 ---
 

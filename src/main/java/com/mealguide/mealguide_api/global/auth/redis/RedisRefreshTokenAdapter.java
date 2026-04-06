@@ -34,6 +34,7 @@ public class RedisRefreshTokenAdapter implements RefreshTokenPort {
 
     @Override
     public void save(Long userId, String deviceId, String refreshToken, Duration ttl) {
+        validateTtl(ttl);
         stringRedisTemplate.opsForValue().set(buildKey(userId, deviceId), hashToken(refreshToken), ttl);
     }
 
@@ -44,6 +45,7 @@ public class RedisRefreshTokenAdapter implements RefreshTokenPort {
 
     @Override
     public boolean rotateIfMatch(Long userId, String deviceId, String expectedRefreshToken, String newRefreshToken, Duration ttl) {
+        validateTtl(ttl);
         Long result = stringRedisTemplate.execute(
                 ROTATE_IF_MATCH_SCRIPT,
                 List.of(buildKey(userId, deviceId)),
@@ -79,5 +81,11 @@ public class RedisRefreshTokenAdapter implements RefreshTokenPort {
             builder.append(String.format("%02x", value));
         }
         return builder.toString();
+    }
+
+    private void validateTtl(Duration ttl) {
+        if (ttl == null || ttl.isZero() || ttl.isNegative()) {
+            throw new IllegalArgumentException("ttl must be a positive duration");
+        }
     }
 }
