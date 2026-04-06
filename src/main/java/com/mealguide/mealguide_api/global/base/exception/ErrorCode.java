@@ -27,6 +27,9 @@ public enum ErrorCode {
     BAEKJOON_HANDLE_INVALID(BAD_REQUEST, "AUTH_008", "유효하지 않은 백준 아이디입니다."),
     SOLVEDAC_COOLDOWN_ACTIVE(TOO_MANY_REQUESTS, "AUTH_009", "요청이 많습니다. 잠시 후 다시 시도해주세요."),
 
+    GOOGLE_ID_TOKEN_INVALID(UNAUTHORIZED, "AUTH_010", "Google ID Token이 유효하지 않습니다."),
+    GOOGLE_EMAIL_NOT_VERIFIED(UNAUTHORIZED, "AUTH_011", "Google 계정 이메일 인증이 완료되지 않았습니다."),
+
     //User
     USER_ALREADY_EXIST(HttpStatus.CONFLICT,"USER_001","이미 존재하는 회원입니다."),
     USER_NOT_FOUND(NOT_FOUND,"USER_002","존재하지 않는 유저입니다."),

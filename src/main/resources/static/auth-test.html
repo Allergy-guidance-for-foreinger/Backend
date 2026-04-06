@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mealguide Auth Test</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        :root {
+            --bg: #f4f7fb;
+            --panel: #ffffff;
+            --line: #d7deea;
+            --text: #1e2a3a;
+            --muted: #617186;
+            --accent: #1f6feb;
+            --accent-2: #0d4fb3;
+            --danger: #c62828;
+            --ok: #1b7f3b;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "Noto Sans KR", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, #dce9ff 0, transparent 28%),
+                radial-gradient(circle at bottom right, #e8f4ec 0, transparent 24%),
+                var(--bg);
+        }
+
+        main {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 32px 20px 64px;
+        }
+
+        h1 { margin: 0 0 10px; font-size: 32px; }
+
+        p.lead {
+            margin: 0 0 28px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 18px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(31, 71, 133, 0.08);
+        }
+
+        .panel h2 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .field label {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .field input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            font: inherit;
+            background: #fff;
+        }
+
+        .readonly-box {
+            padding: 12px 14px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #f8fbff;
+            font-size: 14px;
+            word-break: break-all;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 999px;
+            background: var(--accent);
+            color: #fff;
+            padding: 11px 18px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        button.secondary {
+            background: #e7eefb;
+            color: var(--text);
+        }
+
+        button:hover { background: var(--accent-2); }
+        button.secondary:hover { background: #d9e5fb; }
+
+        #googleButton { min-height: 44px; }
+
+        .hint {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .status {
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .status.ok {
+            background: #edf8f0;
+            color: var(--ok);
+        }
+
+        .status.error {
+            background: #fff0f0;
+            color: var(--danger);
+        }
+
+        pre {
+            margin: 0;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            background: #f8fbff;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Google ID Token 인증 테스트</h1>
+    <p class="lead">
+        이 페이지는 프론트 없이 실제 Google ID token을 발급받고, 현재 서버의 <code>/auth/login</code>,
+        <code>/auth/refresh</code>, <code>/auth/logout</code> 흐름을 확인하기 위한 로컬 테스트 페이지입니다.
+    </p>
+
+    <div class="grid">
+        <section class="panel">
+            <h2>1. Google 로그인 설정</h2>
+
+            <div class="field">
+                <label>Google Client ID</label>
+                <div id="clientIdView" class="readonly-box">서버에서 읽는 중...</div>
+            </div>
+
+            <div class="field">
+                <label for="deviceId">deviceId</label>
+                <input id="deviceId" type="text" placeholder="예: web-local-chrome">
+            </div>
+
+            <div class="field">
+                <label for="apiBaseUrl">API Base URL</label>
+                <input id="apiBaseUrl" type="text" value="http://localhost:8080" placeholder="예: http://localhost:8080">
+            </div>
+
+            <div class="actions">
+                <button type="button" id="initGoogleButton">Google 버튼 초기화</button>
+                <button type="button" class="secondary" id="clearStateButton">상태 초기화</button>
+            </div>
+
+            <p class="hint">
+                Google Client ID는 서버 설정값에서 자동으로 읽어옵니다.
+                Google Cloud Console의 승인된 JavaScript 원본에는 현재 페이지 주소가 포함되어 있어야 합니다.
+                예: <code>http://localhost:8080</code>
+            </p>
+
+            <div id="googleButton"></div>
+            <div id="googleStatus" class="status" hidden></div>
+        </section>
+
+        <section class="panel">
+            <h2>2. 서버 로그인 호출</h2>
+
+            <div class="actions">
+                <button type="button" id="loginButton">/auth/login 호출</button>
+            </div>
+
+            <p class="hint">
+                먼저 Google 로그인으로 실제 ID token을 받은 뒤 호출해야 합니다.
+            </p>
+
+            <div id="serverStatus" class="status" hidden></div>
+        </section>
+    </div>
+
+    <div class="grid" style="margin-top: 18px;">
+        <section class="panel">
+            <h2>3. 토큰 재발급 / 로그아웃</h2>
+
+            <div class="actions">
+                <button type="button" id="refreshButton">/auth/refresh 호출</button>
+                <button type="button" id="logoutButton">/auth/logout 호출</button>
+            </div>
+
+            <p class="hint">
+                로그아웃은 현재 access token을 Authorization 헤더에 넣고, refresh token을 요청 본문에 넣어 호출합니다.
+            </p>
+        </section>
+
+        <section class="panel">
+            <h2>현재 상태</h2>
+            <pre id="stateView">아직 값이 없습니다.</pre>
+        </section>
+    </div>
+</main>
+
+<script>
+    const state = {
+        idToken: "",
+        accessToken: "",
+        refreshToken: "",
+        accessExpiresIn: null,
+        refreshExpiresIn: null,
+        googlePayload: null,
+        googleClientId: ""
+    };
+
+    const deviceIdInput = document.getElementById("deviceId");
+    const apiBaseUrlInput = document.getElementById("apiBaseUrl");
+    const clientIdView = document.getElementById("clientIdView");
+    const googleButtonContainer = document.getElementById("googleButton");
+    const googleStatus = document.getElementById("googleStatus");
+    const serverStatus = document.getElementById("serverStatus");
+    const stateView = document.getElementById("stateView");
+
+    function setStatus(element, type, message) {
+        element.hidden = false;
+        element.className = `status ${type}`;
+        element.textContent = message;
+    }
+
+    function clearStatus(element) {
+        element.hidden = true;
+        element.textContent = "";
+        element.className = "status";
+    }
+
+    function decodeJwtPayload(token) {
+        const payload = token.split(".")[1];
+        const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+        const decoded = decodeURIComponent(
+            atob(base64)
+                .split("")
+                .map(char => "%" + ("00" + char.charCodeAt(0).toString(16)).slice(-2))
+                .join("")
+        );
+        return JSON.parse(decoded);
+    }
+
+    function renderState() {
+        stateView.textContent = JSON.stringify(state, null, 2);
+    }
+
+    function resetState() {
+        state.idToken = "";
+        state.accessToken = "";
+        state.refreshToken = "";
+        state.accessExpiresIn = null;
+        state.refreshExpiresIn = null;
+        state.googlePayload = null;
+        clearStatus(googleStatus);
+        clearStatus(serverStatus);
+        renderState();
+    }
+
+    async function callApi(path, options = {}) {
+        const baseUrl = apiBaseUrlInput.value.trim().replace(/\/$/, "");
+        const response = await fetch(baseUrl + path, {
+            ...options,
+            headers: {
+                "Content-Type": "application/json",
+                ...(options.headers || {})
+            }
+        });
+
+        const text = await response.text();
+        let body;
+
+        try {
+            body = text ? JSON.parse(text) : null;
+        } catch (error) {
+            body = text;
+        }
+
+        if (!response.ok) {
+            throw new Error(JSON.stringify({
+                status: response.status,
+                body
+            }, null, 2));
+        }
+
+        return body;
+    }
+
+    async function loadConfig() {
+        try {
+            const body = await callApi("/auth-debug/config", { method: "GET" });
+            const data = body.data || {};
+            state.googleClientId = data.googleClientId || "";
+            clientIdView.textContent = state.googleClientId || "설정되지 않음";
+
+            if (!state.googleClientId) {
+                setStatus(googleStatus, "error", "서버에서 Google Client ID를 읽지 못했습니다. GOOGLE_CLIENT_ID 환경변수를 확인하세요.");
+            }
+
+            renderState();
+        } catch (error) {
+            clientIdView.textContent = "로드 실패";
+            setStatus(googleStatus, "error", "설정 조회 실패:\n" + error.message);
+        }
+    }
+
+    document.getElementById("initGoogleButton").addEventListener("click", () => {
+        if (!state.googleClientId) {
+            setStatus(googleStatus, "error", "서버에서 Google Client ID를 먼저 정상적으로 읽어와야 합니다.");
+            return;
+        }
+
+        if (!window.google || !google.accounts || !google.accounts.id) {
+            setStatus(googleStatus, "error", "Google 스크립트가 아직 로드되지 않았습니다. 잠시 후 다시 시도하세요.");
+            return;
+        }
+
+        google.accounts.id.initialize({
+            client_id: state.googleClientId,
+            callback: (response) => {
+                state.idToken = response.credential;
+                state.googlePayload = decodeJwtPayload(response.credential);
+                setStatus(googleStatus, "ok", "실제 Google ID token을 받았습니다. 이제 /auth/login 호출이 가능합니다.");
+                renderState();
+            }
+        });
+
+        googleButtonContainer.innerHTML = "";
+        google.accounts.id.renderButton(googleButtonContainer, {
+            theme: "outline",
+            size: "large",
+            width: 280
+        });
+
+        setStatus(googleStatus, "ok", "Google 로그인 버튼이 준비되었습니다.");
+    });
+
+    document.getElementById("loginButton").addEventListener("click", async () => {
+        if (!state.idToken) {
+            setStatus(serverStatus, "error", "먼저 Google 로그인으로 실제 ID token을 받아야 합니다.");
+            return;
+        }
+
+        const deviceId = deviceIdInput.value.trim();
+        if (!deviceId) {
+            setStatus(serverStatus, "error", "deviceId를 입력해야 합니다.");
+            return;
+        }
+
+        try {
+            const body = await callApi("/auth/login", {
+                method: "POST",
+                body: JSON.stringify({
+                    idToken: state.idToken,
+                    deviceId
+                })
+            });
+
+            const data = body.data || {};
+            state.accessToken = data.accessToken || "";
+            state.refreshToken = data.refreshToken || "";
+            state.accessExpiresIn = data.expiresIn || null;
+            state.refreshExpiresIn = data.refreshExpiresIn || null;
+            setStatus(serverStatus, "ok", "로그인 성공:\n" + JSON.stringify(body, null, 2));
+            renderState();
+        } catch (error) {
+            setStatus(serverStatus, "error", "로그인 실패:\n" + error.message);
+        }
+    });
+
+    document.getElementById("refreshButton").addEventListener("click", async () => {
+        if (!state.refreshToken) {
+            setStatus(serverStatus, "error", "refresh token이 없습니다. 먼저 로그인해야 합니다.");
+            return;
+        }
+
+        try {
+            const body = await callApi("/auth/refresh", {
+                method: "POST",
+                body: JSON.stringify({
+                    refreshToken: state.refreshToken
+                })
+            });
+
+            const data = body.data || {};
+            state.accessToken = data.accessToken || "";
+            state.refreshToken = data.refreshToken || "";
+            state.accessExpiresIn = data.expiresIn || null;
+            state.refreshExpiresIn = data.refreshExpiresIn || null;
+            setStatus(serverStatus, "ok", "재발급 성공:\n" + JSON.stringify(body, null, 2));
+            renderState();
+        } catch (error) {
+            setStatus(serverStatus, "error", "재발급 실패:\n" + error.message);
+        }
+    });
+
+    document.getElementById("logoutButton").addEventListener("click", async () => {
+        if (!state.accessToken || !state.refreshToken) {
+            setStatus(serverStatus, "error", "access token과 refresh token이 모두 있어야 로그아웃을 확인할 수 있습니다.");
+            return;
+        }
+
+        try {
+            const body = await callApi("/auth/logout", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${state.accessToken}`
+                },
+                body: JSON.stringify({
+                    refreshToken: state.refreshToken
+                })
+            });
+
+            state.accessToken = "";
+            state.refreshToken = "";
+            state.accessExpiresIn = null;
+            state.refreshExpiresIn = null;
+            setStatus(serverStatus, "ok", "로그아웃 성공:\n" + JSON.stringify(body, null, 2));
+            renderState();
+        } catch (error) {
+            setStatus(serverStatus, "error", "로그아웃 실패:\n" + error.message);
+        }
+    });
+
+    document.getElementById("clearStateButton").addEventListener("click", resetState);
+
+    deviceIdInput.value = "web-local-chrome";
+    renderState();
+    loadConfig();
+</script>
+</body>
+</html>

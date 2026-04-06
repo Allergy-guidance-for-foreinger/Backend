@@ -1,5 +1,8 @@
 package com.mealguide.mealguide_api.global.config.security;
 
+import com.mealguide.mealguide_api.global.auth.security.JwtAuthenticationFilter;
+import com.mealguide.mealguide_api.global.auth.security.RestAccessDeniedHandler;
+import com.mealguide.mealguide_api.global.auth.security.RestAuthenticationEntryPoint;
 import com.mealguide.mealguide_api.global.base.exception.ExceptionHandlerFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -24,7 +27,9 @@ public class SecurityConfig {
     private final CorsConfigurationSource corsConfigurationSource;
 
     private final ExceptionHandlerFilter exceptionHandlerFilter;
-    //private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+    private final RestAccessDeniedHandler restAccessDeniedHandler;
 
     private static final String[] SWAGGER_WHITELIST = {
             "/v3/api-docs/**",
@@ -37,12 +42,17 @@ public class SecurityConfig {
     };
 
     private static final String[] AUTH_WHITELIST = {
-            "/api/auth/**",
-            "/api/register/**"
+            "/auth/login",
+            "/auth/refresh/**"
     };
 
     private static final String[] PUBLIC_WHITELIST = {
-
+            "/",
+            "/index.html",
+            "/auth-test.html",
+            "/auth-debug/config",
+            "/favicon.ico",
+            "/error"
     };
 
     @Bean
@@ -57,19 +67,22 @@ public class SecurityConfig {
                 .logout(AbstractHttpConfigurer::disable)
 
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
+                .exceptionHandling(exceptionHandling -> exceptionHandling
+                        .authenticationEntryPoint(restAuthenticationEntryPoint)
+                        .accessDeniedHandler(restAccessDeniedHandler)
+                )
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(SWAGGER_WHITELIST).permitAll()
                         .requestMatchers(ACTUATOR_WHITELIST).permitAll()
-                        .requestMatchers(AUTH_WHITELIST).permitAll()
+                        .requestMatchers(HttpMethod.POST, AUTH_WHITELIST).permitAll()
                         .requestMatchers(HttpMethod.GET, PUBLIC_WHITELIST).permitAll()
                         .anyRequest().authenticated()
                 )
 
                 .addFilterBefore(exceptionHandlerFilter, SecurityContextHolderFilter.class)
-                //.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 
                 .build();
     }
 }
-
