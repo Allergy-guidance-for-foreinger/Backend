@@ -6,6 +6,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.security.Principal;
+import java.util.Collections;
 import java.util.List;
 
 public record AuthenticatedUserPrincipal(
@@ -28,6 +29,17 @@ public record AuthenticatedUserPrincipal(
         );
     }
 
+    public static AuthenticatedUserPrincipal authenticated(Long userId, String deviceId) {
+        return new AuthenticatedUserPrincipal(
+                userId,
+                null,
+                null,
+                null,
+                deviceId,
+                Collections.emptyList()
+        );
+    }
+
     private static String toAuthority(UserRole role) {
         if (role == null) {
             return "ROLE_USER";
@@ -37,6 +49,6 @@ public record AuthenticatedUserPrincipal(
 
     @Override
     public String getName() {
-        return email;
+        return email != null ? email : String.valueOf(userId);
     }
 }

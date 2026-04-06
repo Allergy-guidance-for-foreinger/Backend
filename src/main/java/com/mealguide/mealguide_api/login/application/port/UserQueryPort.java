@@ -9,5 +9,7 @@ public interface UserQueryPort {
 
     Optional<User> findById(Long userId);
 
+    boolean existsActiveById(Long userId);
+
     User createGoogleUser(String providerUserId, String providerEmail, String name);
 }

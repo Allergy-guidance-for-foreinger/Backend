@@ -4,6 +4,7 @@ import com.mealguide.mealguide_api.global.auth.domain.TokenClaims;
 import com.mealguide.mealguide_api.global.auth.domain.TokenType;
 import com.mealguide.mealguide_api.global.auth.port.RefreshTokenPort;
 import com.mealguide.mealguide_api.global.auth.port.TokenProviderPort;
+import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.login.application.port.GoogleIdTokenVerifierPort;
 import com.mealguide.mealguide_api.login.application.port.UserQueryPort;
@@ -92,7 +93,7 @@ class LoginServiceTest {
 
         when(tokenProviderPort.parseRefreshToken("old-refresh-token"))
                 .thenReturn(new TokenClaims(1L, deviceId, TokenType.REFRESH));
-        when(userQueryPort.findById(1L)).thenReturn(Optional.of(user));
+        when(userQueryPort.existsActiveById(1L)).thenReturn(true);
         when(tokenProviderPort.generateAccessToken(any())).thenReturn("new-access-token");
         when(tokenProviderPort.generateRefreshToken(any())).thenReturn("new-refresh-token");
 
@@ -109,6 +110,7 @@ class LoginServiceTest {
 
         when(tokenProviderPort.parseRefreshToken("missing-refresh-token"))
                 .thenReturn(new TokenClaims(1L, deviceId, TokenType.REFRESH));
+        when(userQueryPort.existsActiveById(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> loginService.refresh("missing-refresh-token"))
                 .isInstanceOf(ServiceException.class)
@@ -123,6 +125,7 @@ class LoginServiceTest {
 
         when(tokenProviderPort.parseRefreshToken("refresh-token"))
                 .thenReturn(new TokenClaims(1L, deviceId, TokenType.REFRESH));
+        when(userQueryPort.existsActiveById(1L)).thenReturn(true);
 
         loginService.logout(1L, "refresh-token");
 
@@ -131,6 +134,21 @@ class LoginServiceTest {
                 .isInstanceOf(ServiceException.class)
                 .extracting(exception -> ((ServiceException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.REFRESH_TOKEN_INVALID);
+    }
+
+    @Test
+    void refreshFailsWhenUserIsNotActive() {
+        String deviceId = "device-001";
+        refreshTokenPort.save(1L, deviceId, "refresh-token", Duration.ofDays(14));
+
+        when(tokenProviderPort.parseRefreshToken("refresh-token"))
+                .thenReturn(new TokenClaims(1L, deviceId, TokenType.REFRESH));
+        when(userQueryPort.existsActiveById(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> loginService.refresh("refresh-token"))
+                .isInstanceOf(ServiceException.class)
+                .extracting(exception -> ((ServiceException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.USER_NOT_FOUND);
     }
 
     private User createUser(Long id, String email, UserRole role) {

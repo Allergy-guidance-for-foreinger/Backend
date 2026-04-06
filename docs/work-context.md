@@ -926,6 +926,81 @@ This document records implementation history and follow-up context.
 ## 2026-04-06
 
 ### Task
+- Reduce refresh-path database load by replacing full user fetch with an active-user existence check.
+
+### Affected Layers
+- `login.application.port`
+- `login.application.service`
+- `login.infrastructure.persistence.repository`
+- `login.infrastructure.persistence.adapter`
+- `login` tests
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/login/application/port/UserQueryPort.java`
+- `src/main/java/com/mealguide/mealguide_api/login/application/service/LoginService.java`
+- `src/main/java/com/mealguide/mealguide_api/login/infrastructure/persistence/repository/UserJpaRepository.java`
+- `src/main/java/com/mealguide/mealguide_api/login/infrastructure/persistence/adapter/UserPersistenceAdapter.java`
+- `src/test/java/com/mealguide/mealguide_api/login/application/service/LoginServiceTest.java`
+- `docs/work-context.md`
+
+### Why
+- The refresh flow only needs to confirm that the user is still active before issuing new tokens.
+- Loading the full `User` entity on every refresh is unnecessary under the current token-claim design.
+
+### DB Impact
+- Schema changed by this task: No
+
+### API Impact
+- External API contract changed: No
+
+### Implementation Notes
+- Added `existsActiveById(...)` to `UserQueryPort`.
+- Implemented the existence check with `existsByIdAndDeletedAtIsNullAndStatus(...)`.
+- `LoginService.refresh()` now checks active-user existence and builds the minimal `AuthenticatedUser` directly from token claims.
+
+---
+
+## 2026-04-06
+
+### Task
+- Reduce JWT filter database load by replacing full user fetch with an active-user existence check.
+
+### Affected Layers
+- `global.auth.security`
+- `login.application.port`
+- `login` tests
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/global/auth/security/AuthenticatedUserPrincipal.java`
+- `src/main/java/com/mealguide/mealguide_api/global/auth/security/JwtAuthenticationFilter.java`
+- `src/test/java/com/mealguide/mealguide_api/login/infrastructure/security/JwtAuthenticationFilterTest.java`
+- `docs/work-context.md`
+
+### Why
+- The JWT filter runs on every authenticated request.
+- Under the current token design, loading the full `User` entity is unnecessary when only active-user validation and principal userId population are needed.
+
+### DB Impact
+- Schema changed by this task: No
+
+### API Impact
+- External API contract changed: No
+
+### Implementation Notes
+- `JwtAuthenticationFilter` now uses `existsActiveById(...)` instead of `findById(...)`.
+- Added `AuthenticatedUserPrincipal.authenticated(...)` for minimal principal construction from token claims.
+- The filter now populates authentication without loading user email, name, or role from the database.
+
+### Remaining Issues
+- Because access tokens intentionally omit role claims, role-based authorization would require either reintroducing a user lookup or adding role information to the token.
+
+---
+
+## 2026-04-06
+
+### Task
 - Fix `RestClientConfig` bean creation failure caused by an unavailable `Jackson2ObjectMapperBuilder`.
 
 ### Affected Layers
@@ -1010,6 +1085,35 @@ This document records implementation history and follow-up context.
 ### Implementation Notes
 - Added `@Size(min = 32)` to both `accessSecret` and `refreshSecret`.
 - Existing `@NotBlank` and expiration-time validation remain unchanged.
+
+---
+
+## 2026-04-06
+
+### Task
+- Centralize the JJWT library version in Maven properties.
+
+### Affected Layers
+- `pom.xml`
+- `docs/work-context.md`
+
+### Changed Files
+- `pom.xml`
+- `docs/work-context.md`
+
+### Why
+- The same JJWT version string was repeated across multiple dependencies.
+- Defining the version once in Maven properties makes future updates safer and more consistent.
+
+### DB Impact
+- Schema changed by this task: No
+
+### API Impact
+- External API contract changed: No
+
+### Implementation Notes
+- Added `jjwt.version` to the Maven `<properties>` section.
+- Updated `jjwt-api`, `jjwt-impl`, and `jjwt-jackson` to use `${jjwt.version}`.
 
 ---
 

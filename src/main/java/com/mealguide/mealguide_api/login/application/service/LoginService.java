@@ -9,8 +9,8 @@ import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.login.application.port.GoogleIdTokenVerifierPort;
 import com.mealguide.mealguide_api.login.application.port.UserQueryPort;
 import com.mealguide.mealguide_api.global.auth.jwt.dto.AuthTokenResult;
-import com.mealguide.mealguide_api.login.domain.google.GoogleUserInfo;
 import com.mealguide.mealguide_api.login.domain.User;
+import com.mealguide.mealguide_api.login.domain.google.GoogleUserInfo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,9 +51,17 @@ public class LoginService {
     @Transactional
     public AuthTokenResult refresh(String refreshToken) {
         TokenClaims tokenClaims = tokenProviderPort.parseRefreshToken(refreshToken);
-        User user = userQueryPort.findById(tokenClaims.userId())
-                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
-        AuthenticatedUser authenticatedUser = AuthenticatedUser.from(user, tokenClaims.deviceId());
+        if (!userQueryPort.existsActiveById(tokenClaims.userId())) {
+            throw new ServiceException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+                tokenClaims.userId(),
+                null,
+                null,
+                null,
+                tokenClaims.deviceId()
+        );
         String newAccessToken = tokenProviderPort.generateAccessToken(authenticatedUser);
         String newRefreshToken = tokenProviderPort.generateRefreshToken(authenticatedUser);
         long refreshTokenTtl = tokenProviderPort.getRefreshTokenExpirationSeconds();

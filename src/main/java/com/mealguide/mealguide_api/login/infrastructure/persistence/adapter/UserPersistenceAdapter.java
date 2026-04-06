@@ -42,6 +42,11 @@ public class UserPersistenceAdapter implements UserQueryPort {
     }
 
     @Override
+    public boolean existsActiveById(Long userId) {
+        return userJpaRepository.existsByIdAndDeletedAtIsNullAndStatus(userId, ACTIVE_STATUS);
+    }
+
+    @Override
     public User createGoogleUser(String providerUserId, String providerEmail, String name) {
         User savedUser = userJpaRepository.save(User.createForFirstGoogleLogin(providerEmail, name));
         userOauthAccountJpaRepository.save(UserOauthAccount.createGoogleAccount(savedUser, providerUserId, providerEmail));
