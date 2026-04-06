@@ -36,3 +36,5 @@ build/
 .env.prod
 .env.local
 .env.dev
+
+.m2/

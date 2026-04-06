@@ -54,7 +54,7 @@ infrastructure
 - persistence
   - repository
   - adapter
- 
+```
 Follow these rules:
 
 Put HTTP endpoints in presentation.controller.
@@ -73,7 +73,7 @@ Do not introduce a different architecture unless the user explicitly requests it
 
 Shared authentication infrastructure that is reused across features should live under `global.auth`.
 Feature-specific login logic should remain under the feature package.
-```
+
 
 ## 4. Architectural Behavior Rules
    - Keep controllers thin.

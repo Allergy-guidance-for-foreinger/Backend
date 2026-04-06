@@ -107,14 +107,23 @@ public class JwtTokenProvider implements TokenProviderPort {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            TokenType actualType = TokenType.valueOf(claims.get(CLAIM_TYPE, String.class));
+            String typeClaim = claims.get(CLAIM_TYPE, String.class);
+                if (typeClaim == null || typeClaim.isBlank()) {
+                    throw new ServiceException(ErrorCode.JWT_INVALID);
+                }
+                TokenType actualType = TokenType.valueOf(typeClaim);
             if (actualType != expectedType) {
                 throw new ServiceException(ErrorCode.JWT_INVALID);
             }
 
+            String deviceId = claims.get(CLAIM_DEVICE_ID, String.class);
+                if (expectedType == TokenType.REFRESH && (deviceId == null || deviceId.isBlank())) {
+                    throw new ServiceException(ErrorCode.JWT_INVALID);
+                }
+
             return new TokenClaims(
                     Long.valueOf(claims.getSubject()),
-                    claims.get(CLAIM_DEVICE_ID, String.class),
+                    deviceId,
                     actualType
             );
         } catch (ExpiredJwtException exception) {

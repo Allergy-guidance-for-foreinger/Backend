@@ -120,6 +120,8 @@ CREATE TABLE user_avoided_ingredient (
     ingredient_code VARCHAR(50) NOT NULL,
     created_at TIMESTAMP NOT NULL,
     PRIMARY KEY (user_id, ingredient_code),
+    CONSTRAINT fk_user_avoided_ingredient_user
+        FOREIGN KEY (user_id) REFERENCES users(id),
     CONSTRAINT fk_user_avoided_ingredient_ingredient
         FOREIGN KEY (ingredient_code) REFERENCES ingredient(code)
 );
@@ -129,6 +131,8 @@ CREATE TABLE user_allergy_ingredient (
     ingredient_code VARCHAR(50) NOT NULL,
     created_at TIMESTAMP NOT NULL,
     PRIMARY KEY (user_id, ingredient_code),
+    CONSTRAINT fk_user_allergy_ingredient_user
+        FOREIGN KEY (user_id) REFERENCES users(id),
     CONSTRAINT fk_user_allergy_ingredient_ingredient
         FOREIGN KEY (ingredient_code) REFERENCES ingredient(code)
 );

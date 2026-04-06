@@ -8,5 +8,7 @@ public interface RefreshTokenPort {
 
     Optional<String> findByUserIdAndDeviceId(Long userId, String deviceId);
 
+    boolean rotateIfMatch(Long userId, String deviceId, String expectedRefreshToken, String newRefreshToken, Duration ttl);
+
     void deleteByUserIdAndDeviceId(Long userId, String deviceId);
 }

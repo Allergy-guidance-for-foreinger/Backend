@@ -17,6 +17,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.BeanUtils;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -59,7 +62,7 @@ class LoginServiceTest {
 
         assertThat(result.accessToken()).isEqualTo("access-token");
         assertThat(result.refreshToken()).isEqualTo("refresh-token");
-        assertThat(refreshTokenPort.findByUserIdAndDeviceId(1L, deviceId)).contains("refresh-token");
+        assertThat(refreshTokenPort.findByUserIdAndDeviceId(1L, deviceId)).contains(hashToken("refresh-token"));
     }
 
     @Test
@@ -78,7 +81,7 @@ class LoginServiceTest {
 
         assertThat(result.accessToken()).isEqualTo("access-token");
         assertThat(result.refreshToken()).isEqualTo("refresh-token");
-        assertThat(refreshTokenPort.findByUserIdAndDeviceId(2L, deviceId)).contains("refresh-token");
+        assertThat(refreshTokenPort.findByUserIdAndDeviceId(2L, deviceId)).contains(hashToken("refresh-token"));
     }
 
     @Test
@@ -97,7 +100,7 @@ class LoginServiceTest {
 
         assertThat(result.accessToken()).isEqualTo("new-access-token");
         assertThat(result.refreshToken()).isEqualTo("new-refresh-token");
-        assertThat(refreshTokenPort.findByUserIdAndDeviceId(1L, deviceId)).contains("new-refresh-token");
+        assertThat(refreshTokenPort.findByUserIdAndDeviceId(1L, deviceId)).contains(hashToken("new-refresh-token"));
     }
 
     @Test
@@ -146,12 +149,23 @@ class LoginServiceTest {
 
         @Override
         public void save(Long userId, String deviceId, String refreshToken, Duration ttl) {
-            storage.put(buildKey(userId, deviceId), refreshToken);
+            storage.put(buildKey(userId, deviceId), hashToken(refreshToken));
         }
 
         @Override
         public Optional<String> findByUserIdAndDeviceId(Long userId, String deviceId) {
             return Optional.ofNullable(storage.get(buildKey(userId, deviceId)));
+        }
+
+        @Override
+        public boolean rotateIfMatch(Long userId, String deviceId, String expectedRefreshToken, String newRefreshToken, Duration ttl) {
+            String key = buildKey(userId, deviceId);
+            String current = storage.get(key);
+            if (!hashToken(expectedRefreshToken).equals(current)) {
+                return false;
+            }
+            storage.put(key, hashToken(newRefreshToken));
+            return true;
         }
 
         @Override
@@ -161,6 +175,20 @@ class LoginServiceTest {
 
         private String buildKey(Long userId, String deviceId) {
             return userId + ":" + deviceId;
+        }
+    }
+
+    private static String hashToken(String refreshToken) {
+        try {
+            MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
+            byte[] hashed = messageDigest.digest(refreshToken.getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder(hashed.length * 2);
+            for (byte value : hashed) {
+                builder.append(String.format("%02x", value));
+            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(exception);
         }
     }
 }

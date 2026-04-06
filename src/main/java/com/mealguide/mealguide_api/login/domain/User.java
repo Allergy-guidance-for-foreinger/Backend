@@ -53,7 +53,7 @@ public class User extends BaseEntity {
     private LocalDateTime deletedAt;
 
     public boolean isDeleted() {
-        return deletedAt != null;
+        return status == UserStatus.INACTIVE;
     }
 
     public static User createForFirstGoogleLogin(String email, String name) {

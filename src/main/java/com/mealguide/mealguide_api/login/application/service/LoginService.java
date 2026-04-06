@@ -48,20 +48,34 @@ public class LoginService {
         return issueTokens(AuthenticatedUser.from(user, deviceId));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthTokenResult refresh(String refreshToken) {
         TokenClaims tokenClaims = tokenProviderPort.parseRefreshToken(refreshToken);
-        String storedRefreshToken = refreshTokenPort.findByUserIdAndDeviceId(tokenClaims.userId(), tokenClaims.deviceId())
-                .orElseThrow(() -> new ServiceException(ErrorCode.REFRESH_TOKEN_INVALID));
+        User user = userQueryPort.findById(tokenClaims.userId())
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+        AuthenticatedUser authenticatedUser = AuthenticatedUser.from(user, tokenClaims.deviceId());
+        String newAccessToken = tokenProviderPort.generateAccessToken(authenticatedUser);
+        String newRefreshToken = tokenProviderPort.generateRefreshToken(authenticatedUser);
+        long refreshTokenTtl = tokenProviderPort.getRefreshTokenExpirationSeconds();
 
-        if (!storedRefreshToken.equals(refreshToken)) {
+        boolean rotated = refreshTokenPort.rotateIfMatch(
+                tokenClaims.userId(),
+                tokenClaims.deviceId(),
+                refreshToken,
+                newRefreshToken,
+                Duration.ofSeconds(refreshTokenTtl)
+        );
+
+        if (!rotated) {
             throw new ServiceException(ErrorCode.REFRESH_TOKEN_INVALID);
         }
 
-        User user = userQueryPort.findById(tokenClaims.userId())
-                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
-
-        return issueTokens(AuthenticatedUser.from(user, tokenClaims.deviceId()));
+        return new AuthTokenResult(
+                newAccessToken,
+                newRefreshToken,
+                tokenProviderPort.getAccessTokenExpirationSeconds(),
+                refreshTokenTtl
+        );
     }
 
     public void logout(Long authenticatedUserId, String refreshToken) {

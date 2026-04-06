@@ -849,6 +849,113 @@ This document records implementation history and follow-up context.
 ## 2026-04-06
 
 ### Task
+- Remove the refresh-token rotation race condition by introducing an atomic Redis rotation operation.
+
+### Affected Layers
+- `global.auth.port`
+- `global.auth.redis`
+- `login.application.service`
+- `login` tests
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/global/auth/port/RefreshTokenPort.java`
+- `src/main/java/com/mealguide/mealguide_api/global/auth/redis/RedisRefreshTokenAdapter.java`
+- `src/main/java/com/mealguide/mealguide_api/login/application/service/LoginService.java`
+- `src/test/java/com/mealguide/mealguide_api/login/application/service/LoginServiceTest.java`
+- `docs/work-context.md`
+
+### Why
+- The previous refresh flow used separate read, compare, and save steps.
+- Concurrent refresh requests using the same refresh token could both pass validation and each receive a new token pair.
+
+### DB Impact
+- Schema changed by this task: No
+
+### API Impact
+- External API contract changed: No
+- Internal refresh-token rotation semantics changed to atomic compare-and-set.
+
+### Implementation Notes
+- Added `rotateIfMatch(...)` to `RefreshTokenPort`.
+- Implemented the Redis operation with a single Lua script that performs compare-and-set plus TTL update atomically.
+- Changed `LoginService.refresh()` to rely on the atomic rotation result instead of separate `findByUserIdAndDeviceId()` and `save()` calls.
+- Updated the in-memory test double to match the new port contract.
+
+### Remaining Issues
+- Full runtime verification is still pending because Maven is not available in the current environment.
+
+---
+
+## 2026-04-06
+
+### Task
+- Stop storing raw refresh token values in Redis and store only token hashes.
+
+### Affected Layers
+- `global.auth.redis`
+- `login` tests
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/global/auth/redis/RedisRefreshTokenAdapter.java`
+- `src/test/java/com/mealguide/mealguide_api/login/application/service/LoginServiceTest.java`
+- `docs/work-context.md`
+
+### Why
+- Storing raw refresh tokens in Redis makes session theft possible if Redis read access is exposed.
+- Refresh token persistence should keep only a derived hash value, and submitted tokens should be hashed again before comparison.
+
+### DB Impact
+- Schema changed by this task: No
+
+### API Impact
+- External API contract changed: No
+- Internal Redis persistence now stores only SHA-256 hashes of refresh tokens.
+
+### Implementation Notes
+- `RedisRefreshTokenAdapter` now hashes refresh token values before save.
+- Atomic rotation also hashes both the expected token and the new token before compare-and-set.
+- Login service tests were updated so the in-memory adapter mirrors the same hashed-storage semantics.
+
+### Remaining Issues
+- The current implementation uses unsalted SHA-256 because comparison must remain deterministic for rotation. If stronger protection is needed later, an HMAC-based keyed hash using a server secret would be preferable.
+
+---
+
+## 2026-04-06
+
+### Task
+- Fix `RestClientConfig` bean creation failure caused by an unavailable `Jackson2ObjectMapperBuilder`.
+
+### Affected Layers
+- `global.config.base`
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/global/config/base/RestClientConfig.java`
+- `docs/work-context.md`
+
+### Why
+- The current configuration required `Jackson2ObjectMapperBuilder` injection, but that builder bean was not available in the running context.
+- The auth/security infrastructure still needs a shared `ObjectMapper` and `RestClient.Builder` without depending on extra auto-configured beans.
+
+### DB Impact
+- Schema changed by this task: No
+
+### API Impact
+- External API contract changed: No
+
+### Implementation Notes
+- Removed the custom `ObjectMapper` bean from `RestClientConfig`.
+- The application now relies on Spring Boot's default Jackson `ObjectMapper` bean instead of overriding it in user configuration.
+- `RestClient.Builder` registration remains unchanged.
+
+---
+
+## 2026-04-06
+
+### Task
 - Remove the Swagger-based auth debug testing APIs and keep only the HTML-based test flow.
 
 ### Affected Layers
