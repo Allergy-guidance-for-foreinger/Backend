@@ -45,7 +45,10 @@ public enum ErrorCode {
     DUPLICATE_BOJ_ID(CONFLICT, "USER_013", "이미 등록된 BOJ 아이디입니다."),
     DUPLICATE_STUDENT_ID(CONFLICT, "USER_014", "이미 등록된 학번입니다."),
     DUPLICATE_PHONE_NUMBER(CONFLICT, "USER_015", "이미 등록된 전화번호입니다."),
-    INVALID_USER_GRADE(HttpStatus.BAD_REQUEST, "USER_016", "학년 입력값이 올바르지 않습니다.");
+    INVALID_USER_GRADE(HttpStatus.BAD_REQUEST, "USER_016", "학년 입력값이 올바르지 않습니다."),
+    INVALID_LANGUAGE_CODE(BAD_REQUEST, "USER_017", "언어 코드가 올바르지 않습니다."),
+    INVALID_ALLERGY_CODE(BAD_REQUEST, "USER_018", "알레르기 코드가 올바르지 않습니다."),
+    INVALID_RELIGIOUS_CODE(BAD_REQUEST, "USER_019", "종교적 식이 제한 코드가 올바르지 않습니다.");
 
     private final HttpStatus status;
     private final String code;

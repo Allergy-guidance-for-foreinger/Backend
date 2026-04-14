@@ -10,6 +10,593 @@ This document records implementation history and follow-up context.
 
 ---
 
+## 2026-04-14
+
+### Task
+- Remove UTF-8 BOM from `SettingsApi` to fix Java compile failure (`illegal character: '\\ufeff'`).
+
+### Affected Layers
+- `settings.presentation.swagger`
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
+- `docs/work-context.md`
+
+### Why
+- `SettingsApi.java` was saved with BOM, causing IntelliJ/Javac parse errors before `package` declaration.
+
+### DB Impact
+- Schema changed by this task: No
+
+### API Impact
+- Endpoint paths/contracts changed: No
+- Compile issue only; Swagger text remains Korean.
+
+### Tests
+- No logic change. Build/test execution was not run in this shell.
+
+### Documentation Updates
+- Updated `docs/work-context.md`.
+
+### Task
+- Fix broken text encoding in `SettingsApi` Swagger descriptions.
+
+### Affected Layers
+- `settings.presentation.swagger`
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
+- `docs/work-context.md`
+
+### Why
+- Swagger Korean texts in `SettingsApi` were broken due file encoding corruption.
+
+### DB Impact
+- Schema changed by this task: No
+
+### API Impact
+- Endpoint paths and contracts changed: No
+- Swagger summary/description texts are restored in readable Korean.
+
+### Tests
+- No runtime logic change; no additional test execution was run.
+
+### Documentation Updates
+- Updated `docs/work-context.md`.
+
+### Task
+- Split settings option-list endpoints into a dedicated controller.
+
+### Affected Layers
+- `settings.presentation.controller`
+- `settings.presentation.swagger`
+- `settings` tests
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/UserSettingsController.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsController.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsOptionsApi.java`
+- `src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerTest.java`
+- `docs/work-context.md`
+
+### Why
+- The option-list lookup endpoints should be managed separately from personal settings read/update endpoints for clearer controller responsibilities.
+
+### DB Impact
+- Schema changed by this task: No
+
+### API Impact
+- Endpoint paths/response contracts changed: No
+- Controller ownership changed:
+  - `UserSettingsController`: personal settings 조회/변경
+  - `SettingsOptionsController`: 전체 선택지 조회
+
+### Tests
+- Updated option-list controller test target to `SettingsOptionsController`.
+- Local Maven test execution remains blocked by wrapper/runtime issue in current environment.
+
+### Documentation Updates
+- Updated `docs/work-context.md`.
+
+### Task
+- Convert settings Swagger operation texts from English to Korean.
+
+### Affected Layers
+- `settings.presentation.swagger`
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
+- `docs/work-context.md`
+
+### Why
+- Swagger UI operation summary/description text should be provided in Korean for the current project usage context.
+
+### DB Impact
+- Schema changed by this task: No
+
+### API Impact
+- Endpoint paths and request/response contracts changed: No
+- Swagger summary/description and success description texts are now Korean.
+
+### Tests
+- No runtime logic change. Additional test execution was not run in this environment.
+
+### Documentation Updates
+- Updated `docs/work-context.md`.
+
+### Task
+- Add settings option-list APIs for language, allergy, and religion selection screens.
+
+### Affected Layers
+- `settings.presentation.controller`
+- `settings.presentation.dto.response`
+- `settings.presentation.swagger`
+- `settings.application.service` (reused)
+- `settings` tests
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/UserSettingsController.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/LanguageOptionItemResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/LanguageOptionsResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/AllergyOptionItemResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/AllergyOptionsResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/ReligionOptionItemResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/ReligionOptionsResponse.java`
+- `src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/UserSettingsControllerTest.java`
+- `docs/work-context.md`
+
+### Why
+- The settings screen needs full selectable option lists and separate highlighting of user-selected values.
+- Allergy and religion labels must be localized using the authenticated user's current language setting.
+
+### DB Impact
+- Schema changed by this task: No
+- Existing tables/translation queries are reused through current settings services and ports.
+
+### API Impact
+- Added authenticated endpoints:
+  - `GET /api/v1/settings/options/languages`
+  - `GET /api/v1/settings/options/allergies`
+  - `GET /api/v1/settings/options/religions`
+- Response behavior:
+  - language options: full list with `code`, `name`, `englishName`
+  - allergy options: full list with `code`, `name` localized by user language
+  - religion options: full list with `code`, `name` localized by user language
+- Existing personal settings endpoints remain code-only and unchanged.
+
+### Tests
+- Added `UserSettingsControllerTest` for option-list endpoint mapping and user-language propagation.
+- Maven wrapper execution is still blocked in current shell environment, so local test run was not completed.
+
+### Documentation Updates
+- Updated `docs/work-context.md`.
+
+### Task
+- Revert individual personal settings GET responses back to code-only output.
+
+### Affected Layers
+- `settings.presentation.controller`
+- `settings.presentation.swagger`
+- `settings.presentation.dto.response`
+- `settings.application.service`
+- `settings.domain`
+- `settings` tests
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceService.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/UserSettingsController.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
+- `src/test/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceServiceTest.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/domain/UserLanguagePreference.java` (deleted)
+- `src/main/java/com/mealguide/mealguide_api/settings/domain/UserAllergyPreference.java` (deleted)
+- `src/main/java/com/mealguide/mealguide_api/settings/domain/UserReligionPreference.java` (deleted)
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/LanguagePreferenceResponse.java` (deleted)
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/AllergyPreferenceItemResponse.java` (deleted)
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/AllergyPreferenceResponse.java` (deleted)
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/ReligionPreferenceResponse.java` (deleted)
+- `docs/work-context.md`
+
+### Why
+- The requested product direction is that user personal setting GET APIs should return only stored code values.
+
+### DB Impact
+- Schema changed by this task: No
+
+### API Impact
+- Reverted GET response shape to code-only:
+  - `GET /api/v1/settings/language` -> `languageCode`
+  - `GET /api/v1/settings/allergies` -> `allergyCodes`
+  - `GET /api/v1/settings/religion` -> `religiousCode`
+- Update endpoint contracts remain unchanged.
+
+### Tests
+- Updated `UserPreferenceServiceTest` expectations back to code-only results.
+- Maven wrapper test execution is still blocked in current shell environment.
+
+### Documentation Updates
+- Updated `docs/work-context.md`.
+
+### Task
+- Extend individual settings GET responses to return both code and user-language display name for language, allergy, and religion.
+
+### Affected Layers
+- `settings.presentation.controller`
+- `settings.presentation.dto.response`
+- `settings.presentation.swagger`
+- `settings.application.service`
+- `settings.domain`
+- `settings` tests
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceService.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/domain/UserLanguagePreference.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/domain/UserAllergyPreference.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/domain/UserReligionPreference.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/UserSettingsController.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/LanguagePreferenceResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/AllergyPreferenceItemResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/AllergyPreferenceResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/ReligionPreferenceResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
+- `src/test/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceServiceTest.java`
+- `docs/work-context.md`
+
+### Why
+- The client requested usable display names alongside stored codes for personal settings GET APIs.
+- Display names need to follow the authenticated user's language preference rather than returning code-only values.
+
+### DB Impact
+- Schema changed by this task: No
+- Existing master/translation tables are reused through current query ports.
+
+### API Impact
+- `GET /api/v1/settings/language` now returns `languageCode` and `languageName`.
+- `GET /api/v1/settings/allergies` now returns `allergies` list with `allergyCode` and `allergyName`.
+- `GET /api/v1/settings/religion` now returns `religiousCode` and `religiousName`.
+- Update endpoints (`PATCH/PUT`) response contracts remain unchanged.
+
+### Implementation Notes
+- Added GET-only preference response DTOs so update response DTOs stay intact.
+- `UserPreferenceService` now resolves names using:
+  - language master (`language.name` / `language.english_name`)
+  - allergy/religion translated option queries with fallback behavior from existing adapters
+- Allergy GET response preserves user allergy code ordering and maps each code to its localized display name.
+
+### Tests
+- Updated `UserPreferenceServiceTest` expectations for new GET return models.
+- Local test command failed because Maven wrapper execution is broken in the current shell (`Cannot start maven from wrapper`).
+
+### Documentation Updates
+- Updated `docs/work-context.md`.
+
+### Remaining Issues
+- Re-run tests after Maven wrapper/runtime is fixed in the local environment.
+
+### Task
+- Make individual settings lookup operations explicitly bearer-token protected in Swagger.
+
+### Affected Layers
+- `settings.presentation.swagger`
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
+- `docs/work-context.md`
+
+### Why
+- Settings update endpoints succeeded with an access token, but individual settings GET execution from Swagger returned an authentication failure.
+- The controller already requires `USER`, `MANAGER`, or `ADMIN` by `@PreAuthorize`, so the fix keeps security on the controller and makes the Swagger operations explicitly require the `Access Token` security scheme.
+
+### DB Impact
+- Schema changed by this task: No
+
+### API Impact
+- Endpoint paths and response bodies changed: No
+- Swagger now marks the individual settings lookup API group as requiring `Access Token`.
+
+### Tests
+- Full Maven verification remains blocked by the current Maven wrapper/runtime issue.
+
+### Documentation Updates
+- Updated `docs/work-context.md`.
+
+### Remaining Issues
+- Restart the running Spring application and refresh Swagger UI before retesting so the OpenAPI document is regenerated.
+
+---
+
+## 2026-04-14
+
+### Task
+- Replace all-in-one settings lookup with individual personal setting lookup endpoints.
+
+### Affected Layers
+- `settings.presentation.controller`
+- `settings.presentation.swagger`
+- `settings.application.service`
+- `settings.domain`
+- `settings` tests
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsController.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceService.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/domain/UserSettings.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/UserSettingsResponse.java`
+- `src/test/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceServiceTest.java`
+- `docs/work-context.md`
+
+### Why
+- The client will hardcode mostly fixed language, religion, and allergy option lists.
+- The backend settings API should focus on the authenticated user's saved personal setting values, not master option lookup.
+- All-in-one `getMySettings` was broader than needed when individual setting lookup is preferred.
+
+### DB Impact
+- Schema changed by this task: No
+- Existing personal setting tables and columns are still used:
+  - `users.language_code`
+  - `users.religious_code`
+  - `user_allergy`
+
+### API Impact
+- Removed the all-in-one personal settings lookup endpoint:
+  - `GET /api/v1/settings`
+- Removed settings master lookup controller endpoints:
+  - `GET /api/v1/settings/languages`
+  - `GET /api/v1/settings/allergies?lang={langCode}`
+  - `GET /api/v1/settings/religions?lang={langCode}`
+- Added authenticated individual personal setting lookup endpoints:
+  - `GET /api/v1/settings/language`
+  - `GET /api/v1/settings/allergies`
+  - `GET /api/v1/settings/religion`
+- Existing update endpoints remain unchanged:
+  - `PATCH /api/v1/users/me/language`
+  - `PUT /api/v1/users/me/allergies`
+  - `PATCH /api/v1/users/me/religion`
+
+### Implementation Notes
+- `SettingsController` now exposes only personal setting lookup endpoints.
+- Removed the temporary `UserSettings` aggregate response and DTO.
+- `UserPreferenceService` now has separate read methods for language, allergies, and religion.
+- Master lookup persistence remains available internally because update validation still needs to verify submitted codes.
+
+### Tests
+- Replaced the all-in-one settings lookup test with individual language, allergy, and religion lookup tests.
+- Full Maven verification remains blocked by the current Maven wrapper/runtime issue.
+
+### Documentation Updates
+- Updated `docs/work-context.md`.
+
+### Remaining Issues
+- Re-run Maven tests once Maven wrapper execution is fixed or a local Maven install is available.
+
+---
+
+## 2026-04-14
+
+### Task
+- Add personal settings lookup to `SettingsController`.
+
+### Affected Layers
+- `settings.presentation.controller`
+- `settings.presentation.dto.response`
+- `settings.presentation.swagger`
+- `settings.application.service`
+- `settings.application.port`
+- `settings.domain`
+- `settings.infrastructure.persistence`
+- `settings` tests
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsController.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/UserSettingsResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceService.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/application/port/UserPreferencePort.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/domain/UserSettings.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/adapter/UserPreferencePersistenceAdapter.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/repository/UserAllergyJpaRepository.java`
+- `src/test/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceServiceTest.java`
+- `docs/work-context.md`
+
+### Why
+- The settings screen needs to read the authenticated user's currently saved language, allergy, and religious restriction selections.
+- The endpoint should stay under the settings feature while keeping the controller thin.
+
+### DB Impact
+- Schema changed by this task: No
+- New read access uses existing tables:
+  - `users`
+  - `user_allergy`
+  - `allergy`
+
+### API Impact
+- Added authenticated endpoint:
+  - `GET /api/v1/settings`
+- Response fields:
+  - `languageCode`
+  - `allergyCodes`
+  - `religiousCode`
+- `allergyCodes` are returned in allergy `display_order` order.
+
+### Implementation Notes
+- `SettingsController` delegates personal settings lookup to `UserPreferenceService`.
+- `UserPreferenceService.getSettings` validates the current active user and reads selected allergy codes through `UserPreferencePort`.
+- Added `UserSettings` domain record and `UserSettingsResponse` DTO.
+- Updated `SettingsApi` Swagger declarations and removed no-auth Swagger markers from settings endpoints because settings now require user-level access.
+
+### Tests
+- Added a focused `UserPreferenceServiceTest` case for personal settings lookup.
+- Full Maven verification remains blocked by the current Maven wrapper/runtime issue.
+
+### Documentation Updates
+- Updated `docs/work-context.md`.
+
+### Remaining Issues
+- Re-run Maven tests once Maven wrapper execution is fixed or a local Maven install is available.
+
+---
+
+## 2026-04-14
+
+### Task
+- Align the login `User` domain entity with the current `users` table structure.
+
+### Affected Layers
+- `login.domain`
+- `login` tests
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/login/domain/User.java`
+- `src/test/java/com/mealguide/mealguide_api/login/domain/UserTest.java`
+- `docs/work-context.md`
+
+### Why
+- `docs/schema.sql` defines `users.language_code` and `users.onboarding_completed`, but the login `User` entity did not map those columns.
+- First-login user creation should explicitly match the current schema defaults and nullable preference fields.
+
+### DB Impact
+- Schema changed by this task: No
+- Code was aligned to the already documented `users` schema.
+
+### API Impact
+- External API contract changed: No
+
+### Implementation Notes
+- Added `languageCode` mapped to `users.language_code`.
+- Added `onboardingCompleted` mapped to `users.onboarding_completed`.
+- First Google-login user creation now sets:
+  - `languageCode = null`
+  - `religiousCode = null`
+  - `onboardingCompleted = false`
+
+### Tests
+- Added a domain test for first-login `User` default values.
+- Full Maven test execution remains blocked by unavailable dependencies/network in this environment.
+
+### Documentation Updates
+- Updated `docs/work-context.md`.
+
+### Remaining Issues
+- Re-run Maven tests once dependencies are available.
+
+---
+
+## 2026-04-14
+
+### Task
+- Implement onboarding school lookup API.
+- Implement settings master lookup APIs for languages, allergies, and religious food restrictions.
+- Implement authenticated user personal settings update APIs for language, allergies, and religion.
+- Group new code by feature package (`onboarding.*`, `settings.*`) with internal presentation/application/domain/infrastructure layers.
+
+### Affected Layers
+- `onboarding.presentation`
+- `onboarding.application`
+- `onboarding.domain`
+- `onboarding.infrastructure.persistence`
+- `settings.presentation`
+- `settings.application`
+- `settings.domain`
+- `settings.infrastructure.persistence`
+- `global.config.security`
+- `global.base.exception`
+- documentation
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/onboarding/**`
+- `src/main/java/com/mealguide/mealguide_api/settings/**`
+- `src/main/java/com/mealguide/mealguide_api/global/base/exception/ErrorCode.java`
+- `src/main/java/com/mealguide/mealguide_api/global/config/security/SecurityConfig.java`
+- `src/test/java/com/mealguide/mealguide_api/onboarding/**`
+- `src/test/java/com/mealguide/mealguide_api/settings/**`
+- `AGENTS.md`
+- `docs/project-context.md`
+- `docs/database-context.md`
+- `docs/schema.sql`
+- `docs/work-context.md`
+
+### Why
+- The mobile onboarding page needs a selectable school list with language-specific display names.
+- The personal settings page needs selectable language, allergy, and religion master data.
+- Authenticated users need APIs to update stored language preference, replace allergy selections, and update or clear religious food restriction settings.
+- The latest package convention is feature grouping with each feature containing its own controller/service/port/domain/persistence packages.
+
+### DB Impact
+- Runtime schema redesign: No
+- Schema reference corrected: Yes
+- Corrected `docs/schema.sql` so string code primary keys such as `language.code`, `allergy.code`, `ingredient.code`, and `religious_food_restriction.code` are plain `VARCHAR` primary keys instead of identity columns.
+- Corrected numeric identity columns to PostgreSQL `GENERATED BY DEFAULT AS IDENTITY` syntax.
+- Referenced tables:
+  - `language`
+  - `school`
+  - `school_translation`
+  - `users`
+  - `allergy`
+  - `allergy_translation`
+  - `user_allergy`
+  - `religious_food_restriction`
+  - `religious_food_restriction_translation`
+
+### API Impact
+- Added public lookup endpoints:
+  - `GET /api/v1/onboarding/schools?lang={langCode}`
+  - `GET /api/v1/settings/languages`
+  - `GET /api/v1/settings/allergies?lang={langCode}`
+  - `GET /api/v1/settings/religions?lang={langCode}`
+- Added authenticated settings update endpoints:
+  - `PATCH /api/v1/users/me/language`
+  - `PUT /api/v1/users/me/allergies`
+  - `PATCH /api/v1/users/me/religion`
+- School, allergy, and religion lookups use translation rows when available and fall back to base names.
+- Allergy update is a full replacement and removes duplicate request codes while preserving first-seen order.
+- Religion update accepts `null` and clears `users.religious_code`.
+
+### Implementation Notes
+- Controllers remain thin and delegate to application services.
+- Application services validate blank input, unknown language codes, unknown allergy codes, unknown religious codes, and missing authenticated users.
+- Persistence is accessed through feature application ports implemented by feature persistence adapters.
+- `settings.domain.UserPreference` maps the settings-related columns of `users` and provides explicit update methods for language and religion.
+- Public GET lookup routes were added to the Spring Security whitelist; `/api/v1/users/me/**` remains authenticated.
+
+### Tests
+- Added focused service tests for:
+  - onboarding school response values including fallback-shaped results
+  - language lookup mapping
+  - allergy lookup mapping
+  - religion lookup mapping
+  - language update success
+  - language update invalid code failure
+  - allergy replacement success and duplicate handling
+  - allergy replacement invalid code failure
+  - religion update success
+  - religion invalid code failure
+  - religion clear success
+- `mvn test` could not be completed because Maven is not installed on PATH and the Maven wrapper could not resolve Spring Boot `4.0.5` without network access. The user declined the escalated network-enabled Maven run.
+
+### Documentation Updates
+- Updated `AGENTS.md` with feature package structure rules.
+- Updated `docs/project-context.md` with `onboarding` and `settings` feature package conventions.
+- Updated `docs/database-context.md` with language, user preference, translation, and user allergy table semantics.
+- Updated `docs/schema.sql` to correct documented PostgreSQL identity syntax and code primary key definitions.
+- Updated `docs/work-context.md`.
+
+### Remaining Issues
+- Re-run `mvn test` in an environment with Maven dependencies available.
+- Existing `docs/schema.sql` seed data still contains mojibake text from prior encoding issues; this task only corrected schema definitions related to the implemented APIs.
+
 ## 2026-04-06
 
 ### Task
@@ -1156,3 +1743,56 @@ This document records implementation history and follow-up context.
 - Deleted the debug login service, controller, request DTO, and Swagger interface.
 - Removed the debug login and refresh routes from the security whitelist.
 - Updated project context so `authdebug.*` now describes only local/dev support code for the HTML test page.
+
+---
+
+## 2026-04-14
+
+### Task
+- Restrict settings-related APIs to authenticated users with `USER` level or higher.
+
+### Affected Layers
+- `settings.presentation.controller`
+- `global.auth.security`
+- `global.config.security`
+- `login.application.port`
+- `login.infrastructure.persistence`
+- `docs/work-context.md`
+
+### Changed Files
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsController.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/UserPreferenceController.java`
+- `src/main/java/com/mealguide/mealguide_api/global/auth/security/AuthenticatedUserPrincipal.java`
+- `src/main/java/com/mealguide/mealguide_api/global/auth/security/JwtAuthenticationFilter.java`
+- `src/main/java/com/mealguide/mealguide_api/global/config/security/SecurityConfig.java`
+- `src/main/java/com/mealguide/mealguide_api/login/application/port/UserQueryPort.java`
+- `src/main/java/com/mealguide/mealguide_api/login/infrastructure/persistence/adapter/UserPersistenceAdapter.java`
+- `src/main/java/com/mealguide/mealguide_api/login/infrastructure/persistence/repository/UserJpaRepository.java`
+- `src/test/java/com/mealguide/mealguide_api/login/infrastructure/security/JwtAuthenticationFilterTest.java`
+- `docs/work-context.md`
+
+### Why
+- Settings master lookup and user preference update APIs should not be public.
+- `hasRole`/`hasAnyRole` checks require the authenticated principal to carry Spring Security authorities.
+
+### DB Impact
+- Schema changed by this task: No
+- Runtime DB access changed: Yes. JWT authentication now reads the active user's `role` from `users` to create `ROLE_USER`, `ROLE_MANAGER`, or `ROLE_ADMIN`.
+
+### API Impact
+- External response contract changed: No
+- Access policy changed:
+  - `/api/v1/settings/**` now requires `USER`, `MANAGER`, or `ADMIN`.
+  - `/api/v1/users/me/**` now requires `USER`, `MANAGER`, or `ADMIN`.
+  - `/api/v1/onboarding/schools` remains public.
+
+### Implementation Notes
+- Added a `UserQueryPort.findActiveRoleById` query method and adapter implementation.
+- Updated `JwtAuthenticationFilter` to reject missing/inactive users while also loading the active role.
+- Updated `AuthenticatedUserPrincipal` to support role-backed authorities without changing the old empty-authority factory method.
+- Removed settings master lookup endpoints from the public GET whitelist.
+- Added `@PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")` on the settings controllers instead of adding role-specific route matchers in `SecurityConfig`.
+- Added a JWT filter test assertion that a valid user token receives `ROLE_USER`.
+
+### Remaining Issues
+- Maven verification is still blocked in the current shell because `mvn` is not available and wrapper dependency resolution requires network access.

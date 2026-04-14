@@ -34,42 +34,42 @@ Do not skip the reading step.
 
 ## 3. Project Structure Rules
 
-The project package structure is fixed as follows:
+The project uses feature packages for feature-specific code. Each feature package should keep the same internal layer structure:
 
 ```text
-presentation
-- controller
-- dto
-  - request
-  - response
-- swagger
-
-application
-- service
-- port
-
-domain
-
-infrastructure
-- persistence
-  - repository
-  - adapter
+{feature}
+- presentation
+  - controller
+  - dto
+    - request
+    - response
+  - swagger
+- application
+  - service
+  - port
+- domain
+- infrastructure
+  - persistence
+    - repository
+    - adapter
 ```
 Follow these rules:
 
-Put HTTP endpoints in presentation.controller.
-Put request DTOs in presentation.dto.request.
-Put response DTOs in presentation.dto.response.
-Put Swagger/OpenAPI config in presentation.swagger.
-Put use-case orchestration logic in application.service.
-Put repository access abstractions in application.port.
-Put core domain models and business concepts in domain.
-Put persistence implementations in infrastructure.persistence.
-Put Spring Data repositories in infrastructure.persistence.repository.
-Put implementations of application ports in infrastructure.persistence.adapter.
+Put HTTP endpoints in `{feature}.presentation.controller`.
+Put request DTOs in `{feature}.presentation.dto.request`.
+Put response DTOs in `{feature}.presentation.dto.response`.
+Put Swagger/OpenAPI config in `{feature}.presentation.swagger`.
+Put use-case orchestration logic in `{feature}.application.service`.
+Put repository access abstractions in `{feature}.application.port`.
+Put core domain models and business concepts in `{feature}.domain`.
+Put persistence implementations in `{feature}.infrastructure.persistence`.
+Put Spring Data repositories in `{feature}.infrastructure.persistence.repository`.
+Put implementations of application ports in `{feature}.infrastructure.persistence.adapter`.
 
 Do not arbitrarily move classes across layers.
 Do not introduce a different architecture unless the user explicitly requests it.
+
+Current feature packages include `login`, `onboarding`, and `settings`.
 
 Shared authentication infrastructure that is reused across features should live under `global.auth`.
 Feature-specific login logic should remain under the feature package.
@@ -80,8 +80,8 @@ Feature-specific login logic should remain under the feature package.
    - Do not place business logic in controllers.
    - Do not return entities directly from controllers.
    - Keep request DTO and response DTO separated.
-   - Use application services to coordinate use cases.
-   - Use application ports to abstract access to persistence or external dependencies.
+- Use feature application services to coordinate use cases.
+- Use feature application ports to abstract access to persistence or external dependencies.
    - Keep persistence-specific details inside the infrastructure layer.
    - Preserve the current package structure and naming style.
    - Prefer minimal changes over broad restructuring.

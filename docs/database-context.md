@@ -40,6 +40,8 @@ If this document and `docs/schema.sql` differ, follow `docs/schema.sql`.
   - `school_id` nullable
   - `email`
   - `name`
+  - `language_code` nullable, references `language(code)`
+  - `religious_code` nullable, references `religious_food_restriction(code)`
   - `status`
   - `role`
   - `deleted_at`
@@ -68,12 +70,18 @@ If this document and `docs/schema.sql` differ, follow `docs/schema.sql`.
 
 ### `school`, `cafeteria`
 - Store school and cafeteria hierarchy
+- `school_translation` stores language-specific school names and falls back to `school.name` when no requested translation exists
 
-### `ingredient`, `religious_food_restriction`
+### `language`
+- Stores selectable app language master data
+- `language.code` is referenced by `users.language_code` and translation-table `lang_code` columns
+
+### `allergy`, `ingredient`, `religious_food_restriction`
 - Store master data used for dietary checks
 
-### `user_allergy_ingredient`, `user_avoided_ingredient`
+### `user_allergy`, `user_avoided_ingredient`
 - Store per-user dietary risk settings
+- `user_allergy` stores the user's selected allergy master codes as full-replacement settings
 
 ### `meal_schedule`, `menu`, `meal_menu`
 - Store daily cafeteria meal data and menu composition
@@ -85,23 +93,29 @@ If this document and `docs/schema.sql` differ, follow `docs/schema.sql`.
 - Store confirmed ingredient data and admin change history
 
 ### Translation tables
+- `school_translation`
 - `menu_translation`
 - `ingredient_translation`
+- `allergy_translation`
 - `religious_food_restriction_translation`
+- Translation `lang_code` columns reference `language(code)`
 
 ## 5. Business Rules
 - Daily meal data and menu master data are separate concerns.
 - AI analysis data is draft-like and must not be treated the same as confirmed data.
 - User-specific dietary checks should be based on mapped ingredient data, not only menu names.
 - Translation data supplements source data but does not replace the original source-of-truth records.
+- User language preference is stored in `users.language_code`.
+- User allergy settings are replaced as a full set in `user_allergy`.
+- `users.religious_code` can be null when the user has no selected religious food restriction.
 - `users.deleted_at` indicates soft deletion and should be respected by authentication and user lookup flows.
 - `users.status = INACTIVE` is also treated as a soft-deleted or disabled state in ORM-based user queries.
 
 ## 6. DB Access Layer Rule
 Database access must follow the current package structure:
-- `application.port`
-- `infrastructure.persistence.adapter`
-- `infrastructure.persistence.repository`
+- `{feature}.application.port`
+- `{feature}.infrastructure.persistence.adapter`
+- `{feature}.infrastructure.persistence.repository`
 
 Application services should depend on ports, not directly on repository implementation details.
 

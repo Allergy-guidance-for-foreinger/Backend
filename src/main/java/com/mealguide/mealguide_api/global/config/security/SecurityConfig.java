@@ -51,6 +51,7 @@ public class SecurityConfig {
             "/index.html",
             "/auth-test.html",
             "/auth-debug/config",
+            "/api/v1/onboarding/schools",
             "/favicon.ico",
             "/error"
     };
