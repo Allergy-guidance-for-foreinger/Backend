@@ -39,14 +39,14 @@ This document records implementation history and follow-up context.
 ### Documentation Updates
 - Updated `docs/work-context.md`.
 
-### Task
+**Task**
 - Fix broken text encoding in `SettingsApi` Swagger descriptions.
 
-### Affected Layers
+**Affected Layers**
 - `settings.presentation.swagger`
 - `docs/work-context.md`
 
-### Changed Files
+**Changed Files**
 - `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
 - `docs/work-context.md`
 

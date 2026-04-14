@@ -411,7 +411,7 @@ CREATE INDEX idx_meal_schedule_crawl_history_started_at
 
 INSERT INTO language (code, name, english_name) VALUES
 ('ko', '한국어', 'Korean'),
-('en', '영어', 'English'),
+('en', '영어', 'English');
 
 -- =========================================================
 -- 1. religious_food_restriction
