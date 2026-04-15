@@ -38,6 +38,9 @@ public class User extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @Column(name = "language_code", length = 10)
+    private String languageCode;
+
     @Column(name = "religious_code", length = 30)
     private String religiousCode;
 
@@ -48,6 +51,9 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private UserRole role;
+
+    @Column(name = "onboarding_completed", nullable = false)
+    private boolean onboardingCompleted;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
@@ -61,9 +67,11 @@ public class User extends BaseEntity {
         user.schoolId = null;
         user.email = email;
         user.name = (name == null || name.isBlank()) ? email : name;
+        user.languageCode = null;
         user.religiousCode = null;
         user.status = UserStatus.ACTIVE;
         user.role = UserRole.defaultRole();
+        user.onboardingCompleted = false;
         user.deletedAt = null;
         return user;
     }

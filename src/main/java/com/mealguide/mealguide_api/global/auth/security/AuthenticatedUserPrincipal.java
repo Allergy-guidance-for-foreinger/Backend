@@ -40,6 +40,17 @@ public record AuthenticatedUserPrincipal(
         );
     }
 
+    public static AuthenticatedUserPrincipal authenticated(Long userId, String deviceId, UserRole role) {
+        return new AuthenticatedUserPrincipal(
+                userId,
+                null,
+                null,
+                role,
+                deviceId,
+                List.of(new SimpleGrantedAuthority(toAuthority(role)))
+        );
+    }
+
     private static String toAuthority(UserRole role) {
         if (role == null) {
             return "ROLE_USER";

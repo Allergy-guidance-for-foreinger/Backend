@@ -34,27 +34,21 @@ Main goals:
 ## 4. Package Structure
 
 ```text
-presentation
-- controller
-- dto
-  - request
-  - response
-- swagger
-
-application
-- service
-- port
-
-domain
-
-infrastructure
-- persistence
-  - repository
-  - adapter
-- security
-- redis
-- jwt
-- config
+{feature}
+- presentation
+  - controller
+  - dto
+    - request
+    - response
+  - swagger
+- application
+  - service
+  - port
+- domain
+- infrastructure
+  - persistence
+    - repository
+    - adapter
 
 global
 - auth
@@ -83,28 +77,55 @@ authdebug
 - presentation
   - controller
   - dto
+
+onboarding
+- presentation
+  - controller
+  - dto.response
+  - swagger
+- application
+  - service
+  - port
+- domain
+- infrastructure.persistence
+  - repository
+  - adapter
+
+settings
+- presentation
+  - controller
+  - dto.request
+  - dto.response
+  - swagger
+- application
+  - service
+  - port
+- domain
+- infrastructure.persistence
+  - repository
+  - adapter
 ```
 
 ### Package Roles
 
 #### presentation
-- `controller`: HTTP endpoint entry points
-- `dto/request`: request DTOs
-- `dto/response`: response DTOs
-- `swagger`: endpoint documentation helpers
+- feature `presentation.controller`: HTTP endpoint entry points
+- feature `presentation.dto.request`: request DTOs
+- feature `presentation.dto.response`: response DTOs
+- feature `presentation.swagger`: endpoint documentation helpers
 
 #### application
-- `service`: use-case orchestration
-- `port`: abstraction for persistence and external dependencies
+- feature `application.service`: use-case orchestration
+- feature `application.port`: abstraction for persistence and external dependencies
 
 #### domain
-- core entities
-- domain concepts and enums
+- feature domain entities
+- feature domain concepts and enums
 - authentication/session domain records when needed
 
 #### infrastructure
-- `persistence/repository`: Spring Data JPA repositories
-- `persistence/adapter`: implementations of application ports for persistence
+- feature `infrastructure.persistence.repository`: Spring Data JPA repositories
+- feature `infrastructure.persistence.adapter`: implementations of application ports for persistence
 - `security`: Spring Security integration
 - `redis`: Redis-backed adapters
 - `jwt`: JWT generation and parsing
@@ -122,6 +143,14 @@ authdebug
 - the feature keeps Google login use case orchestration, request/response DTOs, Google token verification, and user lookup logic
 - shared global concerns such as `global.base` and common config remain outside the feature package
 
+#### onboarding
+- onboarding-specific APIs and persistence are grouped under the `onboarding` feature package
+- school list lookup uses `onboarding.presentation`, `onboarding.application`, `onboarding.domain`, and `onboarding.infrastructure`
+
+#### settings
+- user personal settings and selectable settings master data are grouped under the `settings` feature package
+- language, allergy, and religious restriction settings use `settings.presentation`, `settings.application`, `settings.domain`, and `settings.infrastructure`
+
 #### authdebug
 - local/dev-only support package for authentication test tooling
 - currently provides config data needed by the static auth test page
@@ -131,11 +160,11 @@ authdebug
 - Business logic does not belong in controllers.
 - Request DTO and response DTO are separated.
 - Entities are not returned directly from controllers.
-- `application.service` coordinates use cases.
-- `application.port` abstracts persistence and infrastructure concerns.
-- Persistence-specific details stay in `infrastructure`.
-- `infrastructure.persistence.adapter` implements `application.port`.
-- `infrastructure.persistence.repository` contains Spring Data JPA repositories.
+- Feature `application.service` coordinates use cases.
+- Feature `application.port` abstracts persistence and infrastructure concerns.
+- Persistence-specific details stay in the feature `infrastructure`.
+- Feature `infrastructure.persistence.adapter` implements feature `application.port`.
+- Feature `infrastructure.persistence.repository` contains Spring Data JPA repositories.
 - For the login feature, user lookup and Google login flow stay under `login.*`.
 - Shared auth infrastructure belongs under `global.auth.*`.
 - Local/dev-only auth test support code belongs under `authdebug.*` and should stay disabled unless explicitly enabled by configuration.
@@ -164,6 +193,7 @@ When exact columns, constraints, indexes, or relationships matter, always follow
 ## 9. Domain Notes
 Key concepts frequently used in the project:
 - user account and preference data
+- selectable language master data
 - cafeteria and meal schedule data
 - menu master and daily meal menu data
 - ingredient master and menu-ingredient relations

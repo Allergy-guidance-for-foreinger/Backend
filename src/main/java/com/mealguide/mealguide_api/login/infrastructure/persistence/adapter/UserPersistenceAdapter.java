@@ -2,6 +2,7 @@ package com.mealguide.mealguide_api.login.infrastructure.persistence.adapter;
 
 import com.mealguide.mealguide_api.login.domain.User;
 import com.mealguide.mealguide_api.login.domain.UserOauthAccount;
+import com.mealguide.mealguide_api.login.domain.UserRole;
 import com.mealguide.mealguide_api.login.domain.UserStatus;
 import com.mealguide.mealguide_api.login.application.port.UserQueryPort;
 import com.mealguide.mealguide_api.login.infrastructure.persistence.repository.UserOauthAccountJpaRepository;
@@ -39,6 +40,11 @@ public class UserPersistenceAdapter implements UserQueryPort {
     @Override
     public Optional<User> findById(Long userId) {
         return userJpaRepository.findByIdAndDeletedAtIsNullAndStatus(userId, ACTIVE_STATUS);
+    }
+
+    @Override
+    public Optional<UserRole> findActiveRoleById(Long userId) {
+        return userJpaRepository.findRoleByIdAndDeletedAtIsNullAndStatus(userId, ACTIVE_STATUS);
     }
 
     @Override

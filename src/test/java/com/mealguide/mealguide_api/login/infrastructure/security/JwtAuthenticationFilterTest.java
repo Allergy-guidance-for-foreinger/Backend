@@ -8,6 +8,7 @@ import com.mealguide.mealguide_api.global.auth.security.JwtAuthenticationFilter;
 import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.login.application.port.UserQueryPort;
+import com.mealguide.mealguide_api.login.domain.UserRole;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.AfterEach;
@@ -17,6 +18,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,7 +46,7 @@ class JwtAuthenticationFilterTest {
 
         when(tokenProviderPort.parseAccessToken("access-token"))
                 .thenReturn(new TokenClaims(1L, null, TokenType.ACCESS));
-        when(userQueryPort.existsActiveById(1L)).thenReturn(true);
+        when(userQueryPort.findActiveRoleById(1L)).thenReturn(Optional.of(UserRole.USER));
 
         jwtAuthenticationFilter.doFilter(request, response, filterChain);
 
@@ -53,6 +55,9 @@ class JwtAuthenticationFilterTest {
                 .isInstanceOf(AuthenticatedUserPrincipal.class);
         assertThat(((AuthenticatedUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).userId())
                 .isEqualTo(1L);
+        assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities())
+                .extracting("authority")
+                .containsExactly("ROLE_USER");
         verify(filterChain).doFilter(request, response);
     }
 
@@ -65,7 +70,7 @@ class JwtAuthenticationFilterTest {
 
         when(tokenProviderPort.parseAccessToken("access-token"))
                 .thenReturn(new TokenClaims(1L, null, TokenType.ACCESS));
-        when(userQueryPort.existsActiveById(1L)).thenReturn(false);
+        when(userQueryPort.findActiveRoleById(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> jwtAuthenticationFilter.doFilter(request, response, filterChain))
                 .isInstanceOf(ServiceException.class)
