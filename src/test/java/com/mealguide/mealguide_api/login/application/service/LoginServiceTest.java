@@ -50,7 +50,7 @@ class LoginServiceTest {
 
     @Test
     void googleLoginSuccessIssuesAccessAndRefreshTokens() {
-        User user = createUser(1L, "user@test.com", UserRole.USER);
+        User user = createUser(1L, "user@test.com", UserRole.USER, true);
         String deviceId = "device-001";
 
         when(googleIdTokenVerifierPort.verify("google-id-token"))
@@ -63,14 +63,14 @@ class LoginServiceTest {
 
         assertThat(result.accessToken()).isEqualTo("access-token");
         assertThat(result.refreshToken()).isEqualTo("refresh-token");
-        assertThat(result.onboardingCompleted()).isFalse();
+        assertThat(result.onboardingCompleted()).isTrue();
         assertThat(refreshTokenPort.findByUserIdAndDeviceId(1L, deviceId)).contains(hashToken("refresh-token"));
     }
 
     @Test
     void googleLoginCreatesUserWhenUserDoesNotExist() {
         String deviceId = "device-001";
-        User createdUser = createUser(2L, "missing@test.com", UserRole.USER);
+        User createdUser = createUser(2L, "missing@test.com", UserRole.USER, false);
 
         when(googleIdTokenVerifierPort.verify("google-id-token"))
                 .thenReturn(new GoogleUserInfo("google-sub", "missing@test.com", "Meal Guide", true));
@@ -89,7 +89,7 @@ class LoginServiceTest {
 
     @Test
     void refreshSuccessRotatesRefreshToken() {
-        User user = createUser(1L, "user@test.com", UserRole.USER);
+        User user = createUser(1L, "user@test.com", UserRole.USER, false);
         String deviceId = "device-001";
         refreshTokenPort.save(1L, deviceId, "old-refresh-token", Duration.ofDays(14));
 
@@ -154,7 +154,7 @@ class LoginServiceTest {
                 .isEqualTo(ErrorCode.USER_NOT_FOUND);
     }
 
-    private User createUser(Long id, String email, UserRole role) {
+    private User createUser(Long id, String email, UserRole role, boolean onboardingCompleted) {
         User user = BeanUtils.instantiateClass(User.class);
         ReflectionTestUtils.setField(user, "id", id);
         ReflectionTestUtils.setField(user, "schoolId", 100L);
@@ -162,6 +162,7 @@ class LoginServiceTest {
         ReflectionTestUtils.setField(user, "name", "Meal Guide");
         ReflectionTestUtils.setField(user, "status", UserStatus.ACTIVE);
         ReflectionTestUtils.setField(user, "role", role);
+        ReflectionTestUtils.setField(user, "onboardingCompleted", onboardingCompleted);
         return user;
     }
 

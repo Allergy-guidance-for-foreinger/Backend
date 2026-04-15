@@ -10,6 +10,125 @@ This document records implementation history and follow-up context.
 
 ---
 
+## 2026-04-15 (7)
+
+**Task**
+- Convert onboarding Swagger texts to Korean.
+
+**Affected Layers**
+- `onboarding.presentation.swagger`
+- `onboarding.presentation.dto.request`
+- `onboarding.presentation.dto.response`
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/swagger/OnboardingApi.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/dto/request/CompleteOnboardingRequest.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/dto/response/CompleteOnboardingResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/dto/response/SchoolListResponse.java`
+- `docs/work-context.md`
+
+**Why**
+- Onboarding API/DTO Swagger descriptions should be shown in Korean consistently with current project documentation style.
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- Endpoint behavior and response contract changed: No
+- Swagger summary/description/schema texts changed to Korean.
+
+**Tests**
+- Documentation annotation text change only. No additional runtime test executed.
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-15 (6)
+
+**Task**
+- Strengthen login onboarding propagation test to prevent false-positive pass with hardcoded `false`.
+
+**Affected Layers**
+- `login` tests
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/test/java/com/mealguide/mealguide_api/login/application/service/LoginServiceTest.java`
+- `docs/work-context.md`
+
+**Why**
+- Existing login tests only used users with `onboardingCompleted=false`.
+- In that shape, a buggy implementation that always returns `false` could still pass.
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- External API contract changed: No
+
+**Implementation Notes**
+- Updated existing-user login success test to use `onboardingCompleted=true` and assert propagation.
+- Extended `createUser(...)` test helper to inject `onboardingCompleted` explicitly for each scenario.
+
+**Tests**
+- Test code updated, but local execution remains blocked by Maven wrapper runtime issue (`Cannot start maven from wrapper`).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-15 (5)
+
+**Task**
+- Remove duplicate `users` table mapping in onboarding and reuse the existing login `User` entity mapping via update query.
+
+**Affected Layers**
+- `onboarding.application.port`
+- `onboarding.application.service`
+- `onboarding.infrastructure.persistence.adapter`
+- `onboarding.infrastructure.persistence.repository`
+- `onboarding.domain`
+- `onboarding` tests
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/main/java/com/mealguide/mealguide_api/onboarding/application/port/OnboardingCommandPort.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/application/service/OnboardingService.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/infrastructure/persistence/adapter/SchoolPersistenceAdapter.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/infrastructure/persistence/repository/OnboardingUserJpaRepository.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/domain/OnboardingUser.java` (deleted)
+- `src/test/java/com/mealguide/mealguide_api/onboarding/application/service/OnboardingServiceTest.java`
+- `docs/work-context.md`
+
+**Why**
+- Mapping the same `users` row as both `login.User` and `onboarding.OnboardingUser` can introduce persistence-context inconsistency risk.
+- The onboarding write path should use a single `users` entity mapping and execute a targeted update query.
+
+**DB Impact**
+- Schema changed by this task: No
+- DB write behavior changed: No functional change. Same columns are updated.
+
+**API Impact**
+- External endpoint contract changed: No
+
+**Implementation Notes**
+- Replaced `findActiveUserById` entity-load flow with `existsActiveUserById` and `completeOnboarding` update command.
+- `OnboardingUserJpaRepository` now targets `login.domain.User` and performs `@Modifying` update for onboarding completion fields.
+- Added update result check (`updated row count > 0`) to guard against concurrent state changes.
+
+**Tests**
+- Updated onboarding service fake port to the new command method signatures.
+- Local test execution remains blocked by Maven wrapper runtime issue (`Cannot start maven from wrapper`).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
 ## 2026-04-15 (4)
 
 **Task**

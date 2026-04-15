@@ -4,15 +4,10 @@ import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.onboarding.application.port.OnboardingCommandPort;
 import com.mealguide.mealguide_api.onboarding.application.port.SchoolQueryPort;
 import com.mealguide.mealguide_api.onboarding.domain.OnboardingCompletion;
-import com.mealguide.mealguide_api.onboarding.domain.OnboardingUser;
 import com.mealguide.mealguide_api.onboarding.domain.SchoolOption;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.BeanUtils;
-import org.springframework.test.util.ReflectionTestUtils;
 
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -75,12 +70,9 @@ class OnboardingServiceTest {
     }
 
     private static class FakeOnboardingCommandPort implements OnboardingCommandPort {
-
-        private final OnboardingUser user = createUser();
-
         @Override
-        public Optional<OnboardingUser> findActiveUserById(Long userId) {
-            return Optional.of(user);
+        public boolean existsActiveUserById(Long userId) {
+            return userId == 1L;
         }
 
         @Override
@@ -108,13 +100,10 @@ class OnboardingServiceTest {
             // no-op for test fake
         }
 
-        private static OnboardingUser createUser() {
-            OnboardingUser user = BeanUtils.instantiateClass(OnboardingUser.class);
-            ReflectionTestUtils.setField(user, "id", 1L);
-            ReflectionTestUtils.setField(user, "status", "ACTIVE");
-            ReflectionTestUtils.setField(user, "deletedAt", null);
-            ReflectionTestUtils.setField(user, "updatedAt", LocalDateTime.now());
-            return user;
+        @Override
+        public boolean completeOnboarding(Long userId, String languageCode, Long schoolId, String religiousCode) {
+            // no-op for test fake
+            return true;
         }
     }
 }

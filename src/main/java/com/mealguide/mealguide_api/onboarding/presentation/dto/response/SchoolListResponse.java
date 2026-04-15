@@ -1,4 +1,4 @@
-package com.mealguide.mealguide_api.onboarding.presentation.dto.response;
+﻿package com.mealguide.mealguide_api.onboarding.presentation.dto.response;
 
 import com.mealguide.mealguide_api.onboarding.domain.SchoolOption;
 import io.swagger.v3.oas.annotations.media.Schema;

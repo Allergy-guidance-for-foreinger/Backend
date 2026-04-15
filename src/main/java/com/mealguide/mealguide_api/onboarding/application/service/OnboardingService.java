@@ -5,7 +5,6 @@ import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.onboarding.application.port.OnboardingCommandPort;
 import com.mealguide.mealguide_api.onboarding.application.port.SchoolQueryPort;
 import com.mealguide.mealguide_api.onboarding.domain.OnboardingCompletion;
-import com.mealguide.mealguide_api.onboarding.domain.OnboardingUser;
 import com.mealguide.mealguide_api.onboarding.domain.SchoolOption;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -41,8 +40,9 @@ public class OnboardingService {
         List<String> normalizedAllergyCodes = normalizeAllergyCodes(allergyCodes);
         String normalizedReligiousCode = normalize(religiousCode);
 
-        OnboardingUser user = onboardingCommandPort.findActiveUserById(userId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+        if (!onboardingCommandPort.existsActiveUserById(userId)) {
+            throw new ServiceException(ErrorCode.USER_NOT_FOUND);
+        }
 
         if (!onboardingCommandPort.existsSchoolById(normalizedSchoolId)) {
             throw new ServiceException(ErrorCode.BINDING_ERROR);
@@ -61,14 +61,17 @@ public class OnboardingService {
         }
 
         onboardingCommandPort.replaceAllergies(userId, normalizedAllergyCodes);
-        user.completeOnboarding(normalizedLanguageCode, normalizedSchoolId, normalizedReligiousCode);
+        boolean updated = onboardingCommandPort.completeOnboarding(userId, normalizedLanguageCode, normalizedSchoolId, normalizedReligiousCode);
+        if (!updated) {
+            throw new ServiceException(ErrorCode.USER_NOT_FOUND);
+        }
 
         return new OnboardingCompletion(
-                user.getLanguageCode(),
-                user.getSchoolId(),
+                normalizedLanguageCode,
+                normalizedSchoolId,
                 normalizedAllergyCodes,
-                user.getReligiousCode(),
-                user.isOnboardingCompleted()
+                normalizedReligiousCode,
+                true
         );
     }
 

@@ -742,8 +742,8 @@ INSERT INTO allergy_translation (
 (35, 'SHELLFISH', 'ko', '조개류', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 (36, 'SHELLFISH', 'en', 'Shellfish', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
-INSERT INTO school (id, name, created_at)
-VALUES (1, '금오공과대학교', CURRENT_TIMESTAMP);
+INSERT INTO school (id, name, source_url, created_at)
+VALUES (1, '금오공과대학교', 'https://kumoh.ac.kr', CURRENT_TIMESTAMP);
 
 INSERT INTO school_translation (
     id, school_id, lang_code, name, is_auto_translated, created_at, updated_at
