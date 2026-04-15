@@ -42,6 +42,7 @@ If this document and `docs/schema.sql` differ, follow `docs/schema.sql`.
   - `name`
   - `language_code` nullable, references `language(code)`
   - `religious_code` nullable, references `religious_food_restriction(code)`
+  - `onboarding_completed`
   - `status`
   - `role`
   - `deleted_at`
@@ -128,8 +129,15 @@ Application services should depend on ports, not directly on repository implemen
 - If no linked user exists on first login, a new `users` row and `user_oauth_accounts` row are created.
 - First login auto-signup currently creates:
   - `school_id = null`
+  - `onboarding_completed = false`
   - `status = ACTIVE`
   - `role = USER`
+- Onboarding completion API stores school, allergy, and religious selections atomically and updates:
+  - `users.language_code`
+  - `users.school_id`
+  - `users.religious_code`
+  - `user_allergy` (full replacement)
+  - `users.onboarding_completed = true`
 - Refresh tokens are managed in Redis, not in PostgreSQL.
 
 ## 8. When This Document Must Be Updated

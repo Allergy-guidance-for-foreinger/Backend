@@ -63,6 +63,7 @@ class LoginServiceTest {
 
         assertThat(result.accessToken()).isEqualTo("access-token");
         assertThat(result.refreshToken()).isEqualTo("refresh-token");
+        assertThat(result.onboardingCompleted()).isFalse();
         assertThat(refreshTokenPort.findByUserIdAndDeviceId(1L, deviceId)).contains(hashToken("refresh-token"));
     }
 
@@ -82,6 +83,7 @@ class LoginServiceTest {
 
         assertThat(result.accessToken()).isEqualTo("access-token");
         assertThat(result.refreshToken()).isEqualTo("refresh-token");
+        assertThat(result.onboardingCompleted()).isFalse();
         assertThat(refreshTokenPort.findByUserIdAndDeviceId(2L, deviceId)).contains(hashToken("refresh-token"));
     }
 
@@ -101,6 +103,7 @@ class LoginServiceTest {
 
         assertThat(result.accessToken()).isEqualTo("new-access-token");
         assertThat(result.refreshToken()).isEqualTo("new-refresh-token");
+        assertThat(result.onboardingCompleted()).isNull();
         assertThat(refreshTokenPort.findByUserIdAndDeviceId(1L, deviceId)).contains(hashToken("new-refresh-token"));
     }
 

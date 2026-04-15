@@ -10,6 +10,187 @@ This document records implementation history and follow-up context.
 
 ---
 
+## 2026-04-15 (4)
+
+**Task**
+- Extend onboarding completion endpoint to save language selection together with school, allergies, and religion.
+
+**Affected Layers**
+- `onboarding.presentation.dto.request`
+- `onboarding.presentation.dto.response`
+- `onboarding.presentation.controller`
+- `onboarding.presentation.swagger`
+- `onboarding.application.service`
+- `onboarding.application.port`
+- `onboarding.domain`
+- `onboarding.infrastructure.persistence.adapter`
+- `onboarding.infrastructure.persistence.repository`
+- `onboarding` tests
+- `docs/database-context.md`
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/dto/request/CompleteOnboardingRequest.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/dto/response/CompleteOnboardingResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/controller/OnboardingController.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/swagger/OnboardingApi.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/application/service/OnboardingService.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/application/port/OnboardingCommandPort.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/domain/OnboardingCompletion.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/domain/OnboardingUser.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/infrastructure/persistence/adapter/SchoolPersistenceAdapter.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/infrastructure/persistence/repository/OnboardingUserJpaRepository.java`
+- `src/test/java/com/mealguide/mealguide_api/onboarding/application/service/OnboardingServiceTest.java`
+- `docs/database-context.md`
+- `docs/work-context.md`
+
+**Why**
+- Onboarding flow now requires language selection at completion time, so the endpoint must validate and persist `users.language_code` in the same transaction.
+
+**DB Impact**
+- Schema changed by this task: No
+- DB write behavior changed: Yes
+  - Added update target: `users.language_code`
+  - Existing targets remain: `users.school_id`, `users.religious_code`, `users.onboarding_completed`, `user_allergy`
+
+**API Impact**
+- `POST /api/v1/onboarding/complete` request now requires:
+  - `languageCode`
+- Response now includes:
+  - `languageCode`
+
+**Implementation Notes**
+- Added language-code existence check through onboarding persistence port.
+- Onboarding completion now updates user language, school, religious code, and onboarding flag atomically.
+
+**Tests**
+- Updated onboarding service test to pass and verify `languageCode`.
+- Local test execution remains blocked by Maven wrapper runtime issue (`Cannot start maven from wrapper`).
+
+**Documentation Updates**
+- Updated `docs/database-context.md`.
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-15 (3)
+
+**Task**
+- Add onboarding completion save endpoint to `OnboardingController`.
+
+**Affected Layers**
+- `onboarding.presentation.controller`
+- `onboarding.presentation.dto.request`
+- `onboarding.presentation.dto.response`
+- `onboarding.presentation.swagger`
+- `onboarding.application.service`
+- `onboarding.application.port`
+- `onboarding.domain`
+- `onboarding.infrastructure.persistence.adapter`
+- `onboarding.infrastructure.persistence.repository`
+- `onboarding` tests
+- `docs/database-context.md`
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/controller/OnboardingController.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/swagger/OnboardingApi.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/dto/request/CompleteOnboardingRequest.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/dto/response/CompleteOnboardingResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/application/service/OnboardingService.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/application/port/OnboardingCommandPort.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/domain/OnboardingCompletion.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/domain/OnboardingUser.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/domain/OnboardingUserAllergy.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/domain/OnboardingUserAllergyId.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/infrastructure/persistence/adapter/SchoolPersistenceAdapter.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/infrastructure/persistence/repository/OnboardingUserJpaRepository.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/infrastructure/persistence/repository/OnboardingUserAllergyJpaRepository.java`
+- `src/test/java/com/mealguide/mealguide_api/onboarding/application/service/OnboardingServiceTest.java`
+- `docs/database-context.md`
+- `docs/work-context.md`
+
+**Why**
+- Onboarding screen now submits school, allergy, and religious restriction in one request, so backend needs a single transactional save endpoint.
+
+**DB Impact**
+- Schema changed by this task: No
+- DB write behavior changed: Yes
+  - `users.school_id`, `users.religious_code`, `users.onboarding_completed`
+  - `user_allergy` full replacement
+
+**API Impact**
+- Added authenticated endpoint:
+  - `POST /api/v1/onboarding/complete`
+- Request body:
+  - `schoolId`
+  - `allergyCodes`
+  - `religiousCode` (nullable)
+- Response body:
+  - `schoolId`
+  - `allergyCodes`
+  - `religiousCode`
+  - `onboardingCompleted`
+
+**Implementation Notes**
+- Added onboarding command port and persistence queries for active user lookup and master-code validation.
+- Implemented transactional onboarding completion in `OnboardingService`.
+- Kept school list endpoint public and made completion endpoint role-protected (`USER`, `MANAGER`, `ADMIN`) in controller.
+
+**Tests**
+- Updated `OnboardingServiceTest` to include onboarding completion success/failure cases.
+- Local test execution remains blocked by Maven wrapper runtime issue (`Cannot start maven from wrapper`).
+
+**Documentation Updates**
+- Updated `docs/database-context.md`.
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-15 (2)
+
+**Task**
+- Include user onboarding completion state in login success response.
+
+**Affected Layers**
+- `login.application.service`
+- `login.presentation.dto.response`
+- `global.auth.jwt.dto`
+- `login` tests
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/main/java/com/mealguide/mealguide_api/global/auth/jwt/dto/AuthTokenResult.java`
+- `src/main/java/com/mealguide/mealguide_api/login/application/service/LoginService.java`
+- `src/main/java/com/mealguide/mealguide_api/login/presentation/dto/response/AuthResponse.java`
+- `src/test/java/com/mealguide/mealguide_api/login/application/service/LoginServiceTest.java`
+- `docs/work-context.md`
+
+**Why**
+- First-login flow uses auto-signup and the frontend needs onboarding state immediately after login to decide whether to route to settings/onboarding.
+
+**DB Impact**
+- Schema changed by this task: No
+- `users.onboarding_completed` already exists in `docs/schema.sql` and was reused.
+
+**API Impact**
+- `POST /auth/login` response now includes `onboardingCompleted`.
+- `POST /auth/refresh` keeps token reissue behavior and returns `onboardingCompleted = null`.
+
+**Implementation Notes**
+- Added `onboardingCompleted` to login token result model and auth response DTO.
+- Login flow now sets onboarding value from `User.onboardingCompleted`.
+- Refresh flow keeps existing user-existence check path and does not load onboarding state.
+
+**Tests**
+- Updated `LoginServiceTest` assertions for onboarding value.
+- Local test execution remains blocked by Maven wrapper runtime issue (`Cannot start maven from wrapper`).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
 ## 2026-04-15 (1)
 
 **Task**
