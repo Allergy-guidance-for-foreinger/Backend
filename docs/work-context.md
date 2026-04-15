@@ -10,7 +10,37 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-14
+## 2026-04-15 (1)
+
+**Task**
+- Make duplicated date-only H2 headings unique to resolve Markdown MD024 warnings.
+
+**Affected Layers**
+- `docs/work-context.md`
+
+**Changed Files**
+- `docs/work-context.md`
+
+**Why**
+- Repeated identical H2 headings (`## 2026-04-14`, `## 2026-04-06`) caused `MD024/no-duplicate-heading`.
+- Adding per-date sequence suffixes improves lint stability and section navigation.
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- External API contract changed: No
+
+**Implementation Notes**
+- Converted date-only H2 headings to unique format: `## YYYY-MM-DD (n)`.
+- Applied numbering sequentially per date across the document.
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-14 (1)
 
 **Task**
 - Remove UTF-8 BOM from `SettingsApi` to fix Java compile failure (`illegal character: '\\ufeff'`).
@@ -314,7 +344,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-14
+## 2026-04-14 (2)
 
 **Task**
 - Replace all-in-one settings lookup with individual personal setting lookup endpoints.
@@ -382,7 +412,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-14
+## 2026-04-14 (3)
 
 **Task**
 - Add personal settings lookup to `SettingsController`.
@@ -448,7 +478,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-14
+## 2026-04-14 (4)
 
 **Task**
 - Align the login `User` domain entity with the current `users` table structure.
@@ -494,7 +524,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-14
+## 2026-04-14 (5)
 
 **Task**
 - Implement onboarding school lookup API.
@@ -597,7 +627,7 @@ This document records implementation history and follow-up context.
 - Re-run `mvn test` in an environment with Maven dependencies available.
 - Existing `docs/schema.sql` seed data still contains mojibake text from prior encoding issues; this task only corrected schema definitions related to the implemented APIs.
 
-## 2026-04-06
+## 2026-04-06 (1)
 
 **Task**
 - Implement mobile Google ID Token login, JWT authentication, and Redis refresh token flow.
@@ -678,7 +708,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (2)
 
 **Task**
 - Adjust login code to match the updated user-related schema.
@@ -747,7 +777,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (3)
 
 **Task**
 - Align response DTOs with the reduced `AuthTokenResult`.
@@ -814,7 +844,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (4)
 
 **Task**
 - Reorganize shared authentication classes into the global package.
@@ -880,7 +910,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (5)
 
 **Task**
 - Minimize JWT claim contents for access token and refresh token.
@@ -930,7 +960,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (6)
 
 **Task**
 - Add a custom annotation for directly injecting the authenticated user id.
@@ -957,7 +987,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (7)
 
 **Task**
 - Change `users.role` handling to an enum.
@@ -1006,7 +1036,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (8)
 
 **Task**
 - Make `users.school_id` nullable.
@@ -1065,7 +1095,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (9)
 
 **Task**
 - Add ORM-level soft delete behavior for `users`.
@@ -1098,7 +1128,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (10)
 
 **Task**
 - Add a separate local/dev-only package for verifying the auth controller flow without a frontend-provided Google ID token.
@@ -1164,7 +1194,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (11)
 
 **Task**
 - Register a `RestClient.Builder` bean required by Google ID token verification.
@@ -1198,7 +1228,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (12)
 
 **Task**
 - Fix first-login auto-signup insert failures caused by null primary keys in `users` and `user_oauth_accounts`.
@@ -1239,7 +1269,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (13)
 
 **Task**
 - Revert user id generation back to database identity columns instead of sequence-based generation.
@@ -1280,7 +1310,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (14)
 
 **Task**
 - Change Swagger descriptions to Korean and remove interface-based controller overriding for auth controllers.
@@ -1320,7 +1350,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (15)
 
 **Task**
 - Add a small local HTML page that can receive a real Google ID token and call the auth APIs.
@@ -1360,7 +1390,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (16)
 
 **Task**
 - Open the local auth test page through security whitelist settings.
@@ -1394,7 +1424,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (17)
 
 **Task**
 - Remove manual Google Client ID input from the auth test page and load it from server configuration.
@@ -1433,7 +1463,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (18)
 
 **Task**
 - Remove the refresh-token rotation race condition by introducing an atomic Redis rotation operation.
@@ -1474,7 +1504,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (19)
 
 **Task**
 - Stop storing raw refresh token values in Redis and store only token hashes.
@@ -1510,7 +1540,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (20)
 
 **Task**
 - Reduce refresh-path database load by replacing full user fetch with an active-user existence check.
@@ -1548,7 +1578,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (21)
 
 **Task**
 - Reduce JWT filter database load by replacing full user fetch with an active-user existence check.
@@ -1585,7 +1615,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (22)
 
 **Task**
 - Fix `RestClientConfig` bean creation failure caused by an unavailable `Jackson2ObjectMapperBuilder`.
@@ -1616,7 +1646,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (23)
 
 **Task**
 - Remove `ObjectMapper` bean dependency from security exception handlers to avoid startup failure.
@@ -1646,7 +1676,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (24)
 
 **Task**
 - Add minimum length validation for JWT secrets at configuration binding time.
@@ -1675,7 +1705,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (25)
 
 **Task**
 - Centralize the JJWT library version in Maven properties.
@@ -1704,7 +1734,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-06
+## 2026-04-06 (26)
 
 **Task**
 - Remove the Swagger-based auth debug testing APIs and keep only the HTML-based test flow.
@@ -1746,7 +1776,7 @@ This document records implementation history and follow-up context.
 
 ---
 
-## 2026-04-14
+## 2026-04-14 (6)
 
 **Task**
 - Restrict settings-related APIs to authenticated users with `USER` level or higher.
