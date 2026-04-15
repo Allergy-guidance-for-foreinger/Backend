@@ -92,8 +92,8 @@ This document records implementation history and follow-up context.
 **API Impact**
 - Endpoint paths/response contracts changed: No
 - Controller ownership changed:
-  - `UserSettingsController`: personal settings 鈺곌퀬??癰궰野?
-  - `SettingsOptionsController`: ?袁⑷퍥 ?醫뤾문筌왖 鈺곌퀬??
+  - `UserSettingsController`: 개인 설정 조회/수정
+  - `SettingsOptionsController`: 옵션 목록 조회
 
 **Tests**
 - Updated option-list controller test target to `SettingsOptionsController`.
