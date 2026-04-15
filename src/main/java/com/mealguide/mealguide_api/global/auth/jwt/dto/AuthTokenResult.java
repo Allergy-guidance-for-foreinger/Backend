@@ -4,6 +4,7 @@ public record AuthTokenResult(
         String accessToken,
         String refreshToken,
         long accessTokenExpiresIn,
-        long refreshTokenExpiresIn
+        long refreshTokenExpiresIn,
+        Boolean onboardingCompleted
 ) {
 }

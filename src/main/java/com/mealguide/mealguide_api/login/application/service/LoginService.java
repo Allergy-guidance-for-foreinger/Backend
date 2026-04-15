@@ -45,7 +45,7 @@ public class LoginService {
                         googleUserInfo.name()
                 ));
 
-        return issueTokens(AuthenticatedUser.from(user, deviceId));
+        return issueTokens(AuthenticatedUser.from(user, deviceId), user.isOnboardingCompleted());
     }
 
     @Transactional
@@ -82,7 +82,8 @@ public class LoginService {
                 newAccessToken,
                 newRefreshToken,
                 tokenProviderPort.getAccessTokenExpirationSeconds(),
-                refreshTokenTtl
+                refreshTokenTtl,
+                null
         );
     }
 
@@ -95,7 +96,7 @@ public class LoginService {
         refreshTokenPort.deleteByUserIdAndDeviceId(authenticatedUserId, tokenClaims.deviceId());
     }
 
-    private AuthTokenResult issueTokens(AuthenticatedUser authenticatedUser) {
+    private AuthTokenResult issueTokens(AuthenticatedUser authenticatedUser, boolean onboardingCompleted) {
         String accessToken = tokenProviderPort.generateAccessToken(authenticatedUser);
         String refreshToken = tokenProviderPort.generateRefreshToken(authenticatedUser);
         long refreshTokenTtl = tokenProviderPort.getRefreshTokenExpirationSeconds();
@@ -106,7 +107,8 @@ public class LoginService {
                 accessToken,
                 refreshToken,
                 tokenProviderPort.getAccessTokenExpirationSeconds(),
-                refreshTokenTtl
+                refreshTokenTtl,
+                onboardingCompleted
         );
     }
 }

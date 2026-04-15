@@ -6,14 +6,16 @@ public record AuthResponse(
         String accessToken,
         String refreshToken,
         long expiresIn,
-        long refreshExpiresIn
+        long refreshExpiresIn,
+        Boolean onboardingCompleted
 ) {
     public static AuthResponse from(AuthTokenResult authTokenResult) {
         return new AuthResponse(
                 authTokenResult.accessToken(),
                 authTokenResult.refreshToken(),
                 authTokenResult.accessTokenExpiresIn(),
-                authTokenResult.refreshTokenExpiresIn()
+                authTokenResult.refreshTokenExpiresIn(),
+                authTokenResult.onboardingCompleted()
         );
     }
 }
