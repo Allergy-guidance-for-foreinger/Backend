@@ -16,3 +16,4 @@ import java.lang.annotation.Target;
 @AuthenticationPrincipal(expression = "userId")
 public @interface CurrentUserId {
 }
+

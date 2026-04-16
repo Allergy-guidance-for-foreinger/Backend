@@ -30,7 +30,7 @@ public interface SettingsOptionsApi {
 
     @Operation(
             summary = "알레르기 전체 선택지 조회",
-            description = "인증된 사용자의 언어 설정 기준으로 현지화된 알레르기 선택지 목록을 조회합니다."
+            description = "인증된 사용자의 언어 설정 기준으로 번역된 알레르기 선택지 목록을 조회합니다."
     )
     @SwaggerApiResponses(
             success = @SwaggerApiSuccessResponse(response = AllergyOptionsResponse.class, description = "알레르기 선택지 조회 성공"),
@@ -42,11 +42,11 @@ public interface SettingsOptionsApi {
     ResponseEntity<ResponseBody<AllergyOptionsResponse>> getAllergyOptions(@CurrentUserId Long currentUserId);
 
     @Operation(
-            summary = "종교적 식이 제한 전체 선택지 조회",
-            description = "인증된 사용자의 언어 설정 기준으로 현지화된 종교적 식이 제한 선택지 목록을 조회합니다."
+            summary = "종교별 음식 제한 전체 선택지 조회",
+            description = "인증된 사용자의 언어 설정 기준으로 번역된 종교별 음식 제한 선택지 목록을 조회합니다."
     )
     @SwaggerApiResponses(
-            success = @SwaggerApiSuccessResponse(response = ReligionOptionsResponse.class, description = "종교적 식이 제한 선택지 조회 성공"),
+            success = @SwaggerApiSuccessResponse(response = ReligionOptionsResponse.class, description = "종교별 음식 제한 선택지 조회 성공"),
             errors = {
                     @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED),
                     @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND)
@@ -54,4 +54,3 @@ public interface SettingsOptionsApi {
     )
     ResponseEntity<ResponseBody<ReligionOptionsResponse>> getReligionOptions(@CurrentUserId Long currentUserId);
 }
-

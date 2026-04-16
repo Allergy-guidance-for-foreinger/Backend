@@ -16,3 +16,4 @@ public interface UserQueryPort {
 
     User createGoogleUser(String providerUserId, String providerEmail, String name);
 }
+

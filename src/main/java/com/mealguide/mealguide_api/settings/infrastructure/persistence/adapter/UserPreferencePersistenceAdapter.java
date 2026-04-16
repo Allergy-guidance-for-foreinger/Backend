@@ -39,3 +39,4 @@ public class UserPreferencePersistenceAdapter implements UserPreferencePort {
         userAllergyJpaRepository.saveAll(userAllergies);
     }
 }
+

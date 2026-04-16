@@ -25,6 +25,10 @@ public class School {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @Column(name = "source_url", nullable = false, length = 500)
+    private String sourceUrl;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 }
+

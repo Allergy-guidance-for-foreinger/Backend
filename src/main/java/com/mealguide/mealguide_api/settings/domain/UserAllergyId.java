@@ -33,3 +33,4 @@ public class UserAllergyId implements Serializable {
         return Objects.hash(userId, allergyCode);
     }
 }
+

@@ -30,3 +30,4 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
         response.getWriter().write(OBJECT_MAPPER.writeValueAsString(ResponseUtils.createFailureResponse(ErrorCode.ACCESS_DENIED)));
     }
 }
+

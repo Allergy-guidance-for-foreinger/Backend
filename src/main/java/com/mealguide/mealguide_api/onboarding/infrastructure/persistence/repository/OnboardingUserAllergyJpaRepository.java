@@ -14,3 +14,4 @@ public interface OnboardingUserAllergyJpaRepository extends JpaRepository<Onboar
     void deleteByUserId(@Param("userId") Long userId);
 }
 
+

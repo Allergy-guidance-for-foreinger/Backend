@@ -78,3 +78,4 @@ public class GlobalExceptionHandler {
                 .body(ResponseUtils.createFailureResponse(ErrorCode.UNEXPECTED_SERVER_ERROR));
     }
 }
+

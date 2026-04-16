@@ -71,3 +71,4 @@ public class SchoolPersistenceAdapter implements SchoolQueryPort, OnboardingComm
         return onboardingUserJpaRepository.completeOnboarding(userId, languageCode, schoolId, religiousCode, ACTIVE_STATUS) > 0;
     }
 }
+

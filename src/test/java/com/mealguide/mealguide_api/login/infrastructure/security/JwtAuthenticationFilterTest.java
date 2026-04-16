@@ -78,3 +78,4 @@ class JwtAuthenticationFilterTest {
                 .isEqualTo(ErrorCode.USER_NOT_FOUND);
     }
 }
+

@@ -14,3 +14,4 @@ public record AuthenticatedUser(
         return new AuthenticatedUser(user.getId(), user.getEmail(), user.getName(), user.getRole(), deviceId);
     }
 }
+

@@ -56,3 +56,4 @@ public class SettingsMasterPersistenceAdapter implements SettingsMasterQueryPort
         return religiousFoodRestrictionJpaRepository.existsByCode(religiousCode);
     }
 }
+

@@ -21,7 +21,7 @@ public interface AuthApi {
     @SecurityRequirements
     @Operation(
             summary = "구글 로그인",
-            description = "클라이언트가 전달한 구글 idToken과 deviceId를 검증한 뒤, 서버 전용 access token과 refresh token을 발급합니다."
+            description = "클라이언트가 전달한 구글 idToken과 deviceId를 검증한 뒤 서버 access token과 refresh token을 발급합니다."
     )
     @SwaggerApiResponses(
             success = @SwaggerApiSuccessResponse(response = AuthResponse.class, description = "로그인 성공"),
@@ -36,7 +36,7 @@ public interface AuthApi {
     @SecurityRequirements
     @Operation(
             summary = "토큰 재발급",
-            description = "refresh token을 검증하고 Redis에 저장된 값과 비교한 뒤 access token과 refresh token을 다시 발급합니다."
+            description = "refresh token을 검증하고 Redis 저장값과 비교한 뒤 access token과 refresh token을 재발급합니다."
     )
     @SwaggerApiResponses(
             success = @SwaggerApiSuccessResponse(response = AuthResponse.class, description = "재발급 성공"),
@@ -51,7 +51,7 @@ public interface AuthApi {
 
     @Operation(
             summary = "로그아웃",
-            description = "인증된 사용자와 요청 본문의 refresh token을 기준으로 Redis의 refresh token을 삭제합니다."
+            description = "인증된 사용자와 요청 본문의 refresh token을 기준으로 Redis refresh token을 제거합니다."
     )
     @SwaggerApiResponses(
             success = @SwaggerApiSuccessResponse(description = "로그아웃 성공"),

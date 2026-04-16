@@ -26,3 +26,4 @@ public class JwtProperties {
     @Positive
     private long refreshTokenExpirationSeconds;
 }
+

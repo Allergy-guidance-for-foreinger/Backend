@@ -14,3 +14,4 @@ public final class FailedResponseBody extends ResponseBody<Void> {
         this.msg = msg;
     }
 }
+

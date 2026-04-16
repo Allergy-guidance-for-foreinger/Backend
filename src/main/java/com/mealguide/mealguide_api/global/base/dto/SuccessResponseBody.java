@@ -16,3 +16,4 @@ public final class SuccessResponseBody<T> extends ResponseBody<T> {
         this.data = result;
     }
 }
+

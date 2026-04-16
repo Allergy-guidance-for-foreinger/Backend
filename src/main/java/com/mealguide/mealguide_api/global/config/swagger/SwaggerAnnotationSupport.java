@@ -27,7 +27,7 @@ public final class SwaggerAnnotationSupport {
             }
         }
 
-        // 3) (선택) 상위 클래스 메서드에 붙은 경우까지
+        // 3) (선택) 상위 클래스 메서드에 붙은 경우까지 확인
         Class<?> superCls = beanType.getSuperclass();
         while (superCls != null && superCls != Object.class) {
             try {

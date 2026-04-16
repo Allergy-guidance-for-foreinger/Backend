@@ -9,3 +9,4 @@ public enum UserRole {
         return USER;
     }
 }
+

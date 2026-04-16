@@ -7,3 +7,4 @@ import java.util.List;
 public interface SchoolQueryPort {
     List<SchoolOption> findSchools(String langCode);
 }
+

@@ -23,3 +23,4 @@ public interface SchoolJpaRepository extends JpaRepository<School, Long> {
             """)
     List<SchoolOption> findSchoolOptions(@Param("langCode") String langCode);
 }
+

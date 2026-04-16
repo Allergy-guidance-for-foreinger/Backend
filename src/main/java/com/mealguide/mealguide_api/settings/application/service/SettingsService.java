@@ -38,3 +38,4 @@ public class SettingsService {
         return value.trim();
     }
 }
+

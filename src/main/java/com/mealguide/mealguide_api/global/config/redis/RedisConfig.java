@@ -36,3 +36,4 @@ public class RedisConfig {
         return new StringRedisTemplate(cf);
     }
 }
+

@@ -18,3 +18,4 @@ public interface OnboardingCommandPort {
 
     boolean completeOnboarding(Long userId, String languageCode, Long schoolId, String religiousCode);
 }
+

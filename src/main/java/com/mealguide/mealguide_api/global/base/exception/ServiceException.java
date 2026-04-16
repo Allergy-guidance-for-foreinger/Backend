@@ -12,4 +12,10 @@ public class ServiceException extends RuntimeException{
         super(Objects.requireNonNull(errorCode, "errorCode must not be null").getMessage());
         this.errorCode = errorCode;
     }
+
+    public ServiceException(ErrorCode errorCode, Throwable cause) {
+        super(Objects.requireNonNull(errorCode, "errorCode must not be null").getMessage(), cause);
+        this.errorCode = errorCode;
+    }
 }
+

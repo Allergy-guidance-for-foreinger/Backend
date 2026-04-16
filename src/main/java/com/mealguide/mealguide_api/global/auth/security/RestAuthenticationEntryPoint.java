@@ -30,3 +30,4 @@ public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.getWriter().write(OBJECT_MAPPER.writeValueAsString(ResponseUtils.createFailureResponse(ErrorCode.NEED_AUTHORIZED)));
     }
 }
+

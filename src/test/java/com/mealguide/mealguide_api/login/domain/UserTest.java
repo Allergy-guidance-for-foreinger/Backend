@@ -21,3 +21,4 @@ class UserTest {
         assertThat(user.getDeletedAt()).isNull();
     }
 }
+

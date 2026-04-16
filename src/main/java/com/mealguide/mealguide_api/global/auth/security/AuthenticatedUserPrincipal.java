@@ -63,3 +63,4 @@ public record AuthenticatedUserPrincipal(
         return email != null ? email : String.valueOf(userId);
     }
 }
+

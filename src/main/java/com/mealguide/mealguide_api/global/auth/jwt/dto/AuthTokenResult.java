@@ -8,3 +8,4 @@ public record AuthTokenResult(
         Boolean onboardingCompleted
 ) {
 }
+

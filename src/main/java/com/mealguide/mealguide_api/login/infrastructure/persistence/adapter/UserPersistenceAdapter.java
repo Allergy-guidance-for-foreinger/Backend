@@ -59,3 +59,4 @@ public class UserPersistenceAdapter implements UserQueryPort {
         return savedUser;
     }
 }
+

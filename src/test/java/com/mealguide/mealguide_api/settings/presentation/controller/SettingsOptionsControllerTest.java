@@ -95,3 +95,4 @@ class SettingsOptionsControllerTest {
         verify(settingsService).getReligions("en");
     }
 }
+
