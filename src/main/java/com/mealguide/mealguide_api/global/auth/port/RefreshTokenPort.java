@@ -12,3 +12,4 @@ public interface RefreshTokenPort {
 
     void deleteByUserIdAndDeviceId(Long userId, String deviceId);
 }
+

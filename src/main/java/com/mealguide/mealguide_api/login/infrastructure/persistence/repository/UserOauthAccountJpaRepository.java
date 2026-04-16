@@ -19,3 +19,4 @@ public interface UserOauthAccountJpaRepository extends JpaRepository<UserOauthAc
             UserStatus status
     );
 }
+

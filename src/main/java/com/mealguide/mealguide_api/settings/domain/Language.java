@@ -24,3 +24,4 @@ public class Language {
     @Column(name = "english_name", nullable = false, length = 50)
     private String englishName;
 }
+

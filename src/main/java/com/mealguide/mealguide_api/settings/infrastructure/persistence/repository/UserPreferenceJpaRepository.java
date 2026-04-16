@@ -8,3 +8,4 @@ import java.util.Optional;
 public interface UserPreferenceJpaRepository extends JpaRepository<UserPreference, Long> {
     Optional<UserPreference> findByIdAndDeletedAtIsNullAndStatus(Long userId, String status);
 }
+

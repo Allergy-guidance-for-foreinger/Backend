@@ -27,3 +27,4 @@ public interface AllergyJpaRepository extends JpaRepository<Allergy, String> {
 
     long countByCodeIn(Set<String> codes);
 }
+

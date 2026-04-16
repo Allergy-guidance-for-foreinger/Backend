@@ -56,3 +56,4 @@ public interface OnboardingUserJpaRepository extends JpaRepository<User, Long> {
             @Param("status") UserStatus status
     );
 }
+

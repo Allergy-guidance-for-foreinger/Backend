@@ -106,6 +106,9 @@ If this document and `docs/schema.sql` differ, follow `docs/schema.sql`.
 - AI analysis data is draft-like and must not be treated the same as confirmed data.
 - User-specific dietary checks should be based on mapped ingredient data, not only menu names.
 - Translation data supplements source data but does not replace the original source-of-truth records.
+- Meal crawling integration is synchronous Java-to-Python HTTP based (no queue/event broker).
+- `meal_menu_confirmed_ingredient` and confirmation history are admin-confirmed data and are not auto-created by crawl import.
+- Meal import success must remain intact even when AI analysis or translation follow-up fails.
 - User language preference is stored in `users.language_code`.
 - User allergy settings are replaced as a full set in `user_allergy`.
 - `users.religious_code` can be null when the user has no selected religious food restriction.

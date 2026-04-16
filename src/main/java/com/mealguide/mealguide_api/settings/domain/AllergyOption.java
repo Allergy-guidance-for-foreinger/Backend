@@ -6,3 +6,4 @@ public record AllergyOption(
         int displayOrder
 ) {
 }
+

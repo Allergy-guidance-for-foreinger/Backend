@@ -23,7 +23,7 @@ public interface SettingsApi {
 
     @Operation(
             summary = "내 언어 설정 조회",
-            description = "인증된 사용자의 저장된 언어 코드 설정을 조회합니다."
+            description = "인증된 사용자의 현재 언어 코드 설정을 조회합니다."
     )
     @SwaggerApiResponses(
             success = @SwaggerApiSuccessResponse(response = LanguageUpdateResponse.class, description = "언어 설정 조회 성공"),
@@ -36,7 +36,7 @@ public interface SettingsApi {
 
     @Operation(
             summary = "내 알레르기 설정 조회",
-            description = "인증된 사용자의 저장된 알레르기 코드 설정을 조회합니다."
+            description = "인증된 사용자의 현재 알레르기 코드 설정을 조회합니다."
     )
     @SwaggerApiResponses(
             success = @SwaggerApiSuccessResponse(response = AllergyUpdateResponse.class, description = "알레르기 설정 조회 성공"),
@@ -48,11 +48,11 @@ public interface SettingsApi {
     ResponseEntity<ResponseBody<AllergyUpdateResponse>> getAllergies(@CurrentUserId Long currentUserId);
 
     @Operation(
-            summary = "내 종교적 식이 제한 설정 조회",
-            description = "인증된 사용자의 저장된 종교적 식이 제한 코드를 조회합니다."
+            summary = "내 종교별 식이 제한 설정 조회",
+            description = "인증된 사용자의 현재 종교별 식이 제한 코드를 조회합니다."
     )
     @SwaggerApiResponses(
-            success = @SwaggerApiSuccessResponse(response = ReligionUpdateResponse.class, description = "종교적 식이 제한 설정 조회 성공"),
+            success = @SwaggerApiSuccessResponse(response = ReligionUpdateResponse.class, description = "종교별 식이 제한 설정 조회 성공"),
             errors = {
                     @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED),
                     @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND)
@@ -97,11 +97,11 @@ public interface SettingsApi {
     );
 
     @Operation(
-            summary = "종교적 식이 제한 설정 변경",
-            description = "인증된 사용자의 종교적 식이 제한 설정을 변경합니다. religiousCode가 null이면 설정을 해제합니다."
+            summary = "종교별 식이 제한 설정 변경",
+            description = "인증된 사용자의 종교별 식이 제한 설정을 변경합니다. religiousCode가 null이면 설정을 해제합니다."
     )
     @SwaggerApiResponses(
-            success = @SwaggerApiSuccessResponse(response = ReligionUpdateResponse.class, description = "종교적 식이 제한 설정 변경 성공"),
+            success = @SwaggerApiSuccessResponse(response = ReligionUpdateResponse.class, description = "종교별 식이 제한 설정 변경 성공"),
             errors = {
                     @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED),
                     @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND),

@@ -1,4 +1,4 @@
-﻿package com.mealguide.mealguide_api.onboarding.presentation.swagger;
+package com.mealguide.mealguide_api.onboarding.presentation.swagger;
 
 import com.mealguide.mealguide_api.global.auth.annotation.CurrentUserId;
 import com.mealguide.mealguide_api.global.base.dto.ResponseBody;
@@ -22,7 +22,7 @@ public interface OnboardingApi {
     @SecurityRequirements
     @Operation(
             summary = "온보딩 학교 목록 조회",
-            description = "온보딩 화면에서 선택할 학교 목록을 조회합니다. lang이 있으면 번역명을 우선 사용합니다."
+            description = "온보딩 화면에서 선택할 학교 목록을 조회합니다. lang 값이 있으면 번역명을 우선 사용합니다."
     )
     @SwaggerApiResponses(
             success = @SwaggerApiSuccessResponse(response = SchoolListResponse.class, description = "학교 목록 조회 성공")
@@ -32,7 +32,7 @@ public interface OnboardingApi {
     @SecurityRequirement(name = "Access Token")
     @Operation(
             summary = "온보딩 정보 저장",
-            description = "언어, 학교, 알레르기, 종교 식이 제한을 한 번에 저장하고 온보딩 완료 상태로 변경합니다."
+            description = "언어, 학교, 알레르기, 종교 식이 제한 정보를 한 번에 저장하고 온보딩 완료 상태로 변경합니다."
     )
     @SwaggerApiResponses(
             success = @SwaggerApiSuccessResponse(response = CompleteOnboardingResponse.class, description = "온보딩 저장 성공"),

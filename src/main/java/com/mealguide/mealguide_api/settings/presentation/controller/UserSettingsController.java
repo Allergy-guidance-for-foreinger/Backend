@@ -74,3 +74,4 @@ public class UserSettingsController implements SettingsApi {
         return ResponseEntity.ok(ResponseUtils.createSuccessResponse(new ReligionUpdateResponse(religiousCode)));
     }
 }
+

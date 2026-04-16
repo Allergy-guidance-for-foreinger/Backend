@@ -46,3 +46,4 @@ public class UserOauthAccount extends BaseEntity {
         return oauthAccount;
     }
 }
+

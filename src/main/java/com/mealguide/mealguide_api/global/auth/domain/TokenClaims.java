@@ -6,3 +6,4 @@ public record TokenClaims(
         TokenType tokenType
 ) {
 }
+

@@ -12,3 +12,4 @@ import org.springframework.stereotype.Component;
 public class GoogleOAuthProperties {
     private String clientId;
 }
+

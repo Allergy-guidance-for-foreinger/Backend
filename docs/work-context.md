@@ -10,6 +10,293 @@ This document records implementation history and follow-up context.
 
 ---
 
+## 2026-04-15 (12)
+
+**Task**
+- Add DB-included integration test for meal import duplicate-safe/upsert behavior.
+
+**Affected Layers**
+- `mealcrawl` test layer
+- build dependency (`pom.xml`)
+- `docs/work-context.md`
+
+**Changed Files**
+- `pom.xml`
+- `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealImportServiceDatabaseIntegrationTest.java`
+- `docs/work-context.md`
+
+**Why**
+- Unit tests alone cannot verify unique constraint collision behavior and real DB upsert semantics.
+- Need integration-level proof that repeated import for same schedule is idempotent and `meal_menu` is updated safely.
+
+**DB Impact**
+- Schema changed by this task: No
+- Test-only embedded DB usage: Yes (`h2` test dependency added).
+
+**API Impact**
+- External API behavior changed: No
+
+**Implementation Notes**
+- Added `@DataJpaTest` integration test with real JPA repositories + `MealCrawlPersistenceAdapter` + `MealImportService`.
+- Test seeds `school` and `cafeteria`, executes same-day import twice with changed menu at same `display_order`.
+- Verified:
+  - `meal_schedule` count remains `1`
+  - `meal_menu` count remains `1`
+  - `meal_menu.menu_id` reflects latest crawl menu (upsert update path)
+  - no unique collision failure in repeated import flow
+
+**Tests**
+- New integration test class added.
+- Local execution still not run in this shell due Maven wrapper issue (`Cannot start maven from wrapper`).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-15 (11)
+
+**Task**
+- Rewrite broken Swagger texts in specific files to Korean as requested.
+
+**Affected Layers**
+- `login.presentation.swagger`
+- `settings.presentation.swagger`
+- `onboarding.presentation.swagger`
+- `global.config.swagger`
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/main/java/com/mealguide/mealguide_api/login/presentation/swagger/AuthApi.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/swagger/OnboardingApi.java`
+- `src/main/java/com/mealguide/mealguide_api/global/config/swagger/SwaggerApiSuccessResponseHandler.java`
+- `docs/work-context.md`
+
+**Why**
+- User requested Korean Swagger descriptions instead of English fallback text.
+- Previous encoding issue recovery left those files in English for stability; this step restores Korean wording.
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- Endpoint behavior changed: No
+- Swagger summary/description text changed to Korean.
+
+**Tests**
+- No runtime logic change.
+- Local compile/test execution still blocked in this shell (`Cannot start maven from wrapper`).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-15 (10)
+
+**Task**
+- Fix broken/mojibake text in Swagger-related files.
+
+**Affected Layers**
+- `login.presentation.swagger`
+- `settings.presentation.swagger`
+- `onboarding.presentation.swagger`
+- `global.config.swagger`
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/main/java/com/mealguide/mealguide_api/login/presentation/swagger/AuthApi.java`
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/swagger/OnboardingApi.java`
+- `src/main/java/com/mealguide/mealguide_api/global/config/swagger/SwaggerApiSuccessResponseHandler.java`
+- `docs/work-context.md`
+
+**Why**
+- Several files had broken character encoding and malformed string literals, causing unreadable Swagger text and potential compile failures.
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- Endpoint behavior changed: No
+- Swagger operation/description text was normalized.
+
+**Implementation Notes**
+- Rewrote the four files in UTF-8 without BOM.
+- Normalized operation summaries/descriptions and inline schema descriptions to valid readable text.
+- Removed malformed text fragments that broke Java string syntax.
+
+**Tests**
+- No runtime logic changes; compile/test execution remains blocked in this environment due Maven wrapper issue (`Cannot start maven from wrapper`).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-15 (9)
+
+**Task**
+- Split Python client DTO package into request/response groups for mealcrawl integration.
+
+**Affected Layers**
+- `mealcrawl.infrastructure.client.dto`
+- `mealcrawl.application.port`
+- `mealcrawl.application.service`
+- `mealcrawl.infrastructure.client`
+- `mealcrawl` tests
+- `docs/work-context.md`
+
+**Changed Files**
+- Moved request DTOs to:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/request/PythonMealCrawlRequest.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/request/PythonMenuAnalysisRequest.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/request/PythonMenuAnalysisTargetDto.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/request/PythonMenuTranslationRequest.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/request/PythonMenuTranslationTargetDto.java`
+- Moved response DTOs to:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonMealCrawlResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonDailyMealDto.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonCrawledMenuDto.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonMenuAnalysisResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonMenuAnalysisResultDto.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonMenuIngredientResultDto.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonMenuTranslationResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonMenuTranslationResultDto.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonTranslatedMenuNameDto.java`
+- Updated imports in:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/PythonMealClientPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/*`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/**/*`
+- `docs/work-context.md`
+
+**Why**
+- Clarify external integration contract boundaries by separating outbound request payloads and inbound response payloads.
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- External endpoint behavior changed: No
+- Internal package path/import structure changed only.
+
+**Tests**
+- Test source imports updated to new DTO package paths.
+- Local test execution remains blocked in this environment (`Cannot start maven from wrapper`).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-15 (8)
+
+**Task**
+- Implement synchronous Java-to-Python meal crawling integration with DB import, AI analysis follow-up, and translation follow-up.
+
+**Affected Layers**
+- `mealcrawl.application.port`
+- `mealcrawl.application.service`
+- `mealcrawl.domain`
+- `mealcrawl.infrastructure.client`
+- `mealcrawl.infrastructure.config`
+- `mealcrawl.infrastructure.persistence.repository`
+- `mealcrawl.infrastructure.persistence.adapter`
+- `onboarding.domain` (school mapping field sync)
+- application bootstrap/config
+- tests
+- docs
+
+**Changed Files**
+- `src/main/java/com/mealguide/mealguide_api/MealguideApiApplication.java`
+- `src/main/java/com/mealguide/mealguide_api/onboarding/domain/School.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/MealCrawlTarget.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/MealImportResult.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/PythonMealClientPort.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlTargetService.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealImportService.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpService.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlOrchestrationService.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlScheduler.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/CrawlTargetSource.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuIngredientCandidate.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuTranslationKey.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/Cafeteria.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MealSchedule.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/Menu.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MealMenu.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuAiAnalysis.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuAiAnalysisIngredient.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuAiAnalysisIngredientId.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuTranslation.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MealScheduleCrawlHistory.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/*` (crawl/analyze/translate request-response DTO records)
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/config/MealCrawlProperties.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/CafeteriaJpaRepository.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MealScheduleJpaRepository.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MenuJpaRepository.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MealMenuJpaRepository.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MenuAiAnalysisJpaRepository.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MenuAiAnalysisIngredientJpaRepository.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MenuTranslationJpaRepository.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MealScheduleCrawlHistoryJpaRepository.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+- `src/main/resources/application.properties`
+- `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealImportServiceTest.java`
+- `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpServiceTest.java`
+- `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpServiceTest.java`
+- `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlOrchestrationServiceTest.java`
+- `src/test/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapterTest.java`
+- `docs/database-context.md`
+- `docs/work-context.md`
+
+**Why**
+- Scheduler-selected crawl targets must be crawled via Python and immediately persisted in Java DB.
+- Follow-up AI analysis and translation are supplementary processing and must not break meal import success.
+- Confirmed ingredient tables must remain strictly admin-managed data.
+
+**DB Impact**
+- Schema changed by this task: No
+- DB write behavior changed: Yes
+  - Added import writes for `meal_schedule`, `menu`, `meal_menu`, `meal_schedule_crawl_history`
+  - Added follow-up writes for `menu_ai_analysis`, `menu_ai_analysis_ingredient`, `menu_translation`
+  - No automatic writes to `meal_menu_confirmed_ingredient` or confirmation history
+
+**API Impact**
+- External public API endpoint contract changed: No
+- Added internal external-integration HTTP client calls from Java to Python:
+  - crawl
+  - menu analysis
+  - menu translation
+
+**Implementation Notes**
+- Introduced `mealcrawl` feature package with port-service-adapter structure.
+- Added `MealCrawlOrchestrationService` to coordinate crawl → import → follow-up sequence.
+- Follow-up failures are isolated with try/catch so meal import success/crawl history success remain intact.
+- Added scheduler entry (`MealCrawlScheduler`) and enabled scheduling on application bootstrap.
+- Added configurable properties for Python base URL/paths, scheduler toggle/cron, target languages.
+
+**Tests**
+- Added service-level tests for:
+  - meal import success path
+  - menu reuse behavior
+  - analysis target filtering
+  - translation target filtering
+  - orchestration resilience when follow-up fails
+- Added Python client mapping unit test via `RestClient` mocking.
+- Local Maven compile/test execution remains blocked in this environment (`Cannot start maven from wrapper`).
+
+**Documentation Updates**
+- Updated `docs/database-context.md`.
+- Updated `docs/work-context.md`.
+
+---
+
 ## 2026-04-15 (7)
 
 **Task**

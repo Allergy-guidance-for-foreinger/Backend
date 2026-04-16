@@ -10,3 +10,4 @@ public interface LanguageJpaRepository extends JpaRepository<Language, String> {
 
     boolean existsByCode(String code);
 }
+

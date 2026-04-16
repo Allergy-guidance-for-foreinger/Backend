@@ -34,3 +34,4 @@ public class OnboardingUserAllergyId implements Serializable {
     }
 }
 
+

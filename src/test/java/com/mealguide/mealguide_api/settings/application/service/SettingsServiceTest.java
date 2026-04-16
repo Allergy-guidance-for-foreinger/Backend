@@ -19,7 +19,7 @@ class SettingsServiceTest {
     @Test
     void getLanguagesReturnsSelectableLanguageOptions() {
         assertThat(settingsService.getLanguages())
-                .containsExactly(new LanguageOption("en", "영어", "English"));
+                .containsExactly(new LanguageOption("en", "?�어", "English"));
     }
 
     @Test
@@ -37,7 +37,7 @@ class SettingsServiceTest {
     private static class FakeSettingsMasterQueryPort implements SettingsMasterQueryPort {
         @Override
         public List<LanguageOption> findLanguages() {
-            return List.of(new LanguageOption("en", "영어", "English"));
+            return List.of(new LanguageOption("en", "?�어", "English"));
         }
 
         @Override
@@ -66,3 +66,4 @@ class SettingsServiceTest {
         }
     }
 }
+

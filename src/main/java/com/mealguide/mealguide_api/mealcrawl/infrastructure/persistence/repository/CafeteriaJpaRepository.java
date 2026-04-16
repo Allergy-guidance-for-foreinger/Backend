@@ -1,0 +1,29 @@
+package com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.repository;
+
+import com.mealguide.mealguide_api.mealcrawl.domain.Cafeteria;
+import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+import java.util.List;
+
+public interface CafeteriaJpaRepository extends JpaRepository<Cafeteria, Long> {
+
+    @Query("""
+            select new com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource(
+                school.id,
+                cafeteria.id,
+                school.name,
+                cafeteria.name,
+                school.sourceUrl
+            )
+            from Cafeteria cafeteria
+            join com.mealguide.mealguide_api.onboarding.domain.School school
+                on school.id = cafeteria.schoolId
+            where school.sourceUrl is not null
+              and trim(school.sourceUrl) <> ''
+            order by cafeteria.id asc
+            """)
+    List<CrawlTargetSource> findAllCrawlTargets();
+}
+

@@ -4,3 +4,4 @@ public record AuthDebugConfigResponse(
         String googleClientId
 ) {
 }
+

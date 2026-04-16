@@ -44,3 +44,4 @@ public class UserPreference {
         this.updatedAt = LocalDateTime.now();
     }
 }
+

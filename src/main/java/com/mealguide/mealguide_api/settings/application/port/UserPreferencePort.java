@@ -12,3 +12,4 @@ public interface UserPreferencePort {
 
     void replaceAllergies(Long userId, List<String> allergyCodes);
 }
+

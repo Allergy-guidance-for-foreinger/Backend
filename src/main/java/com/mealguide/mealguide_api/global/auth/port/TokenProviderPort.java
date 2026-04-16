@@ -16,3 +16,4 @@ public interface TokenProviderPort {
 
     long getRefreshTokenExpirationSeconds();
 }
+

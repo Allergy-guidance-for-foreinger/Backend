@@ -25,3 +25,4 @@ public interface ReligiousFoodRestrictionJpaRepository extends JpaRepository<Rel
 
     boolean existsByCode(String code);
 }
+
