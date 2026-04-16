@@ -15,6 +15,7 @@ public class MealCrawlProperties {
 
     private boolean schedulerEnabled = false;
     private String schedulerCron = "0 0 4 * * *";
+    private long schedulerLockKey = 20260416L;
 
     private String pythonBaseUrl = "http://localhost:8000";
     private String crawlPath = "/api/v1/crawl/meals";

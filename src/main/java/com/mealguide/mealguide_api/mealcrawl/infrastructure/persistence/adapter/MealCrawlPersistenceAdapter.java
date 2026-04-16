@@ -22,6 +22,7 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.reposito
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.repository.MenuJpaRepository;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.repository.MenuTranslationJpaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -107,14 +108,20 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 .orElse(null);
 
         if (mealMenu == null) {
-            mealMenuJpaRepository.save(MealMenu.create(
-                    mealScheduleId,
-                    menuId,
-                    cornerName,
-                    displayOrder,
-                    INGREDIENT_SOURCE_TYPE_CRAWL,
-                    INGREDIENT_STATUS_PENDING
-            ));
+            try {
+                mealMenuJpaRepository.save(MealMenu.create(
+                        mealScheduleId,
+                        menuId,
+                        cornerName,
+                        displayOrder,
+                        INGREDIENT_SOURCE_TYPE_CRAWL,
+                        INGREDIENT_STATUS_PENDING
+                ));
+            } catch (DataIntegrityViolationException exception) {
+                MealMenu existingMealMenu = mealMenuJpaRepository.findByMealScheduleIdAndDisplayOrder(mealScheduleId, displayOrder)
+                        .orElseThrow(() -> new ServiceException(ErrorCode.BINDING_ERROR, exception));
+                existingMealMenu.updateMenu(menuId, cornerName, INGREDIENT_SOURCE_TYPE_CRAWL, INGREDIENT_STATUS_PENDING);
+            }
             return;
         }
 

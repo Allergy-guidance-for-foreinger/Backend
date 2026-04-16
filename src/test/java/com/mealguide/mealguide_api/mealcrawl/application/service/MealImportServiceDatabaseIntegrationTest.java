@@ -9,13 +9,13 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.adapter.
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.TestConfiguration;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
@@ -40,6 +40,9 @@ class MealImportServiceDatabaseIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private EntityManager entityManager;
+
     private Long schoolId;
     private Long cafeteriaId;
 
@@ -50,7 +53,6 @@ class MealImportServiceDatabaseIntegrationTest {
     }
 
     @Test
-    @Transactional
     void importMealsIsDuplicateSafeAndMealMenuIsUpsertedOnSameDisplayOrder() {
         LocalDate mealDate = LocalDate.of(2026, 4, 15);
         MealCrawlTarget target = new MealCrawlTarget(
@@ -91,6 +93,8 @@ class MealImportServiceDatabaseIntegrationTest {
 
         mealImportService.importMeals(target, first);
         mealImportService.importMeals(target, second);
+        entityManager.flush();
+        entityManager.clear();
 
         Long mealScheduleCount = jdbcTemplate.queryForObject("select count(*) from meal_schedule", Long.class);
         Long mealMenuCount = jdbcTemplate.queryForObject("select count(*) from meal_menu", Long.class);

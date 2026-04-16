@@ -39,7 +39,7 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
             }
             return response;
         } catch (RestClientException exception) {
-            throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR);
+            throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR, exception);
         }
     }
 
@@ -57,7 +57,7 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
             }
             return response;
         } catch (RestClientException exception) {
-            throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR);
+            throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR, exception);
         }
     }
 
@@ -75,7 +75,7 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
             }
             return response;
         } catch (RestClientException exception) {
-            throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR);
+            throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR, exception);
         }
     }
 }

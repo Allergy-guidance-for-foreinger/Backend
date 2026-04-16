@@ -5,9 +5,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-
 /**
- * ???�너?�이?��? API ?�드 ?�인?�에?�의 ?�공 �??�류 ?�답???�???�명???�의?�니??
+ * 어노테이션된 API 메서드 사양에서 성공 및 오류 응답에 대한 설명을 정의합니다.
  *
  * @see com.mealguide.mealguide_api.global.config.swagger.SwaggerApiSuccessResponse
  * @see com.mealguide.mealguide_api.global.config.swagger.SwaggerApiFailedResponse
@@ -19,4 +18,3 @@ public @interface SwaggerApiResponses {
 
     SwaggerApiFailedResponse[] errors() default { };
 }
-

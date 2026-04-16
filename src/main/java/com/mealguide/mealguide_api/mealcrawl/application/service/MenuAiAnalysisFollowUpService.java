@@ -11,7 +11,6 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.P
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuIngredientResultDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -30,7 +29,6 @@ public class MenuAiAnalysisFollowUpService {
     private final MealCrawlPersistencePort mealCrawlPersistencePort;
     private final PythonMealClientPort pythonMealClientPort;
 
-    @Transactional
     public void process(MealImportResult importResult) {
         Set<Long> targetMenuIds = new HashSet<>(importResult.menusNeedingAnalysis());
         if (targetMenuIds.isEmpty()) {

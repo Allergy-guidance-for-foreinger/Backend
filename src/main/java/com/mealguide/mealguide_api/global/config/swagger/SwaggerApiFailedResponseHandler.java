@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 public class SwaggerApiFailedResponseHandler {
 
     public void handle(Operation operation, HandlerMethod handlerMethod) {
-        // ???�터?�이?�에 붙�? @SwaggerApiResponses 까�? 찾기
+        // 인터페이스에 붙은 @SwaggerApiResponses 까지 탐색
         SwaggerApiResponses apiResponses = SwaggerAnnotationSupport.findSwaggerApiResponses(handlerMethod);
         if (apiResponses == null) return;
 
@@ -63,7 +63,7 @@ public class SwaggerApiFailedResponseHandler {
     private Example createSwaggerExample(ErrorCode exceptionType, String description) {
         FailedResponseBody failed = new FailedResponseBody(exceptionType.getCode(), exceptionType.getMessage());
 
-        // ?�제 ?�패 ?�답 ?�맷(?�재 DTO 기�?): { "success":"false", "code":"..", "msg":".." }
+        // 실제 실패 응답 형태(현재 DTO 기준): { "success":"false", "code":"..", "msg":".." }
         ExampleFailedResponseBody exampleBody = new ExampleFailedResponseBody("false", failed);
 
         Example example = new Example();
@@ -117,5 +117,3 @@ public class SwaggerApiFailedResponseHandler {
         }
     }
 }
-
-

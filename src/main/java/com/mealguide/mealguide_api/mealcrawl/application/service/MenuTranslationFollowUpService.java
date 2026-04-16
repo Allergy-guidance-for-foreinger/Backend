@@ -12,7 +12,6 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
@@ -27,7 +26,6 @@ public class MenuTranslationFollowUpService {
     private final PythonMealClientPort pythonMealClientPort;
     private final MealCrawlProperties mealCrawlProperties;
 
-    @Transactional
     public void process(MealImportResult importResult) {
         Set<Long> targetMenuIds = new HashSet<>(importResult.menusNeedingTranslation());
         if (targetMenuIds.isEmpty()) {

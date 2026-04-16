@@ -10,6 +10,470 @@ This document records implementation history and follow-up context.
 
 ---
 
+## 2026-04-16 (12)
+
+**Task**
+- Fix broken Korean Swagger descriptions for settings options APIs (`SettingsOptionsController` contract).
+
+**Affected Layers**
+- `settings.presentation.swagger`
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsOptionsApi.java`
+- `docs/work-context.md`
+
+**Why**
+- Korean text in Swagger `@Operation` summary/description and response descriptions for settings options endpoints was corrupted and unreadable.
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- Endpoint behavior changed: No
+- Swagger documentation text changed: Yes (Korean descriptions restored).
+
+**Implementation Notes**
+- Rewrote `SettingsOptionsApi` text annotations in readable Korean while preserving endpoint signatures and response/error mappings.
+- Saved file in UTF-8 without BOM.
+
+**Tests**
+- Not executed in this shell (Maven execution remains unavailable in current environment).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-16 (11)
+
+**Task**
+- Fix broken Korean text (mojibake) in `global.config.swagger` source files.
+
+**Affected Layers**
+- `global.config.swagger`
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/main/java/com/mealguide/mealguide_api/global/config/swagger/SwaggerAnnotationSupport.java`
+- `src/main/java/com/mealguide/mealguide_api/global/config/swagger/SwaggerApiFailedResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/global/config/swagger/SwaggerApiFailedResponseHandler.java`
+- `src/main/java/com/mealguide/mealguide_api/global/config/swagger/SwaggerApiResponses.java`
+- `src/main/java/com/mealguide/mealguide_api/global/config/swagger/SwaggerApiSuccessResponse.java`
+- `src/main/java/com/mealguide/mealguide_api/global/config/swagger/SwaggerApiSuccessResponseHandler.java`
+- `src/main/java/com/mealguide/mealguide_api/global/config/swagger/SwaggerConfig.java`
+- `docs/work-context.md`
+
+**Why**
+- Korean comments and Swagger description strings in `global` Swagger code were corrupted and unreadable.
+- Broken text reduced maintainability and produced unclear Swagger UI descriptions.
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- Endpoint behavior changed: No
+- Swagger documentation text changed: Yes (Korean text restored and normalized).
+
+**Implementation Notes**
+- Rewrote affected Swagger files in UTF-8 and replaced mojibake text with readable Korean.
+- Preserved runtime logic and method signatures; only comments/documentation strings were corrected.
+
+**Tests**
+- Not executed in this shell (Maven execution remains unavailable in current environment).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-16 (10)
+
+**Task**
+- Harden meal crawl concurrency by applying scheduler single-run lock across instances and making `meal_menu` upsert race-tolerant.
+
+**Affected Layers**
+- `mealcrawl.application.port`
+- `mealcrawl.application.service`
+- `mealcrawl.infrastructure.persistence.adapter`
+- `mealcrawl.infrastructure.config`
+- runtime config (`application.properties`)
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlSchedulerLockPort.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlScheduler.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlSchedulerLockAdapter.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/config/MealCrawlProperties.java`
+- `src/main/resources/application.properties`
+- `docs/work-context.md`
+
+**Why**
+- `upsertMealMenu` used read-then-branch logic, which can race under concurrent writes.
+- Multi-instance deployments can run `@Scheduled` jobs concurrently, so scheduler-level single-worker coordination is needed.
+
+**DB Impact**
+- Schema changed by this task: No
+- Write behavior changed: Yes
+  - `upsertMealMenu` now handles unique-collision races by retrying as update after insert collision.
+  - Scheduler now uses PostgreSQL advisory lock for cross-instance single-run coordination.
+
+**API Impact**
+- External API behavior changed: No
+
+**Implementation Notes**
+- Added `MealCrawlSchedulerLockPort` and PostgreSQL advisory-lock adapter:
+  - lock acquire: `pg_try_advisory_lock`
+  - lock release: `pg_advisory_unlock`
+- Updated `MealCrawlScheduler` to skip execution when lock is already held by another instance.
+- Added `mealguide.mealcrawl.scheduler-lock-key` property (default `20260416`).
+- Updated `upsertMealMenu`:
+  - keeps existing update path when row already exists
+  - insert path now catches `DataIntegrityViolationException` and re-fetches target row for update.
+
+**Tests**
+- Not executed in this shell (Maven execution remains unavailable in current environment).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-16 (9)
+
+**Task**
+- Preserve root cause exceptions for Python meal client failures instead of throwing generic errors without cause.
+
+**Affected Layers**
+- `global.base.exception`
+- `mealcrawl.infrastructure.client`
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/main/java/com/mealguide/mealguide_api/global/base/exception/ServiceException.java`
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+- `docs/work-context.md`
+
+**Why**
+- `PythonMealClientAdapter` previously converted `RestClientException` into `ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR)` without preserving the original exception.
+- This made troubleshooting difficult because stack trace root causes were lost.
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- External API contract changed: No
+- Error response contract changed: No (same error code/message), but server-side exception cause chain is now preserved.
+
+**Implementation Notes**
+- Added overloaded constructor to `ServiceException`:
+  - `ServiceException(ErrorCode errorCode, Throwable cause)`
+- Updated `PythonMealClientAdapter` catch blocks for:
+  - `crawlMeals(...)`
+  - `analyzeMenus(...)`
+  - `translateMenus(...)`
+  to throw `new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR, exception)`.
+
+**Tests**
+- Not executed in this shell (Maven execution remains unavailable in current environment).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-16 (8)
+
+**Task**
+- Remove service-level transaction from menu translation follow-up flow to keep external translation API calls outside DB transaction scope.
+
+**Affected Layers**
+- `mealcrawl.application.service`
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpService.java`
+- `docs/work-context.md`
+
+**Why**
+- `MenuTranslationFollowUpService.process()` executes `pythonMealClientPort.translateMenus(...)`, which is a blocking external API call.
+- Keeping method-level `@Transactional` during network I/O can hold DB connections longer than necessary.
+
+**DB Impact**
+- Schema changed by this task: No
+- Transaction boundary changed: Yes (service-level transaction removed; persistence port methods keep transactional DB writes).
+
+**API Impact**
+- External API contract changed: No
+- Internal processing semantics changed: No (same translation save flow).
+
+**Implementation Notes**
+- Removed `@Transactional` from `MenuTranslationFollowUpService.process()`.
+- Removed the now-unused `org.springframework.transaction.annotation.Transactional` import.
+
+**Tests**
+- Not executed in this shell (Maven execution remains unavailable in current environment).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-16 (7)
+
+**Task**
+- Fix test/runtime context startup failure caused by unresolved JWT secrets during `JwtProperties` binding.
+
+**Affected Layers**
+- test configuration resources
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/test/resources/application.properties`
+- `docs/work-context.md`
+
+**Why**
+- `mealguide.jwt.access-secret` and `mealguide.jwt.refresh-secret` in main `application.properties` depend on environment variables.
+- In local test runs without those env vars, placeholders remained unresolved and violated `@Size(min = 32)` validation in `JwtProperties`.
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- External API behavior changed: No
+
+**Implementation Notes**
+- Added test-only JWT secret values in `src/test/resources/application.properties` with 32+ length strings.
+- Kept main `src/main/resources/application.properties` unchanged.
+
+**Tests**
+- Not executed in this shell (Maven execution remains unavailable in current environment).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-16 (6)
+
+**Task**
+- Fix false-negative assertion in `MealImportServiceDatabaseIntegrationTest` where updated `meal_menu.menu_id` was read before JPA flush.
+
+**Affected Layers**
+- `mealcrawl` test layer
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealImportServiceDatabaseIntegrationTest.java`
+- `docs/work-context.md`
+
+**Why**
+- The test calls import twice and then reads DB state via `JdbcTemplate`.
+- Because the test runs inside a JPA transaction, dirty changes to managed entities may not be flushed before direct JDBC reads, leading to stale assertion values (`Kimchi Stew` instead of expected upserted `Soybean Stew`).
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- External API behavior changed: No
+
+**Implementation Notes**
+- Added `EntityManager` injection in the test.
+- Added `entityManager.flush(); entityManager.clear();` before JDBC assertions to force DB synchronization and verify persisted state.
+
+**Tests**
+- Not executed in this shell (Maven execution remains unavailable in current environment).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-16 (5)
+
+**Task**
+- Fix unresolved `DataJpaTest` / `AutoConfigureTestDatabase` symbols for `MealImportServiceDatabaseIntegrationTest` by adding missing Spring Boot 4 test-slice dependencies.
+
+**Affected Layers**
+- build dependency (`pom.xml`)
+- `mealcrawl` test compile path
+- `docs/work-context.md`
+
+**Changed Files**
+- `pom.xml`
+- `docs/work-context.md`
+
+**Why**
+- The integration test imports Boot 4 test-slice annotations:
+  - `org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest`
+  - `org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase`
+- Current test classpath did not include the required slice modules, so package/class resolution failed at compile time.
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- External API behavior changed: No
+
+**Implementation Notes**
+- Added test-scope dependencies:
+  - `org.springframework.boot:spring-boot-data-jpa-test`
+  - `org.springframework.boot:spring-boot-jdbc-test`
+- Kept `MealImportServiceDatabaseIntegrationTest` annotation usage aligned with Boot 4 package paths.
+
+**Tests**
+- Not executed in this shell (Maven execution remains unavailable in current environment).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-16 (4)
+
+**Task**
+- Apply additional cleanup to `MealImportServiceDatabaseIntegrationTest` as requested.
+
+**Affected Layers**
+- `mealcrawl` test layer
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealImportServiceDatabaseIntegrationTest.java`
+- `docs/work-context.md`
+
+**Why**
+- The test class already uses `@DataJpaTest`, which wraps test execution in transactions with rollback by default.
+- Method-level `@Transactional` was redundant and could cause confusion in transaction-boundary debugging.
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- External API behavior changed: No
+
+**Implementation Notes**
+- Removed method-level `@Transactional` from `importMealsIsDuplicateSafeAndMealMenuIsUpsertedOnSameDisplayOrder`.
+- Removed unused `org.springframework.transaction.annotation.Transactional` import.
+
+**Tests**
+- Not executed in this shell (Maven execution remains unavailable in current environment).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-16 (3)
+
+**Task**
+- Fix Spring Boot 4 test annotation package mismatch in `MealImportServiceDatabaseIntegrationTest`.
+
+**Affected Layers**
+- `mealcrawl` test layer
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealImportServiceDatabaseIntegrationTest.java`
+- `docs/work-context.md`
+
+**Why**
+- The project uses Spring Boot `4.0.5`, where slice-test annotations moved packages.
+- Previous imports used pre-4.x packages, causing `cannot find symbol` and `package ... does not exist` errors.
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- External API behavior changed: No
+
+**Implementation Notes**
+- Replaced test annotation imports with Spring Boot 4 package paths:
+  - `DataJpaTest`: `org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest`
+  - `AutoConfigureTestDatabase`: `org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase`
+
+**Tests**
+- Not executed in this shell (Maven execution remains unavailable in current environment).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-16 (2)
+
+**Task**
+- Fix test compile error in `MealImportServiceDatabaseIntegrationTest` caused by missing Spring test annotation imports.
+
+**Affected Layers**
+- `mealcrawl` test layer
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealImportServiceDatabaseIntegrationTest.java`
+- `docs/work-context.md`
+
+**Why**
+- The test used `@DataJpaTest` and `@AutoConfigureTestDatabase` without corresponding imports, causing `cannot find symbol` compile errors.
+
+**DB Impact**
+- Schema changed by this task: No
+
+**API Impact**
+- External API behavior changed: No
+
+**Implementation Notes**
+- Added missing imports:
+  - `org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest`
+  - `org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase`
+
+**Tests**
+- Not executed in this shell (Maven execution remains unavailable in current environment).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
+## 2026-04-16 (1)
+
+**Task**
+- Remove service-level transaction from menu AI follow-up flow to avoid holding DB transactions during external Python API calls.
+
+**Affected Layers**
+- `mealcrawl.application.service`
+- `docs/work-context.md`
+
+**Changed Files**
+- `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java`
+- `docs/work-context.md`
+
+**Why**
+- `MenuAiAnalysisFollowUpService.process()` included a blocking external API call (`pythonMealClientPort.analyzeMenus`) inside a method-level `@Transactional`.
+- Keeping that transaction open during network latency can hold DB connections unnecessarily and increase connection pool pressure.
+
+**DB Impact**
+- Schema changed by this task: No
+- Transaction boundary changed: Yes (service-level transaction removed; persistence port methods keep their own transaction scopes).
+
+**API Impact**
+- External API contract changed: No
+- Internal processing semantics changed: No (same analysis-save/update flow).
+
+**Implementation Notes**
+- Removed `@Transactional` from `MenuAiAnalysisFollowUpService.process()`.
+- Removed the now-unused `org.springframework.transaction.annotation.Transactional` import.
+- Existing transaction handling remains at persistence adapter method level (`MealCrawlPersistenceAdapter`), so DB writes still run transactionally per port call.
+
+**Tests**
+- No test execution in this shell (Maven execution remains unavailable in current environment).
+
+**Documentation Updates**
+- Updated `docs/work-context.md`.
+
+---
+
 ## 2026-04-15 (12)
 
 **Task**
