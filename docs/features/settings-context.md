@@ -24,7 +24,7 @@
 - `UserPreferencePersistenceAdapter`, `SettingsMasterPersistenceAdapter`: 포트 구현체
 - `UserPreferenceJpaRepository`, `UserAllergyJpaRepository`, `LanguageJpaRepository`, `AllergyJpaRepository`, `ReligiousFoodRestrictionJpaRepository`
 - `UpdateLanguageRequest`, `UpdateAllergiesRequest`, `UpdateReligionRequest`: 요청 DTO
-- `LanguageUpdateResponse`, `AllergyUpdateResponse`, `ReligionUpdateResponse`, 옵션 응답 DTO들
+- `LanguageUpdateResponse`, `AllergyUpdateResponse`, `ReligionUpdateResponse`, `LanguageOptionsResponse`, `LanguageOptionItemResponse`, `AllergyOptionsResponse`, `AllergyOptionItemResponse`, `ReligionOptionsResponse`, `ReligionOptionItemResponse`: ?? DTO
 
 ## 4. DB 사용 규칙
 - 관련 테이블

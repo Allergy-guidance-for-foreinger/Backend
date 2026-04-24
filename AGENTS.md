@@ -68,23 +68,23 @@ DB 관련 작업의 경우 아래 파일을 추가로 읽는다.
 
 아래 규칙을 따른다.
 
-HTTP 엔드포인트는 `{feature}.presentation.controller`에 둔다.  
-요청 DTO는 `{feature}.presentation.dto.request`에 둔다.  
-응답 DTO는 `{feature}.presentation.dto.response`에 둔다.  
-Swagger/OpenAPI 구성은 `{feature}.presentation.swagger`에 둔다.  
-유스케이스 오케스트레이션 로직은 `{feature}.application.service`에 둔다.  
-저장소 접근 추상화는 `{feature}.application.port`에 둔다.  
-핵심 도메인 모델과 비즈니스 개념은 `{feature}.domain`에 둔다.  
-영속성 구현은 `{feature}.infrastructure.persistence`에 둔다.  
-Spring Data repository는 `{feature}.infrastructure.persistence.repository`에 둔다.  
+HTTP 엔드포인트는 `{feature}.presentation.controller`에 둔다.
+요청 DTO는 `{feature}.presentation.dto.request`에 둔다.
+응답 DTO는 `{feature}.presentation.dto.response`에 둔다.
+Swagger/OpenAPI 구성은 `{feature}.presentation.swagger`에 둔다.
+유스케이스 오케스트레이션 로직은 `{feature}.application.service`에 둔다.
+저장소 접근 추상화는 `{feature}.application.port`에 둔다.
+핵심 도메인 모델과 비즈니스 개념은 `{feature}.domain`에 둔다.
+영속성 구현은 `{feature}.infrastructure.persistence`에 둔다.
+Spring Data repository는 `{feature}.infrastructure.persistence.repository`에 둔다.
 application port 구현체는 `{feature}.infrastructure.persistence.adapter`에 둔다.
 
-레이어 간 클래스를 임의로 이동하지 않는다.  
+레이어 간 클래스를 임의로 이동하지 않는다.
 사용자 명시 요청이 없으면 다른 아키텍처를 도입하지 않는다.
 
 현재 기능 패키지는 `login`, `onboarding`, `settings`를 포함한다.
 
-기능 간 공통 인증 인프라는 `global.auth` 아래에 둔다.  
+기능 간 공통 인증 인프라는 `global.auth` 아래에 둔다.
 기능 특화 로그인 로직은 기능 패키지 내부에 유지한다.
 
 ## 4. 아키텍처 동작 규칙
@@ -137,7 +137,7 @@ DB 관련 작업 시 아래를 따른다.
 
 ## 8. 문서 업데이트 정책
 
-각 작업 후 `docs/work-context.md`를 업데이트한다.
+각 작업 후 관련 docs/work-log/ 파일을 업데이트한다.
 
 작업이 DB 구조 또는 DB 관련 비즈니스 규칙을 변경한 경우 아래도 함께 업데이트한다.
 
@@ -162,7 +162,7 @@ DB 관련 작업 시 아래를 따른다.
 - 영향 패키지
 - DB 영향 여부
 
-코드 변경 후 `docs/work-context.md`에 아래를 기록한다.
+코드 변경 후 관련 docs/work-log/ 파일에 아래를 기록한다:
 
 - 무엇을 변경했는지
 - 왜 변경했는지
