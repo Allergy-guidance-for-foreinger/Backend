@@ -1,152 +1,31 @@
-# Database Context
+# 데이터베이스 공통 맥락
 
-## 1. Purpose
-This document summarizes the main table roles and DB-related business rules for Mealguide API.
+## 1. 목적
+이 문서는 프로젝트 전반의 DB 공통 규칙을 정의한다.  
+기능별 DB 상세 사용 규칙은 각 기능 맥락 문서를 참조한다.
 
-Important:
-- This is a summary document.
-- `docs/schema.sql` is the source of truth for exact schema definitions.
+## 2. 기준 문서
+- 스키마 기준(source of truth): `docs/schema.sql`
+- `docs/database-context.md`와 `docs/schema.sql`이 다르면 `docs/schema.sql`을 따른다.
 
-## 2. Source of Truth
-Always verify the following in `docs/schema.sql` before changing DB-related code:
-- table names
-- column names and types
-- nullable rules
-- primary keys / foreign keys
-- unique constraints
-- indexes
+## 3. 공통 DB 작업 규칙
+- 컬럼명, 타입, nullable, PK/FK, unique, index는 반드시 `docs/schema.sql`로 검증한다.
+- 요약 문서나 기억 기반으로 스키마를 추정하지 않는다.
+- 기능 서비스는 repository 구현 세부가 아니라 application port에 의존한다.
+- 기능별 persistence 구현은 infrastructure 레이어에 둔다.
 
-If this document and `docs/schema.sql` differ, follow `docs/schema.sql`.
+## 4. 기능별 DB 상세 규칙 문서
+- 로그인/토큰: `docs/features/login-context.md`
+- 온보딩: `docs/features/onboarding-context.md`
+- 사용자 설정: `docs/features/settings-context.md`
+- 급식 크롤링: `docs/features/mealcrawl-context.md`
+- 로컬 인증 디버그: `docs/features/authdebug-context.md` (DB 영향 없음)
 
-## 3. Core Data Concepts
-- user accounts and user dietary preferences
-- school and cafeteria ownership structure
-- meal schedules per cafeteria and date
-- menu master data
-- daily meal menu data
-- ingredient master data
-- user allergy and avoided ingredient mappings
-- religious food restriction mappings
-- AI analysis data
-- confirmed ingredient data
-- translation data
+## 5. 공통 비즈니스 원칙(요약)
+- soft delete/비활성 사용자(`status = INACTIVE`, `deleted_at`) 처리 규칙은 인증/조회 흐름에서 일관되게 유지한다.
+- 사용자별 알레르기 설정은 full replacement 규칙을 따른다.
+- AI 분석/번역 후속 처리 실패가 핵심 import 성공 상태를 깨지 않도록 분리한다.
 
-## 4. Table Summary
-
-### `users`
-- Stores user account and authentication information
-- Relevant columns for authentication:
-  - `id`
-  - `school_id` nullable
-  - `email`
-  - `name`
-  - `language_code` nullable, references `language(code)`
-  - `religious_code` nullable, references `religious_food_restriction(code)`
-  - `onboarding_completed`
-  - `status`
-  - `role`
-  - `deleted_at`
-- Login code currently treats `status` as:
-  - `ACTIVE`
-  - `INACTIVE`
-- Login code currently treats `role` as:
-  - `USER`
-  - `ADMIN`
-  - `MANAGER`
-- Entity delete behavior uses soft delete semantics:
-  - entity delete updates `status` to `INACTIVE`
-  - inactive users are excluded from normal ORM selection
-- New users created during first-login signup rely on PostgreSQL identity columns:
-  - `users.id`
-  - `user_oauth_accounts.id`
-
-### `user_oauth_accounts`
-- Stores external OAuth account mappings for users
-- Relevant columns for authentication:
-  - `id`
-  - `user_id`
-  - `provider`
-  - `provider_user_id`
-  - `provider_email`
-
-### `school`, `cafeteria`
-- Store school and cafeteria hierarchy
-- `school_translation` stores language-specific school names and falls back to `school.name` when no requested translation exists
-
-### `language`
-- Stores selectable app language master data
-- `language.code` is referenced by `users.language_code` and translation-table `lang_code` columns
-
-### `allergy`, `ingredient`, `religious_food_restriction`
-- Store master data used for dietary checks
-
-### `user_allergy`, `user_avoided_ingredient`
-- Store per-user dietary risk settings
-- `user_allergy` stores the user's selected allergy master codes as full-replacement settings
-
-### `meal_schedule`, `menu`, `meal_menu`
-- Store daily cafeteria meal data and menu composition
-
-### `menu_ai_analysis`, `menu_ai_analysis_ingredient`
-- Store AI-derived ingredient analysis results
-
-### `meal_menu_confirmed_ingredient`, `meal_menu_confirmation_history`
-- Store confirmed ingredient data and admin change history
-
-### Translation tables
-- `school_translation`
-- `menu_translation`
-- `ingredient_translation`
-- `allergy_translation`
-- `religious_food_restriction_translation`
-- Translation `lang_code` columns reference `language(code)`
-
-## 5. Business Rules
-- Daily meal data and menu master data are separate concerns.
-- AI analysis data is draft-like and must not be treated the same as confirmed data.
-- User-specific dietary checks should be based on mapped ingredient data, not only menu names.
-- Translation data supplements source data but does not replace the original source-of-truth records.
-- Meal crawling integration is synchronous Java-to-Python HTTP based (no queue/event broker).
-- `meal_menu_confirmed_ingredient` and confirmation history are admin-confirmed data and are not auto-created by crawl import.
-- Meal import success must remain intact even when AI analysis or translation follow-up fails.
-- User language preference is stored in `users.language_code`.
-- User allergy settings are replaced as a full set in `user_allergy`.
-- `users.religious_code` can be null when the user has no selected religious food restriction.
-- `users.deleted_at` indicates soft deletion and should be respected by authentication and user lookup flows.
-- `users.status = INACTIVE` is also treated as a soft-deleted or disabled state in ORM-based user queries.
-
-## 6. DB Access Layer Rule
-Database access must follow the current package structure:
-- `{feature}.application.port`
-- `{feature}.infrastructure.persistence.adapter`
-- `{feature}.infrastructure.persistence.repository`
-
-Application services should depend on ports, not directly on repository implementation details.
-
-## 7. Authentication-Related Notes
-- Current login work uses `users` and `user_oauth_accounts` with automatic first-login signup.
-- Mobile login accepts a Google ID token from the client.
-- Google login should map the verified Google account to an existing user through `user_oauth_accounts`.
-- `users.email` is nullable in the current schema, so login logic must not assume email-only lookup is sufficient.
-- Only `ACTIVE` users should be selected by authentication queries.
-- If no linked user exists on first login, a new `users` row and `user_oauth_accounts` row are created.
-- First login auto-signup currently creates:
-  - `school_id = null`
-  - `onboarding_completed = false`
-  - `status = ACTIVE`
-  - `role = USER`
-- Onboarding completion API stores school, allergy, and religious selections atomically and updates:
-  - `users.language_code`
-  - `users.school_id`
-  - `users.religious_code`
-  - `user_allergy` (full replacement)
-  - `users.onboarding_completed = true`
-- Refresh tokens are managed in Redis, not in PostgreSQL.
-
-## 8. When This Document Must Be Updated
-Update this document when:
-- table roles or data responsibilities change
-- user/account-related business rules change
-- DB access layer conventions change
-- authentication starts depending on new DB structures
-- `users` semantics change
+## 6. 업데이트 규칙
+- 공통 DB 작업 원칙이 변경될 때 본 문서를 업데이트한다.
+- 기능별 상세 DB 규칙이 변경될 때는 해당 `docs/features/*-context.md`를 우선 업데이트한다.
