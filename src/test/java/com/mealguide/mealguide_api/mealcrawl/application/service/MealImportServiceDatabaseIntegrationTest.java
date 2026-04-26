@@ -1,6 +1,7 @@
 package com.mealguide.mealguide_api.mealcrawl.application.service;
 
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealCrawlTarget;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCacheRow;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonCrawledMenuDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonDailyMealDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMealCrawlResponse;
@@ -36,6 +37,9 @@ class MealImportServiceDatabaseIntegrationTest {
 
     @Autowired
     private MealImportService mealImportService;
+
+    @Autowired
+    private MealCrawlPersistenceAdapter mealCrawlPersistenceAdapter;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -115,6 +119,54 @@ class MealImportServiceDatabaseIntegrationTest {
         );
 
         assertThat(selectedMenuName).isEqualTo("Soybean Stew");
+    }
+
+    @Test
+    void findWeeklyMealsForCacheOrdersMealTypeByMealTime() {
+        LocalDate mealDate = LocalDate.of(2026, 4, 15);
+        MealCrawlTarget target = new MealCrawlTarget(
+                schoolId,
+                cafeteriaId,
+                "Test School",
+                "Main Cafeteria",
+                "https://example.com",
+                mealDate,
+                mealDate.plusDays(6)
+        );
+
+        PythonMealCrawlResponse response = new PythonMealCrawlResponse(
+                "Test School",
+                "Main Cafeteria",
+                "https://example.com",
+                mealDate,
+                mealDate.plusDays(6),
+                List.of(
+                        new PythonDailyMealDto(
+                                mealDate,
+                                "LUNCH",
+                                List.of(new PythonCrawledMenuDto("A", 1, "Lunch Menu"))
+                        ),
+                        new PythonDailyMealDto(
+                                mealDate,
+                                "DINNER",
+                                List.of(new PythonCrawledMenuDto("A", 1, "Dinner Menu"))
+                        ),
+                        new PythonDailyMealDto(
+                                mealDate,
+                                "BREAKFAST",
+                                List.of(new PythonCrawledMenuDto("A", 1, "Breakfast Menu"))
+                        )
+                )
+        );
+
+        mealImportService.importMeals(target, response);
+        entityManager.flush();
+        entityManager.clear();
+
+        List<WeeklyMealCacheRow> rows = mealCrawlPersistenceAdapter.findWeeklyMealsForCache(cafeteriaId, mealDate, mealDate);
+        List<String> mealTypes = rows.stream().map(WeeklyMealCacheRow::mealType).toList();
+
+        assertThat(mealTypes).containsExactly("BREAKFAST", "LUNCH", "DINNER");
     }
 
     private Long insertSchool(String name, String sourceUrl) {

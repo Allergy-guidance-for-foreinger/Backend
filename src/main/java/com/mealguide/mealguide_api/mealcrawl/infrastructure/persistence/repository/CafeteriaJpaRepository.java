@@ -9,6 +9,8 @@ import java.util.List;
 
 public interface CafeteriaJpaRepository extends JpaRepository<Cafeteria, Long> {
 
+    boolean existsByIdAndSchoolId(Long id, Long schoolId);
+
     @Query("""
             select new com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource(
                 school.id,

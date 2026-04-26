@@ -21,6 +21,7 @@ public class MealCrawlProperties {
     private String crawlPath = "/api/v1/crawl/meals";
     private String analysisPath = "/api/v1/menus/analyze";
     private String translationPath = "/api/v1/menus/translate";
+    private long weeklyMealCacheTtlSeconds = 86400L;
 
     private List<String> translationTargetLanguages = List.of("en");
 }

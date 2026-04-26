@@ -1,7 +1,7 @@
 # onboarding 기능 맥락
 
 ## 1. 역할
-`onboarding` 기능은 최초 로그인 이후 사용자 기본 설정을 완료시키는 흐름을 담당한다.  
+`onboarding` 기능은 최초 로그인 이후 사용자 기본 설정을 완료시키는 흐름을 담당한다.
 학교 목록 조회와 onboarding 완료 저장을 제공한다.
 
 ## 2. 주요 패키지
@@ -55,13 +55,33 @@
   - `GET /api/v1/onboarding/schools`: 인증 불필요
   - `POST /api/v1/onboarding/complete`: `USER`/`MANAGER`/`ADMIN` 인증 필요
 
-## 6. 비즈니스 규칙
-- onboarding 완료 시 사용자 기본 설정은 부분 성공 없이 일괄 반영되어야 한다.
-- 완료 처리 후 `users.onboarding_completed = true`를 보장한다.
-- 알레르기 설정은 증분 업데이트가 아닌 전체 교체로 처리한다.
-- 종교 제한은 미선택(null) 상태를 정상 입력으로 허용한다.
+## 6. 공통 비즈니스 규칙
+- onboarding은 최초 로그인 이후 사용자 초기 설정 완료 흐름이다.
+- onboarding 완료 시 언어, 학교, 알레르기, 종교 제한 설정을 함께 저장한다.
+- `users.language_code`, `users.school_id`, `users.religious_code`, `users.onboarding_completed`를 업데이트한다.
+- `user_allergy`는 전체 교체(full replacement) 방식으로 저장한다.
+- `religiousCode`는 사용자가 선택하지 않으면 null 가능하다.
+- onboarding 완료 처리는 원자적으로 수행되어야 한다.
+- `users` 테이블을 중복 entity로 매핑하지 말고 기존 login `User` 매핑 또는 update query 정책을 따른다.
 
-## 7. 주의사항
+## 7. API별 비즈니스 규칙
+
+### 7.1 `GET /api/v1/onboarding/schools`
+- 학교 선택 화면에 필요한 학교 목록을 제공한다.
+- 요청 언어의 `school_translation`이 있으면 번역명을 사용한다.
+- 요청 언어 번역이 없으면 `school.name`으로 fallback한다.
+- 인증 필요 여부: 인증 불필요.
+
+### 7.2 `POST /api/v1/onboarding/complete`
+- 인증된 사용자만 호출할 수 있다.
+- 요청에는 `languageCode`, `schoolId`, `allergyCodes`, `religiousCode`가 포함된다.
+- `languageCode`, `schoolId`, `allergyCodes`, `religiousCode`가 유효한 master data인지 검증한다.
+- `religiousCode`가 null이면 종교 제한 없음으로 저장한다.
+- 기존 `user_allergy`를 삭제하고 요청 allergy 목록으로 전체 교체한다.
+- 사용자 설정 저장이 모두 성공하면 `users.onboarding_completed = true`로 변경한다.
+- 일부 저장만 성공한 상태가 남지 않도록 transaction 경계를 유지한다.
+
+## 8. 주의사항
 - onboarding 저장 흐름에서 트랜잭션 경계가 깨지면 사용자 상태 불일치가 발생할 수 있다.
 - 학교 목록/번역 조회 로직 변경 시 fallback 규칙을 유지한다.
 - 요청 필드명(`languageCode`, `schoolId`, `allergyCodes`, `religiousCode`)과 저장 컬럼 매핑을 임의로 변경하지 않는다.
