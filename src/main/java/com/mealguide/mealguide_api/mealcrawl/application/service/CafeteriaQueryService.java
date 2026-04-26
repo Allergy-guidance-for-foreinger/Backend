@@ -32,8 +32,11 @@ public class CafeteriaQueryService {
     }
 
     private Long requireSchoolId(CurrentUserMealPreference preference) {
+        if (preference == null) {
+            throw new ServiceException(ErrorCode.USER_NOT_FOUND);
+        }
         if (preference.schoolId() == null) {
-            throw new ServiceException(ErrorCode.BINDING_ERROR);
+            throw new ServiceException(ErrorCode.ESSENTIAL_FIELD_MISSING_ERROR);
         }
         return preference.schoolId();
     }

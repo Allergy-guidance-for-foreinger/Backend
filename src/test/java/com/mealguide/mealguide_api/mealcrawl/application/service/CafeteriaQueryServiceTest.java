@@ -1,5 +1,6 @@
 package com.mealguide.mealguide_api.mealcrawl.application.service;
 
+import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.CafeteriaRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.CurrentUserMealPreference;
@@ -67,6 +68,8 @@ class CafeteriaQueryServiceTest {
                 .thenReturn(new CurrentUserMealPreference(1L, null, "ko", null, List.of()));
 
         assertThatThrownBy(() -> service.getCafeteriasForCurrentUser(1L))
-                .isInstanceOf(ServiceException.class);
+                .isInstanceOf(ServiceException.class)
+                .extracting(throwable -> ((ServiceException) throwable).getErrorCode())
+                .isEqualTo(ErrorCode.ESSENTIAL_FIELD_MISSING_ERROR);
     }
 }

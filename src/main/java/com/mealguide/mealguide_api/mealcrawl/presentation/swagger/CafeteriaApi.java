@@ -23,7 +23,7 @@ public interface CafeteriaApi {
             errors = {
                     @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED),
                     @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND),
-                    @SwaggerApiFailedResponse(ErrorCode.BINDING_ERROR)
+                    @SwaggerApiFailedResponse(ErrorCode.ESSENTIAL_FIELD_MISSING_ERROR)
             }
     )
     ResponseEntity<ResponseBody<CafeteriaListResponse>> getCafeterias(

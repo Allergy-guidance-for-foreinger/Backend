@@ -6,6 +6,22 @@
 
 ## 최근 공통 작업
 
+### 2026-04-26 (cafeteria 조회 서비스 null 방어 보강)
+- What changed:
+  - `CafeteriaQueryService.requireSchoolId`에 `CurrentUserMealPreference` null 방어 로직을 추가했다.
+  - `preference == null`일 때 `USER_NOT_FOUND` 예외를 던지도록 수정했다.
+- Why:
+  - 포트 구현 변경/오류 상황에서 NPE가 발생하지 않도록 서비스 계층 방어 코드를 보강하기 위해.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/CafeteriaQueryService.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No (예외 처리 안정성만 보강)
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - 현재 환경의 Maven wrapper 실행 오류로 자동 테스트 실행 검증 필요.
+
 ### 2026-04-26 (인증 사용자 schoolId 기준 cafeteria 목록 조회 API 추가)
 - What changed:
   - 인증된 사용자 `schoolId` 기준으로 식당 목록을 조회하는 API를 `mealcrawl` 기능에 추가했다.
@@ -319,3 +335,22 @@
   - `docs/work-log/general-work-log.md`
 - Remaining follow-ups:
   - Run mealcrawl service tests in IDE/local environment and verify translated/non-translated fallback behavior by language.
+
+### 2026-04-26 (cafeteria schoolId null error code semantic alignment)
+- What changed:
+  - Changed `CafeteriaQueryService.requireSchoolId` null-school handling from `BINDING_ERROR` to `ESSENTIAL_FIELD_MISSING_ERROR`.
+  - Updated `CafeteriaApi` swagger failure response to `ESSENTIAL_FIELD_MISSING_ERROR`.
+  - Updated `CafeteriaQueryServiceTest` to assert exact error code for null `schoolId`.
+- Why:
+  - Null `schoolId` is a missing required business field, not a request binding conversion failure.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/CafeteriaQueryService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/swagger/CafeteriaApi.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/CafeteriaQueryServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No response schema change (error code semantics updated)
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Maven wrapper execution issue remains in this environment; run local test verification where wrapper works.
