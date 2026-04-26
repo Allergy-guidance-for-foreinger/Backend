@@ -35,6 +35,8 @@ class WeeklyMealResponseAssemblerTest {
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
 
         assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("DANGER");
+        assertThat(response.mealSchedules().get(0).menus().get(0).risk().reasons().get(0).message())
+                .isEqualTo("Allergy risk detected for this menu.");
     }
 
     @Test
@@ -85,8 +87,8 @@ class WeeklyMealResponseAssemblerTest {
         WeeklyMealResponse.MenuResponse menu = response.mealSchedules().get(0).menus().get(0);
         assertThat(menu.risk().riskLevel()).isEqualTo("SAFE");
         String json = new ObjectMapper().writeValueAsString(menu);
-        assertThat(json).contains("mealMenuId");
-        assertThat(json).doesNotContain("menuId");
+        assertThat(json).contains("\"mealMenuId\"");
+        assertThat(json).doesNotContain("\"menuId\"");
     }
 
     @Test
@@ -98,6 +100,19 @@ class WeeklyMealResponseAssemblerTest {
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
 
         assertThat(response.mealSchedules().get(0).menus().get(0).menuName()).isEqualTo("Kimchi Stew EN");
+    }
+
+    @Test
+    void returnsKoreanRiskMessageWhenUserLanguageIsKorean() {
+        FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
+        port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
+        port.allergyRestrictions = List.of(new RestrictionIngredientRow("PORK", "PORK", "Pork"));
+
+        WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port);
+        WeeklyMealResponse response = assembler.assemble(samplePayload(), koreanPreference());
+
+        assertThat(response.mealSchedules().get(0).menus().get(0).risk().reasons().get(0).message())
+                .isEqualTo("이 메뉴에서 알레르기 위험 성분이 확인되었습니다.");
     }
 
     private WeeklyMealCachePayload samplePayload() {
@@ -126,6 +141,16 @@ class WeeklyMealResponseAssemblerTest {
                 100L,
                 1L,
                 "en",
+                "HALAL",
+                List.of("PORK")
+        );
+    }
+
+    private CurrentUserMealPreference koreanPreference() {
+        return new CurrentUserMealPreference(
+                100L,
+                1L,
+                "ko",
                 "HALAL",
                 List.of("PORK")
         );

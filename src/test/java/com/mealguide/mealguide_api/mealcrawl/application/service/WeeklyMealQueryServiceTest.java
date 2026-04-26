@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,7 +42,9 @@ class WeeklyMealQueryServiceTest {
         String serialized = createObjectMapper().writeValueAsString(payload);
         when(cachePort.findWeeklyMealCache(100L, 10L, LocalDate.of(2026, 4, 20)))
                 .thenReturn(Optional.of(serialized));
-        when(assembler.assemble(payload, samplePreference()))
+        when(assembler.resolveTranslatedMenuNames(payload, samplePreference().languageCode()))
+                .thenReturn(Map.of());
+        when(assembler.assemble(payload, samplePreference(), Map.of()))
                 .thenReturn(sampleResponse());
 
         WeeklyMealQueryService service = new WeeklyMealQueryService(
@@ -77,7 +80,9 @@ class WeeklyMealQueryServiceTest {
         WeeklyMealCachePayload payload = samplePayload();
         when(cacheRefreshService.loadWeeklyMealCachePayloadFromDb(100L, 10L, LocalDate.of(2026, 4, 20)))
                 .thenReturn(payload);
-        when(assembler.assemble(payload, samplePreference()))
+        when(assembler.resolveTranslatedMenuNames(payload, samplePreference().languageCode()))
+                .thenReturn(Map.of());
+        when(assembler.assemble(payload, samplePreference(), Map.of()))
                 .thenReturn(sampleResponse());
 
         WeeklyMealQueryService service = new WeeklyMealQueryService(
@@ -94,6 +99,87 @@ class WeeklyMealQueryServiceTest {
         assertThat(response.mealSchedules().get(0).menus().get(0).mealMenuId()).isEqualTo(11L);
         verify(cacheRefreshService).loadWeeklyMealCachePayloadFromDb(100L, 10L, LocalDate.of(2026, 4, 20));
         verify(cacheRefreshService).upsertWeeklyMealCachePayload(payload);
+    }
+
+    @Test
+    void normalizesRequestedWeekStartDateToMonday() throws Exception {
+        MealUserPreferencePort preferencePort = mock(MealUserPreferencePort.class);
+        MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
+        WeeklyMealCachePort cachePort = mock(WeeklyMealCachePort.class);
+        WeeklyMealCacheRefreshService cacheRefreshService = mock(WeeklyMealCacheRefreshService.class);
+        WeeklyMealResponseAssembler assembler = mock(WeeklyMealResponseAssembler.class);
+
+        LocalDate requestedDate = LocalDate.of(2026, 4, 22);
+        LocalDate normalizedMonday = LocalDate.of(2026, 4, 20);
+
+        when(preferencePort.getCurrentUserMealPreference(1L)).thenReturn(samplePreference());
+        when(persistencePort.existsCafeteriaInSchool(10L, 100L)).thenReturn(true);
+        when(cachePort.createWeeklyMealCacheKey(100L, 10L, normalizedMonday))
+                .thenReturn("meal:weekly:100:10:2026-04-20");
+        when(cachePort.findWeeklyMealCache(100L, 10L, normalizedMonday))
+                .thenReturn(Optional.empty());
+
+        WeeklyMealCachePayload payload = samplePayload();
+        when(cacheRefreshService.loadWeeklyMealCachePayloadFromDb(100L, 10L, normalizedMonday))
+                .thenReturn(payload);
+        when(assembler.resolveTranslatedMenuNames(payload, samplePreference().languageCode()))
+                .thenReturn(Map.of());
+        when(assembler.assemble(payload, samplePreference(), Map.of()))
+                .thenReturn(sampleResponse());
+
+        WeeklyMealQueryService service = new WeeklyMealQueryService(
+                preferencePort,
+                persistencePort,
+                cachePort,
+                cacheRefreshService,
+                assembler,
+                createObjectMapper()
+        );
+
+        service.getWeeklyMeals(1L, 10L, requestedDate);
+
+        verify(cachePort).createWeeklyMealCacheKey(100L, 10L, normalizedMonday);
+        verify(cachePort).findWeeklyMealCache(100L, 10L, normalizedMonday);
+        verify(cacheRefreshService).loadWeeklyMealCachePayloadFromDb(100L, 10L, normalizedMonday);
+    }
+
+    @Test
+    void whenAssemblerFailsFallbackKeepsTranslatedMenuName() throws Exception {
+        MealUserPreferencePort preferencePort = mock(MealUserPreferencePort.class);
+        MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
+        WeeklyMealCachePort cachePort = mock(WeeklyMealCachePort.class);
+        WeeklyMealCacheRefreshService cacheRefreshService = mock(WeeklyMealCacheRefreshService.class);
+        WeeklyMealResponseAssembler assembler = mock(WeeklyMealResponseAssembler.class);
+
+        LocalDate weekStartDate = LocalDate.of(2026, 4, 20);
+        WeeklyMealCachePayload payload = samplePayload();
+        String serialized = createObjectMapper().writeValueAsString(payload);
+
+        when(preferencePort.getCurrentUserMealPreference(1L)).thenReturn(samplePreference());
+        when(persistencePort.existsCafeteriaInSchool(10L, 100L)).thenReturn(true);
+        when(cachePort.createWeeklyMealCacheKey(100L, 10L, weekStartDate))
+                .thenReturn("meal:weekly:100:10:2026-04-20");
+        when(cachePort.findWeeklyMealCache(100L, 10L, weekStartDate))
+                .thenReturn(Optional.of(serialized));
+        when(assembler.resolveTranslatedMenuNames(payload, samplePreference().languageCode()))
+                .thenReturn(Map.of(11L, "Kimchi Stew EN"));
+        when(assembler.assemble(payload, samplePreference(), Map.of(11L, "Kimchi Stew EN")))
+                .thenThrow(new RuntimeException("risk assemble failure"));
+
+        WeeklyMealQueryService service = new WeeklyMealQueryService(
+                preferencePort,
+                persistencePort,
+                cachePort,
+                cacheRefreshService,
+                assembler,
+                createObjectMapper()
+        );
+
+        WeeklyMealResponse response = service.getWeeklyMeals(1L, 10L, weekStartDate);
+
+        WeeklyMealResponse.MenuResponse firstMenu = response.mealSchedules().get(0).menus().get(0);
+        assertThat(firstMenu.menuName()).isEqualTo("Kimchi Stew EN");
+        assertThat(firstMenu.risk().riskLevel()).isEqualTo("UNKNOWN");
     }
 
     private CurrentUserMealPreference samplePreference() {

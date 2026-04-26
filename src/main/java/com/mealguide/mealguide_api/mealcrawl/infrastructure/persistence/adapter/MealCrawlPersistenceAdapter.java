@@ -277,11 +277,26 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                     select mm.id as meal_menu_id, mm.menu_id
                     from meal_menu mm
                     where mm.id in (:mealMenuIds)
+                ),
+                latest_success_analysis as (
+                    select maa.menu_id, max(coalesce(maa.analyzed_at, maa.created_at)) as latest_at
+                    from menu_ai_analysis maa
+                    join target_meal_menu tmm on tmm.menu_id = maa.menu_id
+                    where maa.status = 'SUCCESS'
+                    group by maa.menu_id
+                ),
+                latest_analysis_id as (
+                    select maa.id, maa.menu_id
+                    from menu_ai_analysis maa
+                    join latest_success_analysis lsa
+                      on lsa.menu_id = maa.menu_id
+                     and coalesce(maa.analyzed_at, maa.created_at) = lsa.latest_at
+                    where maa.status = 'SUCCESS'
                 )
                 select distinct tmm.meal_menu_id
                 from target_meal_menu tmm
-                join menu_ai_analysis maa on maa.menu_id = tmm.menu_id
-                where maa.status = 'SUCCESS'
+                join latest_analysis_id lai on lai.menu_id = tmm.menu_id
+                join menu_ai_analysis_ingredient mai on mai.menu_ai_analysis_id = lai.id
                 """;
 
         MapSqlParameterSource params = new MapSqlParameterSource("mealMenuIds", mealMenuIds);

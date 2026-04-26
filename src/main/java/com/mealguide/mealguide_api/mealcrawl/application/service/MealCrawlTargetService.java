@@ -18,8 +18,8 @@ public class MealCrawlTargetService {
 
     @Transactional(readOnly = true)
     public List<MealCrawlTarget> resolveWeeklyTargets(LocalDate baseDate) {
-        LocalDate startDate = baseDate;
-        LocalDate endDate = baseDate.plusDays(6);
+        LocalDate startDate = WeekStartDateNormalizer.normalize(baseDate);
+        LocalDate endDate = startDate.plusDays(6);
 
         return mealCrawlPersistencePort.findCrawlTargets().stream()
                 .map(source -> toTarget(source, startDate, endDate))

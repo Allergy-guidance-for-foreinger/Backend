@@ -32,7 +32,15 @@ public interface MealMenuJpaRepository extends JpaRepository<MealMenu, Long> {
                 on menu.id = mealMenu.menuId
             where mealSchedule.cafeteriaId = :cafeteriaId
               and mealSchedule.mealDate between :weekStartDate and :weekEndDate
-            order by mealSchedule.mealDate asc, mealSchedule.mealType asc, mealMenu.displayOrder asc
+            order by mealSchedule.mealDate asc,
+                     case mealSchedule.mealType
+                         when 'BREAKFAST' then 1
+                         when 'LUNCH' then 2
+                         when 'DINNER' then 3
+                         else 99
+                     end asc,
+                     mealSchedule.mealType asc,
+                     mealMenu.displayOrder asc
             """)
     List<WeeklyMealCacheRow> findWeeklyMealsForCache(
             @Param("cafeteriaId") Long cafeteriaId,

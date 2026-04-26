@@ -30,26 +30,39 @@ public class WeeklyMealResponseAssembler {
     private static final String REASON_TYPE_RELIGION = "RELIGION";
     private static final String REASON_SOURCE_CONFIRMED = "CONFIRMED";
     private static final String REASON_SOURCE_AI = "AI";
+    private static final String MESSAGE_ALLERGY_EN = "Allergy risk detected for this menu.";
+    private static final String MESSAGE_RELIGION_EN = "Religious restriction risk detected for this menu.";
+    private static final String MESSAGE_ALLERGY_KO = "이 메뉴에서 알레르기 위험 성분이 확인되었습니다.";
+    private static final String MESSAGE_RELIGION_KO = "이 메뉴에서 종교적 제한 위험 성분이 확인되었습니다.";
 
     private final MealCrawlPersistencePort mealCrawlPersistencePort;
 
     public WeeklyMealResponse assemble(WeeklyMealCachePayload payload, CurrentUserMealPreference preference) {
+        Map<Long, String> translatedMenuNames = resolveTranslatedMenuNames(payload, preference.languageCode());
+        return assemble(payload, preference, translatedMenuNames);
+    }
+
+    public WeeklyMealResponse assemble(
+            WeeklyMealCachePayload payload,
+            CurrentUserMealPreference preference,
+            Map<Long, String> translatedMenuNames
+    ) {
         Set<Long> mealMenuIds = extractMealMenuIds(payload);
-        Map<Long, String> translatedMenuNames = loadTranslatedMenuNames(mealMenuIds, preference.languageCode());
         if (mealMenuIds.isEmpty()) {
             return toWeeklyMealResponse(payload, translatedMenuNames, Map.of());
         }
 
-        Set<Long> confirmedMealMenuIds = mealCrawlPersistencePort.findMealMenuIdsHavingConfirmedIngredients(mealMenuIds);
         Map<Long, List<MealMenuIngredientRow>> confirmedByMealMenuId = groupByMealMenuId(
-                mealCrawlPersistencePort.findConfirmedIngredientsByMealMenuIds(confirmedMealMenuIds)
+                mealCrawlPersistencePort.findConfirmedIngredientsByMealMenuIds(mealMenuIds)
         );
+        Set<Long> confirmedMealMenuIds = confirmedByMealMenuId.keySet();
 
-        Set<Long> aiMealMenuIds = new HashSet<>(mealCrawlPersistencePort.findMealMenuIdsHavingAiIngredients(mealMenuIds));
-        aiMealMenuIds.removeAll(confirmedMealMenuIds);
+        Set<Long> remainingMealMenuIds = new HashSet<>(mealMenuIds);
+        remainingMealMenuIds.removeAll(confirmedMealMenuIds);
         Map<Long, List<MealMenuIngredientRow>> aiByMealMenuId = groupByMealMenuId(
-                mealCrawlPersistencePort.findAiIngredientsByMealMenuIds(aiMealMenuIds)
+                mealCrawlPersistencePort.findAiIngredientsByMealMenuIds(remainingMealMenuIds)
         );
+        Set<Long> aiMealMenuIds = aiByMealMenuId.keySet();
 
         Map<String, List<RestrictionIngredientRow>> allergyIngredientIndex = indexRestrictionIngredientsByIngredientCode(
                 mealCrawlPersistencePort.findAllergyRestrictionIngredients(Set.copyOf(preference.allergyCodes()))
@@ -64,6 +77,7 @@ public class WeeklyMealResponseAssembler {
             try {
                 risk = evaluateMenuRisk(
                         mealMenuId,
+                        preference.languageCode(),
                         confirmedMealMenuIds,
                         confirmedByMealMenuId,
                         aiMealMenuIds,
@@ -81,6 +95,11 @@ public class WeeklyMealResponseAssembler {
         return toWeeklyMealResponse(payload, translatedMenuNames, riskByMealMenuId);
     }
 
+    public Map<Long, String> resolveTranslatedMenuNames(WeeklyMealCachePayload payload, String languageCode) {
+        Set<Long> mealMenuIds = extractMealMenuIds(payload);
+        return loadTranslatedMenuNames(mealMenuIds, languageCode);
+    }
+
     private Set<Long> extractMealMenuIds(WeeklyMealCachePayload payload) {
         Set<Long> ids = new HashSet<>();
         for (WeeklyMealCachePayload.MealScheduleItem schedule : payload.mealSchedules()) {
@@ -95,6 +114,7 @@ public class WeeklyMealResponseAssembler {
 
     private WeeklyMealResponse.MenuRiskResponse evaluateMenuRisk(
             Long mealMenuId,
+            String languageCode,
             Set<Long> confirmedMealMenuIds,
             Map<Long, List<MealMenuIngredientRow>> confirmedByMealMenuId,
             Set<Long> aiMealMenuIds,
@@ -107,6 +127,7 @@ public class WeeklyMealResponseAssembler {
                     confirmedByMealMenuId.getOrDefault(mealMenuId, List.of()),
                     allergyIngredientIndex,
                     religionIngredientIndex,
+                    languageCode,
                     REASON_SOURCE_CONFIRMED
             );
             MenuRiskLevel level = reasons.isEmpty() ? MenuRiskLevel.SAFE : MenuRiskLevel.DANGER;
@@ -118,13 +139,14 @@ public class WeeklyMealResponseAssembler {
                     aiByMealMenuId.getOrDefault(mealMenuId, List.of()),
                     allergyIngredientIndex,
                     religionIngredientIndex,
+                    languageCode,
                     REASON_SOURCE_AI
             );
             MenuRiskLevel level = reasons.isEmpty() ? MenuRiskLevel.SAFE : MenuRiskLevel.CAUTION;
             return new WeeklyMealResponse.MenuRiskResponse(level.name(), reasons);
         }
 
-        log.info("No ingredient information for risk evaluation: mealMenuId={}", mealMenuId);
+        log.debug("No ingredient information for risk evaluation: mealMenuId={}", mealMenuId);
         return new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.UNKNOWN.name(), List.of());
     }
 
@@ -148,6 +170,7 @@ public class WeeklyMealResponseAssembler {
             List<MealMenuIngredientRow> ingredientRows,
             Map<String, List<RestrictionIngredientRow>> allergyIngredientIndex,
             Map<String, List<RestrictionIngredientRow>> religionIngredientIndex,
+            String languageCode,
             String source
     ) {
         List<WeeklyMealResponse.RiskReasonResponse> reasons = new ArrayList<>();
@@ -165,7 +188,7 @@ public class WeeklyMealResponseAssembler {
                             allergyMatch.restrictionCode(),
                             ingredientName,
                             source,
-                            "Allergy risk detected for this menu."
+                            resolveReasonMessage(REASON_TYPE_ALLERGY, languageCode)
                     ));
                 }
             }
@@ -178,13 +201,24 @@ public class WeeklyMealResponseAssembler {
                             religionMatch.restrictionCode(),
                             ingredientName,
                             source,
-                            "Religious restriction risk detected for this menu."
+                            resolveReasonMessage(REASON_TYPE_RELIGION, languageCode)
                     ));
                 }
             }
         }
 
         return reasons;
+    }
+
+    private String resolveReasonMessage(String reasonType, String languageCode) {
+        boolean isKorean = languageCode != null && DEFAULT_LANGUAGE_CODE.equals(languageCode.trim().toLowerCase(Locale.ROOT));
+        if (REASON_TYPE_ALLERGY.equals(reasonType)) {
+            return isKorean ? MESSAGE_ALLERGY_KO : MESSAGE_ALLERGY_EN;
+        }
+        if (REASON_TYPE_RELIGION.equals(reasonType)) {
+            return isKorean ? MESSAGE_RELIGION_KO : MESSAGE_RELIGION_EN;
+        }
+        return "";
     }
 
     private WeeklyMealResponse toWeeklyMealResponse(

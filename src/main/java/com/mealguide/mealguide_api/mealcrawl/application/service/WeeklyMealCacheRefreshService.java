@@ -23,7 +23,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class WeeklyMealCacheRefreshService {
 
-    private static final String MENU_AI_PENDING = "PENDING";
+    private static final String MENU_AI_SUCCESS = "SUCCESS";
 
     private final MealCrawlPersistencePort mealCrawlPersistencePort;
     private final WeeklyMealCachePort weeklyMealCachePort;
@@ -31,39 +31,41 @@ public class WeeklyMealCacheRefreshService {
     private final ObjectMapper objectMapper;
 
     public void refreshWeeklyMealCache(Long schoolId, Long cafeteriaId, LocalDate weekStartDate) {
-        String redisKey = weeklyMealCachePort.createWeeklyMealCacheKey(schoolId, cafeteriaId, weekStartDate);
+        LocalDate normalizedWeekStartDate = WeekStartDateNormalizer.normalize(weekStartDate);
+        String redisKey = weeklyMealCachePort.createWeeklyMealCacheKey(schoolId, cafeteriaId, normalizedWeekStartDate);
         try {
-            WeeklyMealCachePayload payload = loadWeeklyMealCachePayloadFromDb(schoolId, cafeteriaId, weekStartDate);
+            WeeklyMealCachePayload payload = loadWeeklyMealCachePayloadFromDb(schoolId, cafeteriaId, normalizedWeekStartDate);
             int scheduleCount = payload.mealSchedules().size();
 
             log.info(
                     "Weekly meal cache refresh started: schoolId={}, cafeteriaId={}, weekStartDate={}, redisKey={}, scheduleCount={}",
-                    schoolId, cafeteriaId, weekStartDate, redisKey, scheduleCount
+                    schoolId, cafeteriaId, normalizedWeekStartDate, redisKey, scheduleCount
             );
 
             upsertWeeklyMealCachePayload(payload);
 
             log.info(
                     "Weekly meal cache refresh succeeded: schoolId={}, cafeteriaId={}, weekStartDate={}, redisKey={}, scheduleCount={}",
-                    schoolId, cafeteriaId, weekStartDate, redisKey, scheduleCount
+                    schoolId, cafeteriaId, normalizedWeekStartDate, redisKey, scheduleCount
             );
         } catch (JsonProcessingException exception) {
             log.warn(
                     "Weekly meal cache refresh failed while serializing payload: schoolId={}, cafeteriaId={}, weekStartDate={}, redisKey={}",
-                    schoolId, cafeteriaId, weekStartDate, redisKey, exception
+                    schoolId, cafeteriaId, normalizedWeekStartDate, redisKey, exception
             );
         } catch (Exception exception) {
             log.warn(
                     "Weekly meal cache refresh failed: schoolId={}, cafeteriaId={}, weekStartDate={}, redisKey={}",
-                    schoolId, cafeteriaId, weekStartDate, redisKey, exception
+                    schoolId, cafeteriaId, normalizedWeekStartDate, redisKey, exception
             );
         }
     }
 
     public WeeklyMealCachePayload loadWeeklyMealCachePayloadFromDb(Long schoolId, Long cafeteriaId, LocalDate weekStartDate) {
-        LocalDate weekEndDate = weekStartDate.plusDays(6);
-        List<WeeklyMealCacheRow> rows = mealCrawlPersistencePort.findWeeklyMealsForCache(cafeteriaId, weekStartDate, weekEndDate);
-        return buildPayload(schoolId, cafeteriaId, weekStartDate, weekEndDate, rows);
+        LocalDate normalizedWeekStartDate = WeekStartDateNormalizer.normalize(weekStartDate);
+        LocalDate weekEndDate = normalizedWeekStartDate.plusDays(6);
+        List<WeeklyMealCacheRow> rows = mealCrawlPersistencePort.findWeeklyMealsForCache(cafeteriaId, normalizedWeekStartDate, weekEndDate);
+        return buildPayload(schoolId, cafeteriaId, normalizedWeekStartDate, weekEndDate, rows);
     }
 
     public void upsertWeeklyMealCachePayload(WeeklyMealCachePayload payload) throws JsonProcessingException {
@@ -121,7 +123,7 @@ public class WeeklyMealCacheRefreshService {
         if (aiAnalysisStatus == null || aiAnalysisStatus.isBlank()) {
             return false;
         }
-        return !MENU_AI_PENDING.equalsIgnoreCase(aiAnalysisStatus.trim());
+        return MENU_AI_SUCCESS.equalsIgnoreCase(aiAnalysisStatus.trim());
     }
 
     private record MealScheduleKey(LocalDate mealDate, String mealType) {

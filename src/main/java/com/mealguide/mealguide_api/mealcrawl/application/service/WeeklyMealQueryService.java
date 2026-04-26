@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -32,40 +33,42 @@ public class WeeklyMealQueryService {
     private final ObjectMapper objectMapper;
 
     public WeeklyMealResponse getWeeklyMeals(Long userId, Long cafeteriaId, LocalDate weekStartDate) {
+        LocalDate normalizedWeekStartDate = WeekStartDateNormalizer.normalize(weekStartDate);
         CurrentUserMealPreference preference = mealUserPreferencePort.getCurrentUserMealPreference(userId);
         Long schoolId = requireSchoolId(preference);
         validateCafeteriaBelongsToSchool(cafeteriaId, schoolId);
 
-        String redisKey = weeklyMealCachePort.createWeeklyMealCacheKey(schoolId, cafeteriaId, weekStartDate);
-        WeeklyMealCachePayload payload = loadPayloadFromCache(userId, schoolId, cafeteriaId, weekStartDate, redisKey)
-                .orElseGet(() -> loadPayloadFromDbFallback(userId, schoolId, cafeteriaId, weekStartDate, redisKey));
+        String redisKey = weeklyMealCachePort.createWeeklyMealCacheKey(schoolId, cafeteriaId, normalizedWeekStartDate);
+        WeeklyMealCachePayload payload = loadPayloadFromCache(userId, schoolId, cafeteriaId, normalizedWeekStartDate, redisKey)
+                .orElseGet(() -> loadPayloadFromDbFallback(userId, schoolId, cafeteriaId, normalizedWeekStartDate, redisKey));
+        Map<Long, String> translatedMenuNames = resolveTranslatedMenuNames(payload, preference.languageCode());
 
         log.info(
                 "Weekly meal risk evaluation started: userId={}, schoolId={}, cafeteriaId={}, weekStartDate={}, menuCount={}",
                 userId,
                 schoolId,
                 cafeteriaId,
-                weekStartDate,
+                normalizedWeekStartDate,
                 countMenus(payload)
         );
 
         try {
-            WeeklyMealResponse response = weeklyMealResponseAssembler.assemble(payload, preference);
+            WeeklyMealResponse response = weeklyMealResponseAssembler.assemble(payload, preference, translatedMenuNames);
             log.info(
                     "Weekly meal risk evaluation completed: userId={}, schoolId={}, cafeteriaId={}, weekStartDate={}, menuCount={}",
                     userId,
                     schoolId,
                     cafeteriaId,
-                    weekStartDate,
+                    normalizedWeekStartDate,
                     countMenus(payload)
             );
             return response;
         } catch (Exception exception) {
             log.warn(
                     "Weekly meal risk evaluation failed. Returning UNKNOWN for all menus: userId={}, schoolId={}, cafeteriaId={}, weekStartDate={}",
-                    userId, schoolId, cafeteriaId, weekStartDate, exception
+                    userId, schoolId, cafeteriaId, normalizedWeekStartDate, exception
             );
-            return toResponseWithUnknownRisk(payload);
+            return toResponseWithUnknownRisk(payload, translatedMenuNames);
         }
     }
 
@@ -151,7 +154,10 @@ public class WeeklyMealQueryService {
         return count;
     }
 
-    private WeeklyMealResponse toResponseWithUnknownRisk(WeeklyMealCachePayload payload) {
+    private WeeklyMealResponse toResponseWithUnknownRisk(
+            WeeklyMealCachePayload payload,
+            Map<Long, String> translatedMenuNamesByMealMenuId
+    ) {
         return new WeeklyMealResponse(
                 payload.schoolId(),
                 payload.cafeteriaId(),
@@ -164,7 +170,7 @@ public class WeeklyMealQueryService {
                                 schedule.menus().stream()
                                         .map(menu -> new WeeklyMealResponse.MenuResponse(
                                                 menu.mealMenuId(),
-                                                menu.menuName(),
+                                                translatedMenuNamesByMealMenuId.getOrDefault(menu.mealMenuId(), menu.menuName()),
                                                 menu.cornerName(),
                                                 menu.displayOrder(),
                                                 menu.spicyLevel(),
@@ -175,5 +181,14 @@ public class WeeklyMealQueryService {
                         ))
                         .toList()
         );
+    }
+
+    private Map<Long, String> resolveTranslatedMenuNames(WeeklyMealCachePayload payload, String languageCode) {
+        try {
+            return weeklyMealResponseAssembler.resolveTranslatedMenuNames(payload, languageCode);
+        } catch (Exception exception) {
+            log.warn("Weekly meal translated menu name loading failed. Default menu names will be used.", exception);
+            return Map.of();
+        }
     }
 }
