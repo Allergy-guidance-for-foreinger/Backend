@@ -2,6 +2,9 @@ package com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.adapter
 
 import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCacheRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
 import com.mealguide.mealguide_api.mealcrawl.domain.MealMenu;
@@ -23,6 +26,8 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.reposito
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.repository.MenuTranslationJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +55,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
     private final MenuAiAnalysisJpaRepository menuAiAnalysisJpaRepository;
     private final MenuAiAnalysisIngredientJpaRepository menuAiAnalysisIngredientJpaRepository;
     private final MenuTranslationJpaRepository menuTranslationJpaRepository;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     @Override
     @Transactional(readOnly = true)
@@ -126,6 +132,210 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
         }
 
         mealMenu.updateMenu(menuId, cornerName, INGREDIENT_SOURCE_TYPE_CRAWL, INGREDIENT_STATUS_PENDING);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<WeeklyMealCacheRow> findWeeklyMealsForCache(Long cafeteriaId, LocalDate weekStartDate, LocalDate weekEndDate) {
+        return mealMenuJpaRepository.findWeeklyMealsForCache(cafeteriaId, weekStartDate, weekEndDate);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsCafeteriaInSchool(Long cafeteriaId, Long schoolId) {
+        return cafeteriaJpaRepository.existsByIdAndSchoolId(cafeteriaId, schoolId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, String> findTranslatedMenuNamesByMealMenuIds(Set<Long> mealMenuIds, String langCode) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty() || langCode == null || langCode.isBlank()) {
+            return Map.of();
+        }
+
+        String sql = """
+                select mm.id as meal_menu_id,
+                       mt.name as translated_name
+                from meal_menu mm
+                join menu_translation mt on mt.menu_id = mm.menu_id
+                where mm.id in (:mealMenuIds)
+                  and mt.lang_code = :langCode
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("mealMenuIds", mealMenuIds)
+                .addValue("langCode", langCode);
+
+        Map<Long, String> translatedMenuNames = new HashMap<>();
+        namedParameterJdbcTemplate.query(sql, params, rs -> {
+            translatedMenuNames.put(
+                    rs.getLong("meal_menu_id"),
+                    rs.getString("translated_name")
+            );
+        });
+        return translatedMenuNames;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MealMenuIngredientRow> findConfirmedIngredientsByMealMenuIds(Set<Long> mealMenuIds) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
+            return List.of();
+        }
+
+        String sql = """
+                select mmci.meal_menu_id,
+                       mmci.ingredient_code,
+                       i.name as ingredient_name
+                from meal_menu_confirmed_ingredient mmci
+                join ingredient i on i.code = mmci.ingredient_code
+                where mmci.meal_menu_id in (:mealMenuIds)
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource("mealMenuIds", mealMenuIds);
+        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MealMenuIngredientRow(
+                rs.getLong("meal_menu_id"),
+                rs.getString("ingredient_code"),
+                rs.getString("ingredient_name")
+        ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<Long> findMealMenuIdsHavingConfirmedIngredients(Set<Long> mealMenuIds) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
+            return Set.of();
+        }
+
+        String sql = """
+                select distinct mmci.meal_menu_id
+                from meal_menu_confirmed_ingredient mmci
+                where mmci.meal_menu_id in (:mealMenuIds)
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource("mealMenuIds", mealMenuIds);
+        return new HashSet<>(namedParameterJdbcTemplate.query(
+                sql,
+                params,
+                (rs, rowNum) -> rs.getLong("meal_menu_id")
+        ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MealMenuIngredientRow> findAiIngredientsByMealMenuIds(Set<Long> mealMenuIds) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
+            return List.of();
+        }
+
+        String sql = """
+                with target_meal_menu as (
+                    select mm.id as meal_menu_id, mm.menu_id
+                    from meal_menu mm
+                    where mm.id in (:mealMenuIds)
+                ),
+                latest_success_analysis as (
+                    select maa.menu_id, max(coalesce(maa.analyzed_at, maa.created_at)) as latest_at
+                    from menu_ai_analysis maa
+                    join target_meal_menu tmm on tmm.menu_id = maa.menu_id
+                    where maa.status = 'SUCCESS'
+                    group by maa.menu_id
+                ),
+                latest_analysis_id as (
+                    select maa.id, maa.menu_id
+                    from menu_ai_analysis maa
+                    join latest_success_analysis lsa
+                      on lsa.menu_id = maa.menu_id
+                     and coalesce(maa.analyzed_at, maa.created_at) = lsa.latest_at
+                    where maa.status = 'SUCCESS'
+                )
+                select tmm.meal_menu_id,
+                       mai.ingredient_code,
+                       i.name as ingredient_name
+                from target_meal_menu tmm
+                join latest_analysis_id lai on lai.menu_id = tmm.menu_id
+                join menu_ai_analysis_ingredient mai on mai.menu_ai_analysis_id = lai.id
+                join ingredient i on i.code = mai.ingredient_code
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource("mealMenuIds", mealMenuIds);
+        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MealMenuIngredientRow(
+                rs.getLong("meal_menu_id"),
+                rs.getString("ingredient_code"),
+                rs.getString("ingredient_name")
+        ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<Long> findMealMenuIdsHavingAiIngredients(Set<Long> mealMenuIds) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
+            return Set.of();
+        }
+
+        String sql = """
+                with target_meal_menu as (
+                    select mm.id as meal_menu_id, mm.menu_id
+                    from meal_menu mm
+                    where mm.id in (:mealMenuIds)
+                )
+                select distinct tmm.meal_menu_id
+                from target_meal_menu tmm
+                join menu_ai_analysis maa on maa.menu_id = tmm.menu_id
+                where maa.status = 'SUCCESS'
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource("mealMenuIds", mealMenuIds);
+        return new HashSet<>(namedParameterJdbcTemplate.query(
+                sql,
+                params,
+                (rs, rowNum) -> rs.getLong("meal_menu_id")
+        ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RestrictionIngredientRow> findAllergyRestrictionIngredients(Set<String> allergyCodes) {
+        if (allergyCodes == null || allergyCodes.isEmpty()) {
+            return List.of();
+        }
+
+        String sql = """
+                select ai.allergy_code as restriction_code,
+                       ai.ingredient_code,
+                       i.name as ingredient_name
+                from allergy_ingredient ai
+                join ingredient i on i.code = ai.ingredient_code
+                where ai.allergy_code in (:allergyCodes)
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource("allergyCodes", allergyCodes);
+        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new RestrictionIngredientRow(
+                rs.getString("restriction_code"),
+                rs.getString("ingredient_code"),
+                rs.getString("ingredient_name")
+        ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RestrictionIngredientRow> findReligiousRestrictionIngredients(String religiousCode) {
+        if (religiousCode == null || religiousCode.isBlank()) {
+            return List.of();
+        }
+
+        String sql = """
+                select rfri.religious_food_restriction_code as restriction_code,
+                       rfri.ingredient_code,
+                       i.name as ingredient_name
+                from religious_food_restriction_ingredient rfri
+                join ingredient i on i.code = rfri.ingredient_code
+                where rfri.religious_food_restriction_code = :religiousCode
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource("religiousCode", religiousCode);
+        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new RestrictionIngredientRow(
+                rs.getString("restriction_code"),
+                rs.getString("ingredient_code"),
+                rs.getString("ingredient_name")
+        ));
     }
 
     @Override

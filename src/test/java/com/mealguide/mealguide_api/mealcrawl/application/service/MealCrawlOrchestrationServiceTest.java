@@ -2,6 +2,9 @@ package com.mealguide.mealguide_api.mealcrawl.application.service;
 
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealCrawlTarget;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealImportResult;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCacheRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.PythonMealClientPort;
 import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
@@ -23,6 +26,9 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class MealCrawlOrchestrationServiceTest {
 
@@ -53,6 +59,7 @@ class MealCrawlOrchestrationServiceTest {
                 pythonClient,
                 persistencePort,
                 mealImportService,
+                mock(WeeklyMealCacheRefreshService.class),
                 analysisFollowUpService,
                 translationFollowUpService
         );
@@ -62,6 +69,48 @@ class MealCrawlOrchestrationServiceTest {
         assertThatCode(() -> orchestrationService.crawlAndImport(target)).doesNotThrowAnyException();
         assertThat(persistencePort.successMarked).isTrue();
         assertThat(persistencePort.failureMarked).isFalse();
+    }
+
+    @Test
+    void crawlAndImportKeepsImportSuccessEvenWhenWeeklyCacheRefreshFails() {
+        FakePythonClient pythonClient = new FakePythonClient();
+        FakePersistencePort persistencePort = new FakePersistencePort();
+
+        MealImportService mealImportService = new MealImportService(persistencePort, new com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties());
+        MenuAiAnalysisFollowUpService analysisFollowUpService = new MenuAiAnalysisFollowUpService(persistencePort, pythonClient);
+        MenuTranslationFollowUpService translationFollowUpService = new MenuTranslationFollowUpService(
+                persistencePort,
+                pythonClient,
+                new com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties()
+        );
+        WeeklyMealCacheRefreshService cacheRefreshService = mock(WeeklyMealCacheRefreshService.class);
+        doThrow(new RuntimeException("redis failure"))
+                .when(cacheRefreshService)
+                .refreshWeeklyMealCache(1L, 10L, LocalDate.of(2026, 4, 20));
+
+        MealCrawlOrchestrationService orchestrationService = new MealCrawlOrchestrationService(
+                pythonClient,
+                persistencePort,
+                mealImportService,
+                cacheRefreshService,
+                analysisFollowUpService,
+                translationFollowUpService
+        );
+
+        MealCrawlTarget target = new MealCrawlTarget(
+                1L,
+                10L,
+                "School",
+                "Cafe",
+                "http://source",
+                LocalDate.of(2026, 4, 20),
+                LocalDate.of(2026, 4, 26)
+        );
+
+        assertThatCode(() -> orchestrationService.crawlAndImport(target)).doesNotThrowAnyException();
+        assertThat(persistencePort.successMarked).isTrue();
+        assertThat(persistencePort.failureMarked).isFalse();
+        verify(cacheRefreshService).refreshWeeklyMealCache(1L, 10L, LocalDate.of(2026, 4, 20));
     }
 
     private static class FakePythonClient implements PythonMealClientPort {
@@ -124,6 +173,51 @@ class MealCrawlOrchestrationServiceTest {
 
         @Override
         public void upsertMealMenu(Long mealScheduleId, Long menuId, String cornerName, int displayOrder) {
+        }
+
+        @Override
+        public List<WeeklyMealCacheRow> findWeeklyMealsForCache(Long cafeteriaId, LocalDate weekStartDate, LocalDate weekEndDate) {
+            return List.of();
+        }
+
+        @Override
+        public boolean existsCafeteriaInSchool(Long cafeteriaId, Long schoolId) {
+            return true;
+        }
+
+        @Override
+        public Map<Long, String> findTranslatedMenuNamesByMealMenuIds(Set<Long> mealMenuIds, String langCode) {
+            return Map.of();
+        }
+
+        @Override
+        public List<MealMenuIngredientRow> findConfirmedIngredientsByMealMenuIds(Set<Long> mealMenuIds) {
+            return List.of();
+        }
+
+        @Override
+        public Set<Long> findMealMenuIdsHavingConfirmedIngredients(Set<Long> mealMenuIds) {
+            return Set.of();
+        }
+
+        @Override
+        public List<MealMenuIngredientRow> findAiIngredientsByMealMenuIds(Set<Long> mealMenuIds) {
+            return List.of();
+        }
+
+        @Override
+        public Set<Long> findMealMenuIdsHavingAiIngredients(Set<Long> mealMenuIds) {
+            return Set.of();
+        }
+
+        @Override
+        public List<RestrictionIngredientRow> findAllergyRestrictionIngredients(Set<String> allergyCodes) {
+            return List.of();
+        }
+
+        @Override
+        public List<RestrictionIngredientRow> findReligiousRestrictionIngredients(String religiousCode) {
+            return List.of();
         }
 
         @Override

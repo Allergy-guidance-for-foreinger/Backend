@@ -20,6 +20,7 @@ public class MealCrawlOrchestrationService {
     private final PythonMealClientPort pythonMealClientPort;
     private final MealCrawlPersistencePort mealCrawlPersistencePort;
     private final MealImportService mealImportService;
+    private final WeeklyMealCacheRefreshService weeklyMealCacheRefreshService;
     private final MenuAiAnalysisFollowUpService menuAiAnalysisFollowUpService;
     private final MenuTranslationFollowUpService menuTranslationFollowUpService;
 
@@ -46,6 +47,18 @@ public class MealCrawlOrchestrationService {
         } catch (Exception exception) {
             mealCrawlPersistencePort.markCrawlHistoryFailure(historyId, shorten(exception.getMessage()), LocalDateTime.now());
             throw exception;
+        }
+
+        try {
+            weeklyMealCacheRefreshService.refreshWeeklyMealCache(target.schoolId(), target.cafeteriaId(), target.startDate());
+        } catch (Exception exception) {
+            log.warn(
+                    "Weekly meal cache refresh failed for schoolId={}, cafeteriaId={}, weekStartDate={}",
+                    target.schoolId(),
+                    target.cafeteriaId(),
+                    target.startDate(),
+                    exception
+            );
         }
 
         try {

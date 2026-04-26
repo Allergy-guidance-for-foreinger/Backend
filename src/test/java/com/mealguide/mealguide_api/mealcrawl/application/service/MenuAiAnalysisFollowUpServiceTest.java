@@ -1,6 +1,9 @@
 package com.mealguide.mealguide_api.mealcrawl.application.service;
 
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealImportResult;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCacheRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.PythonMealClientPort;
 import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
@@ -119,6 +122,51 @@ class MenuAiAnalysisFollowUpServiceTest {
 
         @Override
         public void upsertMealMenu(Long mealScheduleId, Long menuId, String cornerName, int displayOrder) {
+        }
+
+        @Override
+        public List<WeeklyMealCacheRow> findWeeklyMealsForCache(Long cafeteriaId, LocalDate weekStartDate, LocalDate weekEndDate) {
+            return List.of();
+        }
+
+        @Override
+        public boolean existsCafeteriaInSchool(Long cafeteriaId, Long schoolId) {
+            return true;
+        }
+
+        @Override
+        public Map<Long, String> findTranslatedMenuNamesByMealMenuIds(Set<Long> mealMenuIds, String langCode) {
+            return Map.of();
+        }
+
+        @Override
+        public List<MealMenuIngredientRow> findConfirmedIngredientsByMealMenuIds(Set<Long> mealMenuIds) {
+            return List.of();
+        }
+
+        @Override
+        public Set<Long> findMealMenuIdsHavingConfirmedIngredients(Set<Long> mealMenuIds) {
+            return Set.of();
+        }
+
+        @Override
+        public List<MealMenuIngredientRow> findAiIngredientsByMealMenuIds(Set<Long> mealMenuIds) {
+            return List.of();
+        }
+
+        @Override
+        public Set<Long> findMealMenuIdsHavingAiIngredients(Set<Long> mealMenuIds) {
+            return Set.of();
+        }
+
+        @Override
+        public List<RestrictionIngredientRow> findAllergyRestrictionIngredients(Set<String> allergyCodes) {
+            return List.of();
+        }
+
+        @Override
+        public List<RestrictionIngredientRow> findReligiousRestrictionIngredients(String religiousCode) {
+            return List.of();
         }
 
         @Override

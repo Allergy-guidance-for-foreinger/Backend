@@ -61,7 +61,7 @@
   - `POST /auth/refresh`: 인증 불필요(유효한 refresh token 필요)
   - `POST /auth/logout`: 인증 필요(`@CurrentUserId`)
 
-## 6. 비즈니스 규칙
+## 6. 공통 비즈니스 규칙
 - Google ID token 검증 성공 시 사용자 계정을 식별한다.
 - 계정이 없으면 자동 회원가입을 수행한다.
 - refresh token은 PostgreSQL이 아니라 Redis에서 관리한다.
@@ -69,7 +69,24 @@
 - 역할 값은 `USER`, `ADMIN`, `MANAGER`만 사용한다.
 - `global.auth`는 공통 인증 인프라, `login.*`은 로그인 유스케이스 책임을 유지한다.
 
-## 7. 주의사항
+## 7. API별 비즈니스 규칙
+### 7.1 `POST /auth/login`
+- Google ID token 검증에 성공해야 한다.
+- Google 계정은 `provider = GOOGLE`, `provider_user_id = Google subject` 기준으로 식별한다.
+- 연결된 계정이 없으면 `users`와 `user_oauth_accounts`를 함께 생성한다.
+- 로그인 성공 시 access token과 refresh token을 발급하고, refresh token은 Redis에 저장한다.
+
+### 7.2 `POST /auth/refresh`
+- refresh token의 서명/만료/token type을 검증한다.
+- refresh token에서 `userId`, `deviceId`를 확인하고 활성 사용자(`ACTIVE`) 상태를 검증한다.
+- Redis refresh token과의 일치 검증 후 원자적 비교-교체 방식으로 회전한다.
+
+### 7.3 `POST /auth/logout`
+- access token 인증이 필요하다.
+- 요청 refresh token의 `userId`가 현재 인증 사용자와 일치해야 한다.
+- refresh token의 `deviceId`를 기준으로 Redis 저장 토큰을 삭제한다.
+
+## 8. 주의사항
 - refresh token 회전은 원자적 비교-교체가 필요하다(경쟁 상태 방지).
 - JWT 필터/재발급 경로에서 비활성 사용자 차단 규칙을 동일하게 유지한다.
 - 사용자 조회 최적화 시에도 활성 사용자 검증 규칙은 약화하면 안 된다.

@@ -1,7 +1,7 @@
 # authdebug 기능 맥락
 
 ## 1. 역할
-`authdebug` 기능은 로컬/개발 환경에서 인증 테스트를 지원하는 보조 기능이다.  
+`authdebug` 기능은 로컬/개발 환경에서 인증 테스트를 지원하는 보조 기능이다.
 현재는 정적 `auth-test.html`이 사용할 설정 값을 제공하는 역할에 집중한다.
 
 ## 2. 주요 패키지
@@ -23,11 +23,20 @@ DB 영향 없음
 - 요청/응답 방향
   - Google OAuth client id 등 테스트 페이지 초기화에 필요한 최소 설정만 반환
 
-## 6. 비즈니스 규칙
-- `mealguide.auth-debug.enabled=true`일 때만 활성화한다.
+## 6. 공통 비즈니스 규칙
+- authdebug는 로컬/개발 전용 인증 테스트 지원 기능이다.
+- 운영 환경에서 활성화하면 안 된다.
+- 현재는 정적 `auth-test.html`이 사용할 설정 값을 제공하는 역할에 집중한다.
 - Swagger 기반 debug login/refresh/logout API는 제거된 상태를 유지한다.
 - `/auth-debug/config`는 테스트 보조 목적 외로 확장하지 않는다.
 
-## 7. 주의사항
+## 7. API별 비즈니스 규칙
+
+### 7.1 `GET /auth-debug/config`
+- 로컬/개발 환경에서 auth test page가 필요한 Google OAuth client id 등 설정을 조회하는 용도다.
+- 운영 환경에서는 활성화하지 않는다.
+- 실제 로그인 우회용 API가 아니라 테스트 페이지 설정 제공용 API다.
+
+## 8. 주의사항
 - 운영 환경에서 `authdebug`를 활성화하면 안 된다.
 - 실제 인증 정책 우회 경로를 다시 도입하지 않는다.
