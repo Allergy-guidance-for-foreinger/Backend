@@ -42,7 +42,9 @@
   - 외부 API 호출 중 DB transaction을 길게 유지하지 않는다.
 
 ## 5. API 규칙
-- 외부 사용자용 HTTP 엔드포인트: 확인 필요
+- 외부 사용자용 HTTP 엔드포인트
+  - `GET /api/v1/mealcrawl/weekly-meals`
+  - `GET /api/v1/mealcrawl/cafeterias`
 - 외부 연동 API
   - Java -> Python 동기 HTTP 호출 사용
   - 호출 경로/계약은 `PythonMealClientAdapter` 및 request/response DTO 기준으로 관리

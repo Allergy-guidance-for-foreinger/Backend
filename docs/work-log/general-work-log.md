@@ -6,6 +6,54 @@
 
 ## 최근 공통 작업
 
+### 2026-04-26 (cafeteria 조회 서비스 null 방어 보강)
+- What changed:
+  - `CafeteriaQueryService.requireSchoolId`에 `CurrentUserMealPreference` null 방어 로직을 추가했다.
+  - `preference == null`일 때 `USER_NOT_FOUND` 예외를 던지도록 수정했다.
+- Why:
+  - 포트 구현 변경/오류 상황에서 NPE가 발생하지 않도록 서비스 계층 방어 코드를 보강하기 위해.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/CafeteriaQueryService.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No (예외 처리 안정성만 보강)
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - 현재 환경의 Maven wrapper 실행 오류로 자동 테스트 실행 검증 필요.
+
+### 2026-04-26 (인증 사용자 schoolId 기준 cafeteria 목록 조회 API 추가)
+- What changed:
+  - 인증된 사용자 `schoolId` 기준으로 식당 목록을 조회하는 API를 `mealcrawl` 기능에 추가했다.
+  - 신규 엔드포인트 `GET /api/v1/mealcrawl/cafeterias`를 추가했다.
+  - `CafeteriaQueryService`에서 현재 사용자 선호(`MealUserPreferencePort`)를 통해 `schoolId`를 가져오고, null이면 `BINDING_ERROR`를 반환하도록 처리했다.
+  - `CafeteriaQueryPort`/`CafeteriaQueryPersistenceAdapter`/`CafeteriaJpaRepository` 조회 메서드를 추가해 `cafeteria.school_id = :schoolId` 조건으로 `id ASC` 정렬 조회하도록 구현했다.
+  - 응답 DTO `CafeteriaListResponse`, `CafeteriaItemResponse`를 추가해 entity 직접 노출 없이 반환하도록 구성했다.
+  - `CafeteriaQueryServiceTest`를 추가해 정상 조회, 빈 목록, `schoolId` null 예외를 검증했다.
+- Why:
+  - 인증 사용자 소속 학교에 해당하는 식당 목록을 식단 조회 흐름에서 바로 사용할 수 있도록 제공하기 위해.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/controller/CafeteriaController.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/swagger/CafeteriaApi.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/dto/response/CafeteriaListResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/dto/response/CafeteriaItemResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/CafeteriaQueryService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/CafeteriaQueryPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/CafeteriaRow.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/CafeteriaQueryPersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/CafeteriaJpaRepository.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/CafeteriaQueryServiceTest.java`
+  - `docs/features/mealcrawl-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - 신규 API `GET /api/v1/mealcrawl/cafeterias` 추가
+- Related docs updated:
+  - `docs/features/mealcrawl-context.md`
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - 현재 환경의 Maven wrapper 실행 오류로 테스트 자동 실행 검증 필요.
+
 ### 2026-04-26 (JSON 필드명 단언 오탐 보정)
 - What changed:
   - `WeeklyMealResponseAssemblerTest`의 JSON 단언을 부분 문자열 검사에서 필드 토큰 검사로 변경했다.
@@ -287,3 +335,22 @@
   - `docs/work-log/general-work-log.md`
 - Remaining follow-ups:
   - Run mealcrawl service tests in IDE/local environment and verify translated/non-translated fallback behavior by language.
+
+### 2026-04-26 (cafeteria schoolId null error code semantic alignment)
+- What changed:
+  - Changed `CafeteriaQueryService.requireSchoolId` null-school handling from `BINDING_ERROR` to `ESSENTIAL_FIELD_MISSING_ERROR`.
+  - Updated `CafeteriaApi` swagger failure response to `ESSENTIAL_FIELD_MISSING_ERROR`.
+  - Updated `CafeteriaQueryServiceTest` to assert exact error code for null `schoolId`.
+- Why:
+  - Null `schoolId` is a missing required business field, not a request binding conversion failure.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/CafeteriaQueryService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/swagger/CafeteriaApi.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/CafeteriaQueryServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No response schema change (error code semantics updated)
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Maven wrapper execution issue remains in this environment; run local test verification where wrapper works.
