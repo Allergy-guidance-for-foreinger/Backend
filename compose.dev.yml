@@ -3,8 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: tomato7000/mealguide-api:${APP_IMAGE_TAG}
-    container_name: mealguide-app
+    image: tomato7000/mealguide-api:dev
+    container_name: mealguide-app-dev
     env_file:
       - .env.dev
     depends_on:
