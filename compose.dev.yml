@@ -3,8 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: mealguide-api:dev
+    image: tomato7000/mealguide-api:${APP_IMAGE_TAG}
     container_name: mealguide-app
+    env_file:
+      - .env.dev
     depends_on:
       postgres:
         condition: service_healthy
@@ -21,6 +23,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      ACTUATOR_EXPOSE: ${ACTUATOR_EXPOSE:-health,info,prometheus}
       TZ: Asia/Seoul
     restart: unless-stopped
 
@@ -58,6 +61,40 @@ services:
       timeout: 5s
       retries: 5
 
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: mealguide-prometheus
+    depends_on:
+      app:
+        condition: service_started
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-3d}
+    volumes:
+      - ./monitoring/dev/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/dev/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+      - prometheus-dev-data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    container_name: mealguide-grafana
+    depends_on:
+      - prometheus
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-dev-data:/var/lib/grafana
+    restart: unless-stopped
+
 volumes:
   postgres-dev-data:
   redis-dev-data:
+  prometheus-dev-data:
+  grafana-dev-data:

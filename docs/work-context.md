@@ -6,6 +6,11 @@
 
 ## 2. 최근 작업 요약
 
+### 2026-04-28
+- dev/prod 공통 모니터링 구조(Prometheus, Grafana)를 compose에 추가했다.
+- dev/prod별 scrape/alert 강도를 분리한 Prometheus 설정 파일을 추가했다.
+- Spring actuator prometheus endpoint 노출/접근 설정을 반영했다.
+
 ### 2026-04-24
 - 문서 구조를 기능 중심으로 분리했다.
   - `docs/features/*-context.md`
