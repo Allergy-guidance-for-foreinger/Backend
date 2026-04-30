@@ -423,3 +423,20 @@
   - `docs/work-log/general-work-log.md`
 - Remaining follow-ups:
   - Recreate containers with each compose profile and verify startup/log stability.
+
+### 2026-04-30 (prod app healthcheck dependency hardening)
+- What changed:
+  - Added an `/actuator/health`-based healthcheck to the `app` service in `compose.prod.yml`.
+  - Changed `prometheus.depends_on.app.condition` from `service_started` to `service_healthy`.
+- Why:
+  - Ensure Prometheus starts scraping after Spring Boot is actually ready, reducing startup scrape failures/noise.
+- Affected files:
+  - `compose.prod.yml`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - If `wget` is unavailable in the app image, this healthcheck can fail; verify container health in production compose runtime.
+
