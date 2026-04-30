@@ -1,0 +1,29 @@
+groups:
+  - name: mealguide-dev-alerts
+    rules:
+      - alert: MealguideDevHighErrorRate
+        expr: (sum(rate(http_server_requests_seconds_count{status=~"5.."}[10m])) / sum(rate(http_server_requests_seconds_count[10m]))) > 0.10
+        for: 10m
+        labels:
+          severity: warning
+          environment: dev
+        annotations:
+          summary: "Dev 5xx error rate is above 10% for 10m"
+
+      - alert: MealguideDevHighLatencyP95
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[10m]))) > 2
+        for: 10m
+        labels:
+          severity: warning
+          environment: dev
+        annotations:
+          summary: "Dev p95 latency is above 2s for 10m"
+
+      - alert: MealguideDevInstanceDown
+        expr: up{job="mealguide-app-dev"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          environment: dev
+        annotations:
+          summary: "Dev app scrape target is down for 5m"

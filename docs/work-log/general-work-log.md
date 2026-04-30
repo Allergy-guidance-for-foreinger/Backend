@@ -6,6 +6,42 @@
 
 ## 최근 공통 작업
 
+### 2026-04-28 (dev/prod 모니터링 패리티 + 운영 강도 분리)
+- What changed:
+  - Prometheus 수집을 위해 `micrometer-registry-prometheus` 의존성을 추가했다.
+  - Actuator 공개 엔드포인트 기본값을 `health,info,prometheus`로 확장했다(dev/prod).
+  - 보안 화이트리스트에 `/actuator/prometheus`를 추가했다.
+  - `compose.dev.yml`, `compose.prod.yml`에 Prometheus/Grafana 서비스를 추가했다.
+  - dev/prod별 Prometheus 설정 파일(`monitoring/dev`, `monitoring/prod`)과 alert rule 파일을 추가했다.
+  - 환경 파일(`.env.dev`, `.env.prod`, `.env.prod.example`)에 모니터링 변수(포트/retention/Grafana 계정)를 추가했다.
+  - `DOCKER.md` 실행 안내를 모니터링 스택 포함 기준으로 갱신했다.
+- Why:
+  - dev/prod의 모니터링 구조를 동일하게 유지하면서, alert 민감도와 retention 등 운영 강도는 환경별로 분리하기 위해.
+- Affected files:
+  - `pom.xml`
+  - `src/main/java/com/mealguide/mealguide_api/global/config/security/SecurityConfig.java`
+  - `src/main/resources/application-dev.properties`
+  - `src/main/resources/application-prod.properties`
+  - `compose.dev.yml`
+  - `compose.prod.yml`
+  - `monitoring/dev/prometheus.yml`
+  - `monitoring/dev/alert.rules.yml`
+  - `monitoring/prod/prometheus.yml`
+  - `monitoring/prod/alert.rules.yml`
+  - `.env.dev`
+  - `.env.prod`
+  - `.env.prod.example`
+  - `DOCKER.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No (운영/관측 설정만 변경)
+- Related docs updated:
+  - `DOCKER.md`
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Grafana datasource/대시보드 provisioning 파일은 아직 추가하지 않았으므로, 수동 생성 또는 추가 자동화가 필요하다.
+  - Alert 전송 채널(Slack/Email/Webhook) 연동은 별도 Alertmanager 또는 Grafana Alerting 설정이 필요하다.
+
 ### 2026-04-26 (cafeteria 조회 서비스 null 방어 보강)
 - What changed:
   - `CafeteriaQueryService.requireSchoolId`에 `CurrentUserMealPreference` null 방어 로직을 추가했다.
@@ -354,3 +390,53 @@
   - `docs/work-log/general-work-log.md`
 - Remaining follow-ups:
   - Maven wrapper execution issue remains in this environment; run local test verification where wrapper works.
+
+### 2026-04-27 (prod compose JWT env injection fix for restart loop)
+- What changed:
+  - Added `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` to `app.environment` in `compose.prod.yml`.
+- Why:
+  - The app container restarted repeatedly because Spring failed to bind `mealguide.jwt.*` when JWT env vars were not passed into the container.
+- Affected files:
+  - `compose.prod.yml`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Recreate `app` container with `.env.prod` and verify startup is stable.
+
+### 2026-04-27 (compose prod/dev env_file injection alignment)
+- What changed:
+  - Added `env_file: .env.prod` to `app` service in `compose.prod.yml`.
+  - Added `env_file: .env.dev` to `app` service in `compose.dev.yml`.
+  - Removed direct `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` mapping from `compose.prod.yml` app `environment`.
+- Why:
+  - Ensure app container receives env vars via env file injection in both prod/dev consistently, instead of manually listing JWT secrets.
+- Affected files:
+  - `compose.prod.yml`
+  - `compose.dev.yml`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Recreate containers with each compose profile and verify startup/log stability.
+
+### 2026-04-30 (prod app healthcheck dependency hardening)
+- What changed:
+  - Added an `/actuator/health`-based healthcheck to the `app` service in `compose.prod.yml`.
+  - Changed `prometheus.depends_on.app.condition` from `service_started` to `service_healthy`.
+- Why:
+  - Ensure Prometheus starts scraping after Spring Boot is actually ready, reducing startup scrape failures/noise.
+- Affected files:
+  - `compose.prod.yml`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - If `wget` is unavailable in the app image, this healthcheck can fail; verify container health in production compose runtime.
+

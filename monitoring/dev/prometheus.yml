@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/alert.rules.yml
+
+scrape_configs:
+  - job_name: mealguide-app-dev
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - app:8080
