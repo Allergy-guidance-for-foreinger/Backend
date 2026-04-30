@@ -4,3 +4,10 @@ target
 .mvn/wrapper/maven-wrapper.jar
 README.md
 *.log
+.env
+.env.*
+*.pem
+*.key
+*.jks
+build/
+.gradle/
