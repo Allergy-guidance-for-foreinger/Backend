@@ -98,7 +98,7 @@ public class UserPreferenceService {
     @Transactional
     public Long updateSchool(Long userId, Long schoolId) {
         if (schoolId == null || schoolId <= 0 || !settingsMasterQueryPort.existsSchoolId(schoolId)) {
-            throw new ServiceException(ErrorCode.BINDING_ERROR);
+            throw new ServiceException(ErrorCode.INVALID_SCHOOL_ID);
         }
 
         UserPreference user = findUser(userId);

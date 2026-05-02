@@ -133,7 +133,7 @@ CREATE TABLE users (
     email VARCHAR(255),
     name VARCHAR(100) NOT NULL,
     country_code VARCHAR(10),
-    language_code SET DEFAULT 'en',
+    language_code VARCHAR(10) DEFAULT 'en',
     religious_code VARCHAR(30),
     status VARCHAR(20) NOT NULL,
     role VARCHAR(20) NOT NULL,

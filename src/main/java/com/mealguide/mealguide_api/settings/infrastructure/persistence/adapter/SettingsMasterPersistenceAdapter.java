@@ -76,9 +76,7 @@ public class SettingsMasterPersistenceAdapter implements SettingsMasterQueryPort
 
     @Override
     public List<SchoolOption> findSchools(String langCode) {
-        return schoolJpaRepository.findSchoolOptions(langCode).stream()
-                .map(row -> new SchoolOption(row.getSchoolId(), row.getName()))
-                .toList();
+        return schoolJpaRepository.findSchoolOptions(langCode);
     }
 
     @Override

@@ -170,8 +170,8 @@ public interface SettingsApi {
             success = @SwaggerApiSuccessResponse(response = SchoolUpdateResponse.class, description = "학교 설정 변경 성공"),
             errors = {
                     @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED),
-                    @SwaggerApiFailedResponse(ErrorCode.BINDING_ERROR),
-                    @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND)
+                    @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND),
+                    @SwaggerApiFailedResponse(ErrorCode.INVALID_SCHOOL_ID)
             }
     )
     ResponseEntity<ResponseBody<SchoolUpdateResponse>> updateSchool(

@@ -1,6 +1,7 @@
 package com.mealguide.mealguide_api.settings.infrastructure.persistence.repository;
 
 import com.mealguide.mealguide_api.settings.domain.School;
+import com.mealguide.mealguide_api.settings.domain.SchoolOption;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,14 +15,16 @@ public interface SettingsSchoolJpaRepository extends JpaRepository<School, Long>
         String getName();
     }
 
-    @Query(value = """
-            select s.id as schoolId,
-                   coalesce(st.name, s.name) as name
-            from school s
-            left join school_translation st
-              on st.school_id = s.id
-             and st.lang_code = :langCode
+    @Query("""
+            select new com.mealguide.mealguide_api.settings.domain.SchoolOption(
+                s.id,
+                coalesce(st.name, s.name)
+            )
+            from School s
+            left join SchoolTranslation st
+                on st.schoolId = s.id
+                and st.langCode = :langCode
             order by s.id asc
-            """, nativeQuery = true)
-    List<SchoolOptionProjection> findSchoolOptions(@Param("langCode") String langCode);
+            """)
+    List<SchoolOption> findSchoolOptions(@Param("langCode") String langCode);
 }

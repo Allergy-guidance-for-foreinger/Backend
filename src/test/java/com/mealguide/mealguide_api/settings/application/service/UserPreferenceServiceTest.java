@@ -159,7 +159,7 @@ class UserPreferenceServiceTest {
         assertThatThrownBy(() -> userPreferenceService.updateSchool(1L, 999L))
                 .isInstanceOf(ServiceException.class)
                 .extracting(exception -> ((ServiceException) exception).getErrorCode())
-                .isEqualTo(ErrorCode.BINDING_ERROR);
+                .isEqualTo(ErrorCode.INVALID_SCHOOL_ID);
     }
 
     private UserPreference createUser(Long id) {
