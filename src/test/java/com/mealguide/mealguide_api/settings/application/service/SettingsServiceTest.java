@@ -5,87 +5,106 @@ import com.mealguide.mealguide_api.settings.domain.AllergyOption;
 import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
 import com.mealguide.mealguide_api.settings.domain.ReligiousRestrictionOption;
+import com.mealguide.mealguide_api.settings.domain.SchoolOption;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.AllergyOptionsResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.CountryOptionsResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.LanguageOptionsResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.ReligionOptionsResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.SchoolOptionsResponse;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class SettingsServiceTest {
 
-    private final FakeSettingsMasterQueryPort settingsMasterQueryPort = new FakeSettingsMasterQueryPort();
-    private final SettingsService settingsService = new SettingsService(settingsMasterQueryPort);
+    @Mock
+    private SettingsMasterQueryPort settingsMasterQueryPort;
+
+    @Mock
+    private UserPreferenceService userPreferenceService;
+
+    @InjectMocks
+    private SettingsService settingsService;
 
     @Test
-    void getLanguagesReturnsSelectableLanguageOptions() {
-        assertThat(settingsService.getLanguages())
-                .containsExactly(new LanguageOption("en", "영어", "English"));
+    void getLanguageOptionsReturnsMappedResponse() {
+        when(settingsMasterQueryPort.findLanguages()).thenReturn(List.of(
+                new LanguageOption("en", "English", "English")
+        ));
+
+        LanguageOptionsResponse response = settingsService.getLanguageOptions();
+
+        assertThat(response.languages()).extracting(item -> item.code()).containsExactly("en");
+        assertThat(response.languages()).extracting(item -> item.name()).containsExactly("English");
+        assertThat(response.languages()).extracting(item -> item.englishName()).containsExactly("English");
     }
 
     @Test
-    void getAllergiesReturnsTranslatedOrFallbackNamesFromPort() {
-        assertThat(settingsService.getAllergies("en"))
-                .containsExactly(new AllergyOption("EGG", "Egg", 1));
+    void getAllergyOptionsUsesUserLanguageAndReturnsMappedResponse() {
+        when(userPreferenceService.getLanguage(1L)).thenReturn("en");
+        when(settingsMasterQueryPort.findAllergies("en")).thenReturn(List.of(
+                new AllergyOption("EGG", "Egg", 1)
+        ));
+
+        AllergyOptionsResponse response = settingsService.getAllergyOptions(1L);
+
+        assertThat(response.allergies()).extracting(item -> item.code()).containsExactly("EGG");
+        assertThat(response.allergies()).extracting(item -> item.name()).containsExactly("Egg");
+        verify(userPreferenceService).getLanguage(1L);
+        verify(settingsMasterQueryPort).findAllergies("en");
     }
 
     @Test
-    void getReligionsReturnsTranslatedOrFallbackNamesFromPort() {
-        assertThat(settingsService.getReligions("en"))
-                .containsExactly(new ReligiousRestrictionOption("HALAL", "Halal"));
+    void getReligionOptionsUsesUserLanguageAndReturnsMappedResponse() {
+        when(userPreferenceService.getLanguage(1L)).thenReturn("en");
+        when(settingsMasterQueryPort.findReligiousRestrictions("en")).thenReturn(List.of(
+                new ReligiousRestrictionOption("HALAL", "Halal")
+        ));
+
+        ReligionOptionsResponse response = settingsService.getReligionOptions(1L);
+
+        assertThat(response.religions()).extracting(item -> item.code()).containsExactly("HALAL");
+        assertThat(response.religions()).extracting(item -> item.name()).containsExactly("Halal");
+        verify(userPreferenceService).getLanguage(1L);
+        verify(settingsMasterQueryPort).findReligiousRestrictions("en");
     }
 
     @Test
-    void getCountriesReturnsCountryOptionsOrderedByName() {
-        assertThat(settingsService.getCountries())
-                .containsExactly(
-                        new CountryOption("KR", "Korea"),
-                        new CountryOption("US", "United States")
-                );
+    void getCountryOptionsReturnsMappedResponseWithoutUserLanguage() {
+        when(settingsMasterQueryPort.findCountries()).thenReturn(List.of(
+                new CountryOption("KR", "Korea"),
+                new CountryOption("US", "United States")
+        ));
+
+        CountryOptionsResponse response = settingsService.getCountryOptions();
+
+        assertThat(response.countries()).extracting(item -> item.code()).containsExactly("KR", "US");
+        assertThat(response.countries()).extracting(item -> item.name()).containsExactly("Korea", "United States");
     }
 
-    private static class FakeSettingsMasterQueryPort implements SettingsMasterQueryPort {
-        @Override
-        public List<LanguageOption> findLanguages() {
-            return List.of(new LanguageOption("en", "영어", "English"));
-        }
+    @Test
+    void getSchoolOptionsUsesUserLanguageAndReturnsMappedResponse() {
+        when(userPreferenceService.getLanguage(1L)).thenReturn("en");
+        when(settingsMasterQueryPort.findSchools("en")).thenReturn(List.of(
+                new SchoolOption(1L, "Kumoh National Institute of Technology"),
+                new SchoolOption(2L, "Base School Name")
+        ));
 
-        @Override
-        public boolean existsLanguageCode(String languageCode) {
-            return true;
-        }
+        SchoolOptionsResponse response = settingsService.getSchoolOptions(1L);
 
-        @Override
-        public List<AllergyOption> findAllergies(String langCode) {
-            return List.of(new AllergyOption("EGG", "Egg", 1));
-        }
-
-        @Override
-        public boolean existsAllAllergyCodes(Set<String> allergyCodes) {
-            return true;
-        }
-
-        @Override
-        public List<ReligiousRestrictionOption> findReligiousRestrictions(String langCode) {
-            return List.of(new ReligiousRestrictionOption("HALAL", "Halal"));
-        }
-
-        @Override
-        public boolean existsReligiousCode(String religiousCode) {
-            return true;
-        }
-
-        @Override
-        public List<CountryOption> findCountries() {
-            return List.of(
-                    new CountryOption("KR", "Korea"),
-                    new CountryOption("US", "United States")
-            );
-        }
-
-        @Override
-        public boolean existsCountryCode(String countryCode) {
-            return true;
-        }
+        assertThat(response.schools()).extracting(item -> item.schoolId()).containsExactly(1L, 2L);
+        assertThat(response.schools()).extracting(item -> item.name())
+                .containsExactly("Kumoh National Institute of Technology", "Base School Name");
+        verify(userPreferenceService).getLanguage(1L);
+        verify(settingsMasterQueryPort).findSchools("en");
     }
 }

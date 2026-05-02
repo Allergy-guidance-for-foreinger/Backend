@@ -3,15 +3,16 @@ package com.mealguide.mealguide_api.settings.presentation.controller;
 import com.mealguide.mealguide_api.global.base.dto.ResponseBody;
 import com.mealguide.mealguide_api.global.base.dto.SuccessResponseBody;
 import com.mealguide.mealguide_api.settings.application.service.SettingsService;
-import com.mealguide.mealguide_api.settings.application.service.UserPreferenceService;
-import com.mealguide.mealguide_api.settings.domain.AllergyOption;
-import com.mealguide.mealguide_api.settings.domain.CountryOption;
-import com.mealguide.mealguide_api.settings.domain.LanguageOption;
-import com.mealguide.mealguide_api.settings.domain.ReligiousRestrictionOption;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.AllergyOptionItemResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.AllergyOptionsResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.CountryOptionItemResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.CountryOptionsResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.LanguageOptionItemResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.LanguageOptionsResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.ReligionOptionItemResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.ReligionOptionsResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.SchoolOptionItemResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.SchoolOptionsResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -30,90 +31,76 @@ class SettingsOptionsControllerTest {
     @Mock
     private SettingsService settingsService;
 
-    @Mock
-    private UserPreferenceService userPreferenceService;
-
     @InjectMocks
     private SettingsOptionsController settingsOptionsController;
 
     @Test
-    void getLanguageOptionsReturnsFullLanguageList() {
-        when(settingsService.getLanguages()).thenReturn(List.of(
-                new LanguageOption("ko", "Korean", "Korean"),
-                new LanguageOption("en", "English", "English")
-        ));
+    void getLanguageOptionsWrapsServiceResponse() {
+        LanguageOptionsResponse serviceResponse = new LanguageOptionsResponse(
+                List.of(new LanguageOptionItemResponse("en", "English", "English"))
+        );
+        when(settingsService.getLanguageOptions()).thenReturn(serviceResponse);
 
         ResponseBody<LanguageOptionsResponse> body = settingsOptionsController.getLanguageOptions().getBody();
 
         assertThat(body).isInstanceOf(SuccessResponseBody.class);
-        LanguageOptionsResponse response = ((SuccessResponseBody<LanguageOptionsResponse>) body).getData();
-        assertThat(response.languages())
-                .extracting(item -> item.code())
-                .containsExactly("ko", "en");
-        assertThat(response.languages())
-                .extracting(item -> item.name())
-                .containsExactly("Korean", "English");
+        assertThat(((SuccessResponseBody<LanguageOptionsResponse>) body).getData()).isEqualTo(serviceResponse);
+        verify(settingsService).getLanguageOptions();
     }
 
     @Test
-    void getAllergyOptionsUsesUserLanguage() {
-        when(userPreferenceService.getLanguage(1L)).thenReturn("en");
-        when(settingsService.getAllergies("en")).thenReturn(List.of(
-                new AllergyOption("EGG", "Egg", 1),
-                new AllergyOption("MILK", "Milk", 2)
-        ));
+    void getAllergyOptionsWrapsServiceResponse() {
+        AllergyOptionsResponse serviceResponse = new AllergyOptionsResponse(
+                List.of(new AllergyOptionItemResponse("EGG", "Egg"))
+        );
+        when(settingsService.getAllergyOptions(1L)).thenReturn(serviceResponse);
 
         ResponseBody<AllergyOptionsResponse> body = settingsOptionsController.getAllergyOptions(1L).getBody();
 
         assertThat(body).isInstanceOf(SuccessResponseBody.class);
-        AllergyOptionsResponse response = ((SuccessResponseBody<AllergyOptionsResponse>) body).getData();
-        assertThat(response.allergies())
-                .extracting(item -> item.code())
-                .containsExactly("EGG", "MILK");
-        assertThat(response.allergies())
-                .extracting(item -> item.name())
-                .containsExactly("Egg", "Milk");
-        verify(settingsService).getAllergies("en");
+        assertThat(((SuccessResponseBody<AllergyOptionsResponse>) body).getData()).isEqualTo(serviceResponse);
+        verify(settingsService).getAllergyOptions(1L);
     }
 
     @Test
-    void getReligionOptionsUsesUserLanguage() {
-        when(userPreferenceService.getLanguage(1L)).thenReturn("en");
-        when(settingsService.getReligions("en")).thenReturn(List.of(
-                new ReligiousRestrictionOption("HALAL", "Halal"),
-                new ReligiousRestrictionOption("HINDU", "Hindu")
-        ));
+    void getReligionOptionsWrapsServiceResponse() {
+        ReligionOptionsResponse serviceResponse = new ReligionOptionsResponse(
+                List.of(new ReligionOptionItemResponse("HALAL", "Halal"))
+        );
+        when(settingsService.getReligionOptions(1L)).thenReturn(serviceResponse);
 
         ResponseBody<ReligionOptionsResponse> body = settingsOptionsController.getReligionOptions(1L).getBody();
 
         assertThat(body).isInstanceOf(SuccessResponseBody.class);
-        ReligionOptionsResponse response = ((SuccessResponseBody<ReligionOptionsResponse>) body).getData();
-        assertThat(response.religions())
-                .extracting(item -> item.code())
-                .containsExactly("HALAL", "HINDU");
-        assertThat(response.religions())
-                .extracting(item -> item.name())
-                .containsExactly("Halal", "Hindu");
-        verify(settingsService).getReligions("en");
+        assertThat(((SuccessResponseBody<ReligionOptionsResponse>) body).getData()).isEqualTo(serviceResponse);
+        verify(settingsService).getReligionOptions(1L);
     }
 
     @Test
-    void getCountryOptionsReturnsCountryList() {
-        when(settingsService.getCountries()).thenReturn(List.of(
-                new CountryOption("KR", "Korea"),
-                new CountryOption("US", "United States")
-        ));
+    void getCountryOptionsWrapsServiceResponse() {
+        CountryOptionsResponse serviceResponse = new CountryOptionsResponse(
+                List.of(new CountryOptionItemResponse("KR", "Korea"))
+        );
+        when(settingsService.getCountryOptions()).thenReturn(serviceResponse);
 
         ResponseBody<CountryOptionsResponse> body = settingsOptionsController.getCountryOptions().getBody();
 
         assertThat(body).isInstanceOf(SuccessResponseBody.class);
-        CountryOptionsResponse response = ((SuccessResponseBody<CountryOptionsResponse>) body).getData();
-        assertThat(response.countries())
-                .extracting(item -> item.code())
-                .containsExactly("KR", "US");
-        assertThat(response.countries())
-                .extracting(item -> item.name())
-                .containsExactly("Korea", "United States");
+        assertThat(((SuccessResponseBody<CountryOptionsResponse>) body).getData()).isEqualTo(serviceResponse);
+        verify(settingsService).getCountryOptions();
+    }
+
+    @Test
+    void getSchoolOptionsWrapsServiceResponse() {
+        SchoolOptionsResponse serviceResponse = new SchoolOptionsResponse(
+                List.of(new SchoolOptionItemResponse(1L, "Kumoh National Institute of Technology"))
+        );
+        when(settingsService.getSchoolOptions(1L)).thenReturn(serviceResponse);
+
+        ResponseBody<SchoolOptionsResponse> body = settingsOptionsController.getSchoolOptions(1L).getBody();
+
+        assertThat(body).isInstanceOf(SuccessResponseBody.class);
+        assertThat(((SuccessResponseBody<SchoolOptionsResponse>) body).getData()).isEqualTo(serviceResponse);
+        verify(settingsService).getSchoolOptions(1L);
     }
 }
-

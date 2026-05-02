@@ -22,6 +22,9 @@ public class UserPreference {
     @Column(name = "language_code", length = 10)
     private String languageCode;
 
+    @Column(name = "school_id")
+    private Long schoolId;
+
     @Column(name = "country_code", length = 10)
     private String countryCode;
 
@@ -49,6 +52,11 @@ public class UserPreference {
 
     public void updateCountryCode(String countryCode) {
         this.countryCode = countryCode;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateSchoolId(Long schoolId) {
+        this.schoolId = schoolId;
         this.updatedAt = LocalDateTime.now();
     }
 }

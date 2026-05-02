@@ -10,10 +10,13 @@ import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateAller
 import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateCountryRequest;
 import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateLanguageRequest;
 import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateReligionRequest;
+import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateSchoolRequest;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.AllergyUpdateResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.CountryUpdateResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.LanguageUpdateResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.ReligionUpdateResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.SchoolSettingResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.SchoolUpdateResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -74,6 +77,19 @@ public interface SettingsApi {
             }
     )
     ResponseEntity<ResponseBody<CountryUpdateResponse>> getCountry(@CurrentUserId Long currentUserId);
+
+    @Operation(
+            summary = "내 학교 설정 조회",
+            description = "인증된 사용자의 현재 학교 ID 설정을 조회합니다."
+    )
+    @SwaggerApiResponses(
+            success = @SwaggerApiSuccessResponse(response = SchoolSettingResponse.class, description = "학교 설정 조회 성공"),
+            errors = {
+                    @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED),
+                    @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND)
+            }
+    )
+    ResponseEntity<ResponseBody<SchoolSettingResponse>> getSchool(@CurrentUserId Long currentUserId);
 
     @Operation(
             summary = "언어 설정 변경",
@@ -144,5 +160,22 @@ public interface SettingsApi {
     ResponseEntity<ResponseBody<CountryUpdateResponse>> updateCountry(
             @CurrentUserId Long currentUserId,
             @Valid @RequestBody UpdateCountryRequest request
+    );
+
+    @Operation(
+            summary = "학교 설정 변경",
+            description = "인증된 사용자의 학교 설정을 변경합니다."
+    )
+    @SwaggerApiResponses(
+            success = @SwaggerApiSuccessResponse(response = SchoolUpdateResponse.class, description = "학교 설정 변경 성공"),
+            errors = {
+                    @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED),
+                    @SwaggerApiFailedResponse(ErrorCode.BINDING_ERROR),
+                    @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND)
+            }
+    )
+    ResponseEntity<ResponseBody<SchoolUpdateResponse>> updateSchool(
+            @CurrentUserId Long currentUserId,
+            @Valid @RequestBody UpdateSchoolRequest request
     );
 }

@@ -22,7 +22,7 @@ public interface CafeteriaJpaRepository extends JpaRepository<Cafeteria, Long> {
                 school.sourceUrl
             )
             from Cafeteria cafeteria
-            join com.mealguide.mealguide_api.onboarding.domain.School school
+            join com.mealguide.mealguide_api.settings.domain.School school
                 on school.id = cafeteria.schoolId
             where school.sourceUrl is not null
               and trim(school.sourceUrl) <> ''

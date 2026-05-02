@@ -2,7 +2,7 @@
 
 ## 1. 역할
 `settings` 기능은 개인 설정 조회/수정과 설정 옵션(마스터 데이터) 조회를 담당한다.
-언어, 알레르기, 종교 제한 설정을 사용자 컨텍스트 기준으로 제공한다.
+언어, 학교, 알레르기, 종교 제한, 국가 설정을 사용자 컨텍스트 기준으로 제공한다.
 
 ## 2. 주요 패키지
 - `settings.presentation.controller`
@@ -22,23 +22,28 @@
 - `SettingsService`: 옵션 마스터 데이터 조회 유스케이스
 - `UserPreferencePort`, `SettingsMasterQueryPort`: 포트 추상화
 - `UserPreferencePersistenceAdapter`, `SettingsMasterPersistenceAdapter`: 포트 구현체
-- `UserPreferenceJpaRepository`, `UserAllergyJpaRepository`, `LanguageJpaRepository`, `AllergyJpaRepository`, `ReligiousFoodRestrictionJpaRepository`
-- `UpdateLanguageRequest`, `UpdateAllergiesRequest`, `UpdateReligionRequest`: 요청 DTO
-- `LanguageUpdateResponse`, `AllergyUpdateResponse`, `ReligionUpdateResponse`, `LanguageOptionsResponse`, `LanguageOptionItemResponse`, `AllergyOptionsResponse`, `AllergyOptionItemResponse`, `ReligionOptionsResponse`, `ReligionOptionItemResponse`: 응답 DTO
+- `UserPreferenceJpaRepository`, `UserAllergyJpaRepository`, `LanguageJpaRepository`, `AllergyJpaRepository`, `ReligiousFoodRestrictionJpaRepository`, `CountryJpaRepository`, `SchoolJpaRepository`
+- `UpdateLanguageRequest`, `UpdateAllergiesRequest`, `UpdateReligionRequest`, `UpdateCountryRequest`, `UpdateSchoolRequest`: 요청 DTO
+- `LanguageUpdateResponse`, `AllergyUpdateResponse`, `ReligionUpdateResponse`, `CountryUpdateResponse`, `SchoolUpdateResponse`, `SchoolSettingResponse`, `LanguageOptionsResponse`, `LanguageOptionItemResponse`, `AllergyOptionsResponse`, `AllergyOptionItemResponse`, `ReligionOptionsResponse`, `ReligionOptionItemResponse`, `CountryOptionsResponse`, `CountryOptionItemResponse`, `SchoolOptionsResponse`, `SchoolOptionItemResponse`: 응답 DTO
 
 ## 4. DB 사용 규칙
 - 관련 테이블
   - `users`
   - `user_allergy`
+  - `school`, `school_translation`
+  - `country`
   - `language`, `allergy`, `religious_food_restriction`
   - `allergy_translation`, `religious_food_restriction_translation`
 - 핵심 컬럼
   - `users.language_code`
+  - `users.school_id`
+  - `users.country_code`
   - `users.religious_code`
   - `user_allergy` 매핑 컬럼들
 - 조회/저장 규칙
   - 개인 설정 조회/수정은 `users` + `user_allergy` 기준으로 처리한다.
   - 알레르기 수정은 full replacement 방식으로 처리한다.
+  - 학교 옵션 조회는 `school_translation` 우선, 없으면 `school.name` fallback 규칙으로 반환한다.
   - 옵션 목록 조회는 마스터/번역 테이블을 조합해 반환한다.
 
 ## 5. API 규칙
@@ -47,13 +52,19 @@
     - `GET /api/v1/settings/language`
     - `GET /api/v1/settings/allergies`
     - `GET /api/v1/settings/religion`
+    - `GET /api/v1/settings/country`
+    - `GET /api/v1/settings/school`
     - `PATCH /api/v1/settings/language`
     - `PUT /api/v1/settings/allergies`
     - `PATCH /api/v1/settings/religion`
+    - `PATCH /api/v1/settings/country`
+    - `PATCH /api/v1/settings/school`
   - 옵션 목록
     - `GET /api/v1/settings/options/languages`
     - `GET /api/v1/settings/options/allergies`
     - `GET /api/v1/settings/options/religions`
+    - `GET /api/v1/settings/options/countries`
+    - `GET /api/v1/settings/options/schools`
 - 인증 필요 여부
   - settings API 전체는 `USER`, `MANAGER`, `ADMIN` 인증이 필요하다.
 - 요청/응답 방향
@@ -63,6 +74,8 @@
 ## 6. 공통 비즈니스 규칙
 - settings 기능은 인증된 사용자의 개인 설정 조회/수정과 설정 옵션 목록 조회를 담당한다.
 - 언어 설정은 `users.language_code`를 사용한다.
+- 학교 설정은 `users.school_id`를 사용한다.
+- 국가 설정은 `users.country_code`를 사용한다.
 - 종교 제한 설정은 `users.religious_code`를 사용하며 null 가능하다.
 - 알레르기 설정은 `user_allergy`를 사용하고 전체 교체(full replacement) 방식으로 저장한다.
 - 옵션 목록은 `language`, `allergy`, `religious_food_restriction` 및 각 translation 테이블을 사용한다.
@@ -133,3 +146,13 @@
 - 관련 테이블에 `country`를 추가했다.
 - 개인 설정 핵심 컬럼에 `users.country_code`를 추가했다.
 - 나라 설정은 code-only 응답 정책으로 `countryCode`를 반환한다.
+
+## 10. 최근 변경 (2026-05-02)
+- 관련 테이블에 `school`, `school_translation`을 settings 옵션/개인 설정 조회 맥락으로 반영했다.
+- 옵션 목록 API에 학교 목록 조회를 추가했다.
+  - `GET /api/v1/settings/options/schools`
+- 개인 설정 API에 학교 조회/수정을 추가했다.
+  - `GET /api/v1/settings/school`
+  - `PATCH /api/v1/settings/school`
+- 사용자 학교 설정은 `users.school_id`를 기준으로 조회/수정한다.
+- 학교 목록 조회는 `school_translation` 우선, 없으면 `school.name` fallback 규칙을 사용한다.

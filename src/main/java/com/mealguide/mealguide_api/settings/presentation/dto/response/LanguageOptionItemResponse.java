@@ -1,5 +1,6 @@
 package com.mealguide.mealguide_api.settings.presentation.dto.response;
 
+import com.mealguide.mealguide_api.settings.domain.LanguageOption;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 public record LanguageOptionItemResponse(
@@ -10,4 +11,7 @@ public record LanguageOptionItemResponse(
         @Schema(description = "영문 언어 이름", example = "English")
         String englishName
 ) {
+    public static LanguageOptionItemResponse from(LanguageOption option) {
+        return new LanguageOptionItemResponse(option.code(), option.name(), option.englishName());
+    }
 }

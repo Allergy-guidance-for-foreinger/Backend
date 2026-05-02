@@ -102,3 +102,52 @@
   - `docs/work-log/settings-work-log.md`
 - Remaining follow-ups:
   - 현재 환경에서는 Maven wrapper 실행 오류로 자동 테스트 실행 검증이 필요함.
+
+### 2026-05-02 (학교 옵션 및 사용자 학교 설정 API 추가)
+- What changed:
+  - settings options API에 학교 목록 조회를 추가했다.
+    - `GET /api/v1/settings/options/schools`
+  - 개인 settings API에 사용자 학교 조회/수정을 추가했다.
+    - `GET /api/v1/settings/school`
+    - `PATCH /api/v1/settings/school`
+  - `SettingsService`/`UserPreferenceService`에 학교 옵션 조회, 사용자 학교 조회/수정 유스케이스를 추가했다.
+  - `SettingsMasterQueryPort`/`SettingsMasterPersistenceAdapter`에 학교 목록 조회 및 `schoolId` 존재 검증을 추가했다.
+  - settings 패키지에 `School` 엔티티/`SchoolOption`/`SchoolJpaRepository`를 추가하고
+    `school_translation` fallback 쿼리(번역 우선, 원문 fallback)를 구현했다.
+  - 학교 관련 request/response DTO 및 Swagger 문서를 추가했다.
+  - 기존 settings 언어/알레르기/종교/국가 API는 유지했다.
+- Why:
+  - 학교 목록 조회 책임을 settings로 이동하고, 사용자 학교 설정 조회/수정 기능을 settings에서 일관되게 제공하기 위해.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/settings/application/port/SettingsMasterQueryPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/application/service/SettingsService.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceService.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/domain/UserPreference.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/domain/School.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/domain/SchoolOption.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/repository/SchoolJpaRepository.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/adapter/SettingsMasterPersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsController.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/UserSettingsController.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsOptionsApi.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/request/UpdateSchoolRequest.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/SchoolOptionItemResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/SchoolOptionsResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/SchoolSettingResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/SchoolUpdateResponse.java`
+  - `src/test/java/com/mealguide/mealguide_api/settings/application/service/SettingsServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerTest.java`
+  - `docs/features/settings-context.md`
+  - `docs/work-log/settings-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - `GET /api/v1/settings/options/schools` 추가
+  - `GET /api/v1/settings/school` 추가
+  - `PATCH /api/v1/settings/school` 추가
+- Related docs updated:
+  - `docs/features/settings-context.md`
+  - `docs/work-log/settings-work-log.md`
+- Remaining follow-ups:
+  - 현재 환경에서는 Maven wrapper 실행 오류로 자동 테스트 실행 검증이 필요함.

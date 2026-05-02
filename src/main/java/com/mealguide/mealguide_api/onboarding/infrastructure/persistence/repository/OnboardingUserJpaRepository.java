@@ -22,6 +22,15 @@ public interface OnboardingUserJpaRepository extends JpaRepository<User, Long> {
     @Query(value = """
             select exists(
                 select 1
+                from school s
+                where s.id = :schoolId
+            )
+            """, nativeQuery = true)
+    boolean existsSchoolById(@Param("schoolId") Long schoolId);
+
+    @Query(value = """
+            select exists(
+                select 1
                 from language l
                 where l.code = :languageCode
             )

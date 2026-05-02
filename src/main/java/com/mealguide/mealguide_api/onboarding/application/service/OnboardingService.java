@@ -3,9 +3,7 @@ package com.mealguide.mealguide_api.onboarding.application.service;
 import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.onboarding.application.port.OnboardingCommandPort;
-import com.mealguide.mealguide_api.onboarding.application.port.SchoolQueryPort;
 import com.mealguide.mealguide_api.onboarding.domain.OnboardingCompletion;
-import com.mealguide.mealguide_api.onboarding.domain.SchoolOption;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,13 +17,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class OnboardingService {
 
-    private final SchoolQueryPort schoolQueryPort;
     private final OnboardingCommandPort onboardingCommandPort;
-
-    @Transactional(readOnly = true)
-    public List<SchoolOption> getSchools(String langCode) {
-        return schoolQueryPort.findSchools(normalize(langCode));
-    }
 
     @Transactional
     public OnboardingCompletion completeOnboarding(
