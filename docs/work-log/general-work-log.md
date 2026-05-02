@@ -555,3 +555,37 @@
   - `docs/work-log/general-work-log.md`
 - Remaining follow-ups:
   - 현재 환경의 Maven wrapper 실행 오류(`Cannot start maven from wrapper`)로 자동 테스트 실행 검증 필요.
+
+### 2026-05-02 (menu detail batch API added)
+- What changed:
+  - Added batch menu detail API `POST /api/v1/menus/details` while keeping single detail API `GET /api/v1/mealcrawl/menus/{mealMenuId}`.
+  - Added request/response DTOs: `MenuDetailBatchRequest`, `MenuDetailBatchResponse`.
+  - Extended `MenuDetailQueryService` with batch path:
+    - validates null/empty/max(30)/non-positive IDs
+    - de-duplicates IDs preserving first-request order
+    - loads details in bulk and validates existence/school ownership
+    - computes ingredients with `CONFIRMED > AI` priority in bulk
+    - computes matched allergies and risk per menu for current user
+  - Extended `MealCrawlPersistencePort` and `MealCrawlPersistenceAdapter` with bulk menu-detail/ingredient queries to avoid per-menu DB calls.
+  - Updated `MenuDetailApi` swagger for batch operation.
+  - Rewrote `MenuDetailQueryServiceTest` to cover batch validation, mixed matched/unmatched menus, order preservation, and single-path compatibility.
+- Why:
+  - Support front-side bulk menu detail rendering with consistent user-specific allergy/risk logic and better query efficiency.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/controller/MenuDetailController.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/swagger/MenuDetailApi.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/dto/request/MenuDetailBatchRequest.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/dto/response/MenuDetailBatchResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - Added batch endpoint `POST /api/v1/menus/details`.
+  - Existing single endpoint remains available.
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Maven wrapper execution issue remains in this environment (`Cannot start maven from wrapper`), so test execution should be verified in local IDE/shell.

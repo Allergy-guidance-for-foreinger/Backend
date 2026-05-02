@@ -55,6 +55,10 @@ public interface MealCrawlPersistencePort {
         return Optional.empty();
     }
 
+    default List<MenuDetailRow> findMenuDetailsByMealMenuIds(Set<Long> mealMenuIds) {
+        return List.of();
+    }
+
     default Optional<String> findTranslatedMenuNameByMealMenuId(Long mealMenuId, String langCode) {
         return Optional.empty();
     }
@@ -64,6 +68,14 @@ public interface MealCrawlPersistencePort {
     }
 
     default List<NamedIngredientRow> findAiIngredientsForMenuDetail(Long mealMenuId, String langCode) {
+        return List.of();
+    }
+
+    default List<MealMenuIngredientRow> findConfirmedIngredientsForMenuDetails(Set<Long> mealMenuIds, String langCode) {
+        return List.of();
+    }
+
+    default List<MealMenuIngredientRow> findAiIngredientsForMenuDetails(Set<Long> mealMenuIds, String langCode) {
         return List.of();
     }
 

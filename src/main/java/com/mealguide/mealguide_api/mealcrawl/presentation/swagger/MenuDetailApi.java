@@ -6,11 +6,15 @@ import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.config.swagger.SwaggerApiFailedResponse;
 import com.mealguide.mealguide_api.global.config.swagger.SwaggerApiResponses;
 import com.mealguide.mealguide_api.global.config.swagger.SwaggerApiSuccessResponse;
+import com.mealguide.mealguide_api.mealcrawl.presentation.dto.request.MenuDetailBatchRequest;
+import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuDetailBatchResponse;
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuDetailResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @SecurityRequirement(name = "Access Token")
 public interface MenuDetailApi {
@@ -31,5 +35,23 @@ public interface MenuDetailApi {
     ResponseEntity<ResponseBody<MenuDetailResponse>> getMenuDetail(
             @CurrentUserId Long currentUserId,
             @PathVariable Long mealMenuId
+    );
+
+    @Operation(
+            summary = "메뉴 상세 일괄 조회",
+            description = "mealMenuId 목록(최대 30개) 기준으로 메뉴 상세를 일괄 조회합니다. 중복 ID는 제거되며 요청 순서를 유지해 반환합니다."
+    )
+    @SwaggerApiResponses(
+            success = @SwaggerApiSuccessResponse(response = MenuDetailBatchResponse.class, description = "메뉴 상세 일괄 조회 성공"),
+            errors = {
+                    @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED),
+                    @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND),
+                    @SwaggerApiFailedResponse(ErrorCode.BINDING_ERROR),
+                    @SwaggerApiFailedResponse(ErrorCode.ESSENTIAL_FIELD_MISSING_ERROR)
+            }
+    )
+    ResponseEntity<ResponseBody<MenuDetailBatchResponse>> getMenuDetails(
+            @CurrentUserId Long currentUserId,
+            @Valid @RequestBody MenuDetailBatchRequest request
     );
 }

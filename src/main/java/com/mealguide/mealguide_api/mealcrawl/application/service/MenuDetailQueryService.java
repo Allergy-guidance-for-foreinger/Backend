@@ -3,20 +3,24 @@ package com.mealguide.mealguide_api.mealcrawl.application.service;
 import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.CurrentUserMealPreference;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MatchedAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
-import com.mealguide.mealguide_api.mealcrawl.application.dto.NamedIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealUserPreferencePort;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuRiskLevel;
+import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuDetailBatchResponse;
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuDetailResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -24,98 +28,161 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MenuDetailQueryService {
 
-    private static final String LANG_KO = "ko";
     private static final String SOURCE_CONFIRMED = "CONFIRMED";
     private static final String SOURCE_AI = "AI";
     private static final String AI_STATUS_SUCCESS = "SUCCESS";
+    private static final int MAX_BATCH_SIZE = 30;
 
     private final MealUserPreferencePort mealUserPreferencePort;
     private final MealCrawlPersistencePort mealCrawlPersistencePort;
 
     public MenuDetailResponse getMenuDetail(Long userId, Long mealMenuId) {
+        MenuDetailBatchResponse response = getMenuDetails(userId, List.of(mealMenuId));
+        return response.menus().getFirst();
+    }
+
+    public MenuDetailBatchResponse getMenuDetails(Long userId, List<Long> mealMenuIds) {
+        List<Long> normalizedIds = normalizeMealMenuIds(mealMenuIds);
         CurrentUserMealPreference preference = mealUserPreferencePort.getCurrentUserMealPreference(userId);
         if (preference.schoolId() == null) {
             throw new ServiceException(ErrorCode.ESSENTIAL_FIELD_MISSING_ERROR);
         }
 
-        MenuDetailRow detail = mealCrawlPersistencePort.findMenuDetailByMealMenuId(mealMenuId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.BINDING_ERROR));
-
-        if (!preference.schoolId().equals(detail.schoolId())) {
+        Set<Long> targetIds = new LinkedHashSet<>(normalizedIds);
+        Map<Long, MenuDetailRow> detailsById = mealCrawlPersistencePort.findMenuDetailsByMealMenuIds(targetIds).stream()
+                .collect(Collectors.toMap(
+                        MenuDetailRow::mealMenuId,
+                        row -> row,
+                        (existing, ignored) -> existing,
+                        LinkedHashMap::new
+                ));
+        if (detailsById.size() != targetIds.size()) {
             throw new ServiceException(ErrorCode.BINDING_ERROR);
         }
 
-        String menuName = mealCrawlPersistencePort.findTranslatedMenuNameByMealMenuId(mealMenuId, preference.languageCode())
-                .orElse(detail.menuName());
-
-        IngredientSelection ingredientSelection = resolveIngredients(mealMenuId, preference.languageCode());
-        Set<String> ingredientCodes = extractIngredientCodes(ingredientSelection.ingredients());
-        List<MatchedAllergyRow> matchedAllergyRows = mealCrawlPersistencePort.findMatchedAllergies(
-                userId,
-                ingredientCodes,
-                preference.languageCode()
-        );
-
-        List<MenuDetailResponse.MatchedAllergyResponse> matchedAllergies = matchedAllergyRows.stream()
-                .map(row -> new MenuDetailResponse.MatchedAllergyResponse(
-                        row.allergyCode(),
-                        row.allergyName(),
-                        row.ingredientCode(),
-                        row.ingredientName(),
-                        buildMatchedMessage(preference.languageCode(), row.ingredientName())
-                ))
-                .toList();
-
-        MenuRiskLevel riskLevel = evaluateRiskLevel(
-                ingredientSelection,
-                matchedAllergies,
-                preference.religiousCode()
-        );
-
-        return new MenuDetailResponse(
-                detail.mealMenuId(),
-                menuName,
-                null,
-                detail.cornerName(),
-                detail.displayOrder(),
-                detail.spicyLevel(),
-                AI_STATUS_SUCCESS.equals(detail.aiAnalysisStatus()),
-                new MenuDetailResponse.MenuRiskResponse(riskLevel.name()),
-                ingredientSelection.ingredients().stream()
-                        .map(ingredient -> new MenuDetailResponse.IngredientResponse(
-                                ingredient.code(),
-                                ingredient.name(),
-                                ingredientSelection.source()
-                        ))
-                        .toList(),
-                matchedAllergies
-        );
-    }
-
-    private IngredientSelection resolveIngredients(Long mealMenuId, String languageCode) {
-        List<NamedIngredientRow> confirmedIngredients = mealCrawlPersistencePort.findConfirmedIngredientsForMenuDetail(mealMenuId, languageCode);
-        if (!confirmedIngredients.isEmpty()) {
-            return new IngredientSelection(SOURCE_CONFIRMED, confirmedIngredients);
+        boolean hasOtherSchoolMenu = detailsById.values().stream()
+                .anyMatch(detail -> !preference.schoolId().equals(detail.schoolId()));
+        if (hasOtherSchoolMenu) {
+            throw new ServiceException(ErrorCode.BINDING_ERROR);
         }
 
-        List<NamedIngredientRow> aiIngredients = mealCrawlPersistencePort.findAiIngredientsForMenuDetail(mealMenuId, languageCode);
-        if (!aiIngredients.isEmpty()) {
-            return new IngredientSelection(SOURCE_AI, aiIngredients);
-        }
+        String languageCode = preference.languageCode();
+        Map<Long, String> translatedMenuNames = mealCrawlPersistencePort.findTranslatedMenuNamesByMealMenuIds(targetIds, languageCode);
+        Map<Long, IngredientSelection> ingredientSelections = resolveIngredients(targetIds, languageCode);
 
-        return new IngredientSelection(null, List.of());
-    }
-
-    private Set<String> extractIngredientCodes(List<NamedIngredientRow> ingredients) {
-        return ingredients.stream()
-                .map(NamedIngredientRow::code)
+        Set<String> allIngredientCodes = ingredientSelections.values().stream()
+                .flatMap(selection -> selection.ingredients().stream())
+                .map(MenuDetailResponse.IngredientResponse::code)
                 .collect(Collectors.toSet());
+
+        List<MatchedAllergyRow> matchedAllergyRows = mealCrawlPersistencePort.findMatchedAllergies(userId, allIngredientCodes, languageCode);
+        Map<String, List<MatchedAllergyRow>> matchedRowsByIngredientCode = matchedAllergyRows.stream()
+                .collect(Collectors.groupingBy(MatchedAllergyRow::ingredientCode));
+
+        List<RestrictionIngredientRow> religiousRestrictions =
+                mealCrawlPersistencePort.findReligiousRestrictionIngredients(preference.religiousCode());
+        Set<String> religiousRestrictedCodes = religiousRestrictions.stream()
+                .map(RestrictionIngredientRow::ingredientCode)
+                .collect(Collectors.toSet());
+
+        List<MenuDetailResponse> menus = new ArrayList<>(normalizedIds.size());
+        for (Long mealMenuId : normalizedIds) {
+            MenuDetailRow detail = detailsById.get(mealMenuId);
+            IngredientSelection ingredientSelection =
+                    ingredientSelections.getOrDefault(mealMenuId, new IngredientSelection(null, List.of()));
+
+            List<MenuDetailResponse.MatchedAllergyResponse> matchedAllergies = ingredientSelection.ingredients().stream()
+                    .flatMap(ingredient -> matchedRowsByIngredientCode
+                            .getOrDefault(ingredient.code(), List.of())
+                            .stream()
+                            .map(row -> new MenuDetailResponse.MatchedAllergyResponse(
+                                    row.allergyCode(),
+                                    row.ingredientCode()
+                            )))
+                    .toList();
+
+            MenuRiskLevel riskLevel = evaluateRiskLevel(ingredientSelection, matchedAllergies, religiousRestrictedCodes);
+            String menuName = translatedMenuNames.getOrDefault(mealMenuId, detail.menuName());
+
+            menus.add(new MenuDetailResponse(
+                    detail.mealMenuId(),
+                    menuName,
+                    null,
+                    detail.cornerName(),
+                    detail.displayOrder(),
+                    detail.spicyLevel(),
+                    AI_STATUS_SUCCESS.equals(detail.aiAnalysisStatus()),
+                    new MenuDetailResponse.MenuRiskResponse(riskLevel.name()),
+                    ingredientSelection.ingredients(),
+                    matchedAllergies
+            ));
+        }
+        return new MenuDetailBatchResponse(menus);
+    }
+
+    private List<Long> normalizeMealMenuIds(List<Long> mealMenuIds) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty() || mealMenuIds.size() > MAX_BATCH_SIZE) {
+            throw new ServiceException(ErrorCode.BINDING_ERROR);
+        }
+        LinkedHashSet<Long> deduplicated = new LinkedHashSet<>();
+        for (Long mealMenuId : mealMenuIds) {
+            if (mealMenuId == null || mealMenuId <= 0) {
+                throw new ServiceException(ErrorCode.BINDING_ERROR);
+            }
+            deduplicated.add(mealMenuId);
+        }
+        if (deduplicated.isEmpty()) {
+            throw new ServiceException(ErrorCode.BINDING_ERROR);
+        }
+        return List.copyOf(deduplicated);
+    }
+
+    private Map<Long, IngredientSelection> resolveIngredients(Set<Long> mealMenuIds, String languageCode) {
+        Map<Long, List<MenuDetailResponse.IngredientResponse>> confirmedByMenuId = mealCrawlPersistencePort
+                .findConfirmedIngredientsForMenuDetails(mealMenuIds, languageCode)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        MealMenuIngredientRow::mealMenuId,
+                        Collectors.mapping(
+                                row -> new MenuDetailResponse.IngredientResponse(row.ingredientCode(), SOURCE_CONFIRMED),
+                                Collectors.toList()
+                        )
+                ));
+
+        Map<Long, IngredientSelection> selectedByMenuId = new LinkedHashMap<>();
+        Set<Long> unresolvedMenuIds = new HashSet<>();
+        for (Long mealMenuId : mealMenuIds) {
+            List<MenuDetailResponse.IngredientResponse> confirmed = confirmedByMenuId.getOrDefault(mealMenuId, List.of());
+            if (!confirmed.isEmpty()) {
+                selectedByMenuId.put(mealMenuId, new IngredientSelection(SOURCE_CONFIRMED, confirmed));
+            } else {
+                unresolvedMenuIds.add(mealMenuId);
+            }
+        }
+
+        if (!unresolvedMenuIds.isEmpty()) {
+            Map<Long, List<MenuDetailResponse.IngredientResponse>> aiByMenuId = mealCrawlPersistencePort
+                    .findAiIngredientsForMenuDetails(unresolvedMenuIds, languageCode)
+                    .stream()
+                    .collect(Collectors.groupingBy(
+                            MealMenuIngredientRow::mealMenuId,
+                            Collectors.mapping(
+                                    row -> new MenuDetailResponse.IngredientResponse(row.ingredientCode(), SOURCE_AI),
+                                    Collectors.toList()
+                            )
+                    ));
+            for (Long mealMenuId : unresolvedMenuIds) {
+                List<MenuDetailResponse.IngredientResponse> ai = aiByMenuId.getOrDefault(mealMenuId, List.of());
+                selectedByMenuId.put(mealMenuId, new IngredientSelection(ai.isEmpty() ? null : SOURCE_AI, ai));
+            }
+        }
+        return selectedByMenuId;
     }
 
     private MenuRiskLevel evaluateRiskLevel(
             IngredientSelection ingredientSelection,
             List<MenuDetailResponse.MatchedAllergyResponse> matchedAllergies,
-            String religiousCode
+            Set<String> religiousRestrictedCodes
     ) {
         if (ingredientSelection.ingredients().isEmpty()) {
             return MenuRiskLevel.UNKNOWN;
@@ -123,34 +190,17 @@ public class MenuDetailQueryService {
         if (!matchedAllergies.isEmpty()) {
             return MenuRiskLevel.DANGER;
         }
-
-        List<RestrictionIngredientRow> religiousRestrictions = mealCrawlPersistencePort.findReligiousRestrictionIngredients(religiousCode);
-        Set<String> restrictedCodes = religiousRestrictions.stream()
-                .map(RestrictionIngredientRow::ingredientCode)
-                .collect(Collectors.toSet());
-        
         boolean hasReligionRisk = ingredientSelection.ingredients().stream()
-                .anyMatch(ingredient -> restrictedCodes.contains(ingredient.code()));
+                .anyMatch(ingredient -> religiousRestrictedCodes.contains(ingredient.code()));
         if (hasReligionRisk) {
-            if (SOURCE_AI.equals(ingredientSelection.source())) {
-                return MenuRiskLevel.CAUTION;
-            }
-            return MenuRiskLevel.DANGER;
+            return SOURCE_AI.equals(ingredientSelection.source()) ? MenuRiskLevel.CAUTION : MenuRiskLevel.DANGER;
         }
         return MenuRiskLevel.SAFE;
     }
 
-    private String buildMatchedMessage(String languageCode, String ingredientName) {
-        String normalizedLanguageCode = languageCode == null ? "" : languageCode.trim().toLowerCase(Locale.ROOT);
-        if (LANG_KO.equals(normalizedLanguageCode)) {
-            return "내 알러지와 겹치는 식재료: " + ingredientName;
-        }
-        return "Ingredient matching my allergy: " + ingredientName;
-    }
-
     private record IngredientSelection(
             String source,
-            List<NamedIngredientRow> ingredients
+            List<MenuDetailResponse.IngredientResponse> ingredients
     ) {
     }
 }
