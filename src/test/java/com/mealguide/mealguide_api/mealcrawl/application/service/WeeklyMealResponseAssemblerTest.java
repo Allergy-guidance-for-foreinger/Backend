@@ -49,10 +49,22 @@ class WeeklyMealResponseAssemblerTest {
     }
 
     @Test
-    void aiOnlyMatchReturnsCaution() {
+    void aiAllergyMatchReturnsDanger() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
         port.aiIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.allergyRestrictions = List.of(new RestrictionIngredientRow("PORK", "PORK", "Pork"));
+
+        WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port);
+        WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
+
+        assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("DANGER");
+    }
+
+    @Test
+    void aiReligionMatchReturnsCaution() {
+        FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
+        port.aiIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
+        port.religionRestrictions = List.of(new RestrictionIngredientRow("HALAL", "PORK", "Pork"));
 
         WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port);
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());

@@ -535,3 +535,23 @@
   - `docs/work-log/general-work-log.md`
 - Remaining follow-ups:
   - 이 환경에서는 Maven wrapper 실행 제약이 있을 수 있어, 로컬 IDE/정상 wrapper 환경에서 전체 테스트 검증이 필요함.
+
+### 2026-05-02 (weekly 위험도 규칙 정합화: AI 알레르기 매칭은 DANGER)
+- What changed:
+  - `WeeklyMealResponseAssembler`의 위험도 평가에서 알레르기 위험과 종교 위험을 분리 판정하도록 수정했다.
+  - AI 출처 메뉴라도 알레르기 매칭이 있으면 `DANGER`를 반환하도록 변경했다.
+  - 종교 위험은 기존 정책을 유지해 CONFIRMED는 `DANGER`, AI는 `CAUTION`으로 유지했다.
+  - `WeeklyMealResponseAssemblerTest`를 갱신해 AI+알레르기 매칭 `DANGER`를 검증하고, AI+종교 매칭 `CAUTION` 회귀 테스트를 추가했다.
+- Why:
+  - `MenuDetailQueryService`와 weekly 응답 간 알레르기 위험도 규칙을 일치시켜 사용자에게 일관된 위험 정보를 제공하기 위해.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealResponseAssembler.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealResponseAssemblerTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - `GET /api/v1/mealcrawl/weekly-meals`에서 AI 출처 메뉴의 알레르기 매칭 위험도가 `CAUTION`이 아닌 `DANGER`로 반환됨.
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - 현재 환경의 Maven wrapper 실행 오류(`Cannot start maven from wrapper`)로 자동 테스트 실행 검증 필요.

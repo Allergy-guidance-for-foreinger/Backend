@@ -112,22 +112,36 @@ public class WeeklyMealResponseAssembler {
             Map<String, List<RestrictionIngredientRow>> religionIngredientIndex
     ) {
         if (confirmedMealMenuIds.contains(mealMenuId)) {
-            boolean hasRisk = hasRiskMatch(
+            boolean hasAllergyRisk = hasRestrictionMatch(
                     confirmedByMealMenuId.getOrDefault(mealMenuId, List.of()),
-                    allergyIngredientIndex,
+                    allergyIngredientIndex
+            );
+            if (hasAllergyRisk) {
+                return new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.DANGER.name());
+            }
+
+            boolean hasReligionRisk = hasRestrictionMatch(
+                    confirmedByMealMenuId.getOrDefault(mealMenuId, List.of()),
                     religionIngredientIndex
             );
-            MenuRiskLevel level = hasRisk ? MenuRiskLevel.DANGER : MenuRiskLevel.SAFE;
+            MenuRiskLevel level = hasReligionRisk ? MenuRiskLevel.DANGER : MenuRiskLevel.SAFE;
             return new WeeklyMealResponse.MenuRiskResponse(level.name());
         }
 
         if (aiMealMenuIds.contains(mealMenuId)) {
-            boolean hasRisk = hasRiskMatch(
+            boolean hasAllergyRisk = hasRestrictionMatch(
                     aiByMealMenuId.getOrDefault(mealMenuId, List.of()),
-                    allergyIngredientIndex,
+                    allergyIngredientIndex
+            );
+            if (hasAllergyRisk) {
+                return new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.DANGER.name());
+            }
+
+            boolean hasReligionRisk = hasRestrictionMatch(
+                    aiByMealMenuId.getOrDefault(mealMenuId, List.of()),
                     religionIngredientIndex
             );
-            MenuRiskLevel level = hasRisk ? MenuRiskLevel.CAUTION : MenuRiskLevel.SAFE;
+            MenuRiskLevel level = hasReligionRisk ? MenuRiskLevel.CAUTION : MenuRiskLevel.SAFE;
             return new WeeklyMealResponse.MenuRiskResponse(level.name());
         }
 
@@ -151,17 +165,13 @@ public class WeeklyMealResponseAssembler {
         return index;
     }
 
-    private boolean hasRiskMatch(
+    private boolean hasRestrictionMatch(
             List<MealMenuIngredientRow> ingredientRows,
-            Map<String, List<RestrictionIngredientRow>> allergyIngredientIndex,
-            Map<String, List<RestrictionIngredientRow>> religionIngredientIndex
+            Map<String, List<RestrictionIngredientRow>> restrictionIngredientIndex
     ) {
         for (MealMenuIngredientRow ingredientRow : ingredientRows) {
             String ingredientCode = ingredientRow.ingredientCode();
-            if (!allergyIngredientIndex.getOrDefault(ingredientCode, List.of()).isEmpty()) {
-                return true;
-            }
-            if (!religionIngredientIndex.getOrDefault(ingredientCode, List.of()).isEmpty()) {
+            if (!restrictionIngredientIndex.getOrDefault(ingredientCode, List.of()).isEmpty()) {
                 return true;
             }
         }

@@ -18,6 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -106,11 +107,9 @@ public class MenuDetailQueryService {
     }
 
     private Set<String> extractIngredientCodes(List<NamedIngredientRow> ingredients) {
-        Set<String> codes = new HashSet<>();
-        for (NamedIngredientRow ingredient : ingredients) {
-            codes.add(ingredient.code());
-        }
-        return codes;
+        return ingredients.stream()
+                .map(NamedIngredientRow::code)
+                .collect(Collectors.toSet());
     }
 
     private MenuRiskLevel evaluateRiskLevel(
@@ -126,10 +125,10 @@ public class MenuDetailQueryService {
         }
 
         List<RestrictionIngredientRow> religiousRestrictions = mealCrawlPersistencePort.findReligiousRestrictionIngredients(religiousCode);
-        Set<String> restrictedCodes = new HashSet<>();
-        for (RestrictionIngredientRow restriction : religiousRestrictions) {
-            restrictedCodes.add(restriction.ingredientCode());
-        }
+        Set<String> restrictedCodes = religiousRestrictions.stream()
+                .map(RestrictionIngredientRow::ingredientCode)
+                .collect(Collectors.toSet());
+        
         boolean hasReligionRisk = ingredientSelection.ingredients().stream()
                 .anyMatch(ingredient -> restrictedCodes.contains(ingredient.code()));
         if (hasReligionRisk) {
