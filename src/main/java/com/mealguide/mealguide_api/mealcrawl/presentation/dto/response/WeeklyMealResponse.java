@@ -29,17 +29,7 @@ public record WeeklyMealResponse(
     }
 
     public record MenuRiskResponse(
-            String riskLevel,
-            List<RiskReasonResponse> reasons
-    ) {
-    }
-
-    public record RiskReasonResponse(
-            String type,
-            String code,
-            String matchedIngredient,
-            String source,
-            String message
+            String riskLevel
     ) {
     }
 }

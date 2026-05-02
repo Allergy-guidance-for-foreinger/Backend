@@ -1,0 +1,23 @@
+code_review:
+  disable: false
+  comment_severity_threshold: LOW
+  max_review_comments: -1
+  pull_request_opened:
+    help: false
+    summary: true
+    code_review: true
+    include_drafts: true
+
+ignore_patterns:
+  - "**/build/**"
+  - "**/.gradle/**"
+  - "**/out/**"
+  - "**/target/**"
+  - "**/node_modules/**"
+  - "**/*.lock"
+
+custom_instructions: |
+  모든 리뷰 코멘트와 요약은 한국어로 작성한다.
+  코드, 클래스명, 메서드명, 변수명, 파일명, 에러 메시지는 원문 그대로 유지한다.
+  리뷰는 버그 가능성, 보안 문제, 예외 처리 누락, 성능 문제, 유지보수성 문제를 중심으로 작성한다.
+  단순한 스타일 지적이나 취향 차이 수준의 코멘트는 줄인다.

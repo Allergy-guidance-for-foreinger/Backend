@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -26,14 +25,6 @@ import java.util.Set;
 public class WeeklyMealResponseAssembler {
 
     private static final String DEFAULT_LANGUAGE_CODE = "ko";
-    private static final String REASON_TYPE_ALLERGY = "ALLERGY";
-    private static final String REASON_TYPE_RELIGION = "RELIGION";
-    private static final String REASON_SOURCE_CONFIRMED = "CONFIRMED";
-    private static final String REASON_SOURCE_AI = "AI";
-    private static final String MESSAGE_ALLERGY_EN = "Allergy risk detected for this menu.";
-    private static final String MESSAGE_RELIGION_EN = "Religious restriction risk detected for this menu.";
-    private static final String MESSAGE_ALLERGY_KO = "이 메뉴에서 알레르기 위험 성분이 확인되었습니다.";
-    private static final String MESSAGE_RELIGION_KO = "이 메뉴에서 종교적 제한 위험 성분이 확인되었습니다.";
 
     private final MealCrawlPersistencePort mealCrawlPersistencePort;
 
@@ -77,7 +68,6 @@ public class WeeklyMealResponseAssembler {
             try {
                 risk = evaluateMenuRisk(
                         mealMenuId,
-                        preference.languageCode(),
                         confirmedMealMenuIds,
                         confirmedByMealMenuId,
                         aiMealMenuIds,
@@ -87,7 +77,7 @@ public class WeeklyMealResponseAssembler {
                 );
             } catch (Exception exception) {
                 log.warn("Risk evaluation failed for mealMenuId={}", mealMenuId, exception);
-                risk = new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.UNKNOWN.name(), List.of());
+                risk = new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.UNKNOWN.name());
             }
             riskByMealMenuId.put(mealMenuId, risk);
         }
@@ -114,7 +104,6 @@ public class WeeklyMealResponseAssembler {
 
     private WeeklyMealResponse.MenuRiskResponse evaluateMenuRisk(
             Long mealMenuId,
-            String languageCode,
             Set<Long> confirmedMealMenuIds,
             Map<Long, List<MealMenuIngredientRow>> confirmedByMealMenuId,
             Set<Long> aiMealMenuIds,
@@ -123,31 +112,41 @@ public class WeeklyMealResponseAssembler {
             Map<String, List<RestrictionIngredientRow>> religionIngredientIndex
     ) {
         if (confirmedMealMenuIds.contains(mealMenuId)) {
-            List<WeeklyMealResponse.RiskReasonResponse> reasons = buildReasons(
+            boolean hasAllergyRisk = hasRestrictionMatch(
                     confirmedByMealMenuId.getOrDefault(mealMenuId, List.of()),
-                    allergyIngredientIndex,
-                    religionIngredientIndex,
-                    languageCode,
-                    REASON_SOURCE_CONFIRMED
+                    allergyIngredientIndex
             );
-            MenuRiskLevel level = reasons.isEmpty() ? MenuRiskLevel.SAFE : MenuRiskLevel.DANGER;
-            return new WeeklyMealResponse.MenuRiskResponse(level.name(), reasons);
+            if (hasAllergyRisk) {
+                return new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.DANGER.name());
+            }
+
+            boolean hasReligionRisk = hasRestrictionMatch(
+                    confirmedByMealMenuId.getOrDefault(mealMenuId, List.of()),
+                    religionIngredientIndex
+            );
+            MenuRiskLevel level = hasReligionRisk ? MenuRiskLevel.DANGER : MenuRiskLevel.SAFE;
+            return new WeeklyMealResponse.MenuRiskResponse(level.name());
         }
 
         if (aiMealMenuIds.contains(mealMenuId)) {
-            List<WeeklyMealResponse.RiskReasonResponse> reasons = buildReasons(
+            boolean hasAllergyRisk = hasRestrictionMatch(
                     aiByMealMenuId.getOrDefault(mealMenuId, List.of()),
-                    allergyIngredientIndex,
-                    religionIngredientIndex,
-                    languageCode,
-                    REASON_SOURCE_AI
+                    allergyIngredientIndex
             );
-            MenuRiskLevel level = reasons.isEmpty() ? MenuRiskLevel.SAFE : MenuRiskLevel.CAUTION;
-            return new WeeklyMealResponse.MenuRiskResponse(level.name(), reasons);
+            if (hasAllergyRisk) {
+                return new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.DANGER.name());
+            }
+
+            boolean hasReligionRisk = hasRestrictionMatch(
+                    aiByMealMenuId.getOrDefault(mealMenuId, List.of()),
+                    religionIngredientIndex
+            );
+            MenuRiskLevel level = hasReligionRisk ? MenuRiskLevel.CAUTION : MenuRiskLevel.SAFE;
+            return new WeeklyMealResponse.MenuRiskResponse(level.name());
         }
 
         log.debug("No ingredient information for risk evaluation: mealMenuId={}", mealMenuId);
-        return new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.UNKNOWN.name(), List.of());
+        return new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.UNKNOWN.name());
     }
 
     private Map<Long, List<MealMenuIngredientRow>> groupByMealMenuId(List<MealMenuIngredientRow> rows) {
@@ -166,59 +165,17 @@ public class WeeklyMealResponseAssembler {
         return index;
     }
 
-    private List<WeeklyMealResponse.RiskReasonResponse> buildReasons(
+    private boolean hasRestrictionMatch(
             List<MealMenuIngredientRow> ingredientRows,
-            Map<String, List<RestrictionIngredientRow>> allergyIngredientIndex,
-            Map<String, List<RestrictionIngredientRow>> religionIngredientIndex,
-            String languageCode,
-            String source
+            Map<String, List<RestrictionIngredientRow>> restrictionIngredientIndex
     ) {
-        List<WeeklyMealResponse.RiskReasonResponse> reasons = new ArrayList<>();
-        Set<String> deduplicate = new HashSet<>();
-
         for (MealMenuIngredientRow ingredientRow : ingredientRows) {
             String ingredientCode = ingredientRow.ingredientCode();
-            String ingredientName = ingredientRow.ingredientName();
-
-            for (RestrictionIngredientRow allergyMatch : allergyIngredientIndex.getOrDefault(ingredientCode, List.of())) {
-                String key = REASON_TYPE_ALLERGY + "|" + allergyMatch.restrictionCode() + "|" + ingredientCode + "|" + source;
-                if (deduplicate.add(key)) {
-                    reasons.add(new WeeklyMealResponse.RiskReasonResponse(
-                            REASON_TYPE_ALLERGY,
-                            allergyMatch.restrictionCode(),
-                            ingredientName,
-                            source,
-                            resolveReasonMessage(REASON_TYPE_ALLERGY, languageCode)
-                    ));
-                }
-            }
-
-            for (RestrictionIngredientRow religionMatch : religionIngredientIndex.getOrDefault(ingredientCode, List.of())) {
-                String key = REASON_TYPE_RELIGION + "|" + religionMatch.restrictionCode() + "|" + ingredientCode + "|" + source;
-                if (deduplicate.add(key)) {
-                    reasons.add(new WeeklyMealResponse.RiskReasonResponse(
-                            REASON_TYPE_RELIGION,
-                            religionMatch.restrictionCode(),
-                            ingredientName,
-                            source,
-                            resolveReasonMessage(REASON_TYPE_RELIGION, languageCode)
-                    ));
-                }
+            if (!restrictionIngredientIndex.getOrDefault(ingredientCode, List.of()).isEmpty()) {
+                return true;
             }
         }
-
-        return reasons;
-    }
-
-    private String resolveReasonMessage(String reasonType, String languageCode) {
-        boolean isKorean = languageCode != null && DEFAULT_LANGUAGE_CODE.equals(languageCode.trim().toLowerCase(Locale.ROOT));
-        if (REASON_TYPE_ALLERGY.equals(reasonType)) {
-            return isKorean ? MESSAGE_ALLERGY_KO : MESSAGE_ALLERGY_EN;
-        }
-        if (REASON_TYPE_RELIGION.equals(reasonType)) {
-            return isKorean ? MESSAGE_RELIGION_KO : MESSAGE_RELIGION_EN;
-        }
-        return "";
+        return false;
     }
 
     private WeeklyMealResponse toWeeklyMealResponse(
@@ -240,7 +197,7 @@ public class WeeklyMealResponseAssembler {
                                         menu.aiAnalyzed(),
                                         riskByMealMenuId.getOrDefault(
                                                 menu.mealMenuId(),
-                                                new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.UNKNOWN.name(), List.of())
+                                                new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.UNKNOWN.name())
                                         )
                                 ))
                                 .toList()

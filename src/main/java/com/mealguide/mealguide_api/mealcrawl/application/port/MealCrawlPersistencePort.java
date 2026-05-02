@@ -1,6 +1,9 @@
 package com.mealguide.mealguide_api.mealcrawl.application.port;
 
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MatchedAllergyRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.NamedIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
@@ -11,6 +14,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 public interface MealCrawlPersistencePort {
@@ -46,6 +50,26 @@ public interface MealCrawlPersistencePort {
     List<RestrictionIngredientRow> findAllergyRestrictionIngredients(Set<String> allergyCodes);
 
     List<RestrictionIngredientRow> findReligiousRestrictionIngredients(String religiousCode);
+
+    default Optional<MenuDetailRow> findMenuDetailByMealMenuId(Long mealMenuId) {
+        return Optional.empty();
+    }
+
+    default Optional<String> findTranslatedMenuNameByMealMenuId(Long mealMenuId, String langCode) {
+        return Optional.empty();
+    }
+
+    default List<NamedIngredientRow> findConfirmedIngredientsForMenuDetail(Long mealMenuId, String langCode) {
+        return List.of();
+    }
+
+    default List<NamedIngredientRow> findAiIngredientsForMenuDetail(Long mealMenuId, String langCode) {
+        return List.of();
+    }
+
+    default List<MatchedAllergyRow> findMatchedAllergies(Long userId, Set<String> ingredientCodes, String langCode) {
+        return List.of();
+    }
 
     Set<Long> findAnalyzedMenuIds(Set<Long> menuIds);
 

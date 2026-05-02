@@ -21,3 +21,21 @@
 ## 참고 문서
 - 기능 맥락: `docs/features/onboarding-context.md`
 - 공통 규칙: `docs/project-context.md`, `docs/database-context.md`
+
+### 2026-05-02 (onboarding DTO 깨진 Swagger 설명 복구)
+- What changed:
+  - onboarding DTO 3개 파일의 깨진 Swagger `description` 문자열을 정상 문구로 정리했다.
+  - 수정 범위는 `@Schema(description=...)` 문구로 제한하고, DTO 필드/검증/구조는 변경하지 않았다.
+- Why:
+  - API 문서에서 한글 문자열이 깨져 표시되던 문제를 복구하기 위해.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/dto/request/CompleteOnboardingRequest.java`
+  - `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/dto/response/CompleteOnboardingResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/dto/response/SchoolListResponse.java`
+  - `docs/work-log/onboarding-work-log.md`
+- DB schema changed: No
+- API behavior changed: No (Swagger 설명 문구만 수정)
+- Related docs updated:
+  - `docs/work-log/onboarding-work-log.md`
+- Remaining follow-ups:
+  - 없음

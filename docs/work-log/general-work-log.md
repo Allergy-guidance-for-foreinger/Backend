@@ -440,3 +440,118 @@
 - Remaining follow-ups:
   - If `wget` is unavailable in the app image, this healthcheck can fail; verify container health in production compose runtime.
 
+
+### 2026-05-01 (weekly meal risk response simplified to riskLevel only)
+- What changed:
+  - Simplified `WeeklyMealResponse.MenuRiskResponse` to include only `riskLevel` and removed `RiskReasonResponse`.
+  - Updated `WeeklyMealResponseAssembler` to keep existing risk-evaluation flow (confirmed ingredients first, then AI ingredients) while returning only final `riskLevel`.
+  - Removed risk-reason/message/source/type/code assembly paths and related private methods from assembler.
+  - Updated `WeeklyMealQueryService` UNKNOWN fallback construction to the new `MenuRiskResponse` constructor.
+  - Updated `WeeklyMealResponseAssemblerTest` and `WeeklyMealQueryServiceTest` to validate `riskLevel` only.
+  - Updated `WeeklyMealApi` operation description to state that only `risk.riskLevel` is returned.
+- Why:
+  - Align weekly meal API contract with the requirement to expose only per-menu user risk level without reason details.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/dto/response/WeeklyMealResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealResponseAssembler.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealQueryService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/swagger/WeeklyMealApi.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealResponseAssemblerTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealQueryServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - `risk.reasons` removed from weekly meal response; `risk` now returns `riskLevel` only.
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - In this environment, Maven wrapper cannot run (`Cannot start maven from wrapper`), so compile/test verification must be run in a local IDE or a shell where Maven execution works.
+
+### 2026-05-01 (mealcrawl ¸Ş´º »ó¼¼ Á¶È¸ API Ãß°¡)
+- What changed:
+  - `GET /api/v1/mealcrawl/menus/{mealMenuId}` ¿£µåÆ÷ÀÎÆ®¸¦ Ãß°¡ÇÏ°í, `MenuDetailController`/`MenuDetailApi`¸¦ ½Å±Ô ±¸¼ºÇß´Ù.
+  - ÀÀ´ä DTO `MenuDetailResponse`¸¦ Ãß°¡Çß´Ù. (`riskLevel` only, ingredients/userAllergies/matchedAllergies Æ÷ÇÔ)
+  - `MenuDetailQueryService`¸¦ Ãß°¡ÇØ ¸Ş´º »ó¼¼ Á¶¸³ ·ÎÁ÷À» ±¸ÇöÇß´Ù.
+    - `meal_menu.id`(mealMenuId) ±âÁØ »ó¼¼ Á¶È¸
+    - »ç¿ëÀÚ ¾ğ¾î ±â¹İ ¸Ş´º¸í ¹ø¿ª fallback
+    - Àç·á Á¶È¸ ¿ì¼±¼øÀ§: CONFIRMED > AI SUCCESS
+    - user_allergy + allergy_translation fallback Á¶È¸
+    - `allergy_ingredient` ¸ÅÇÎ ±âÁØ matchedAllergies °è»ê
+    - ko/en »ç¿ëÀÚ ¾ğ¾îº° matched message »ı¼º
+    - À§Çèµµ °è»ê: Àç·á ¾øÀ½ UNKNOWN, ¾Ë·¹¸£±â ¸ÅÄª ÀÖÀ¸¸é DANGER, Á¾±³ Á¦ÇÑ ¸ÅÄªÀº CONFIRMED¸é DANGER/AI¸é CAUTION, ±× ¿Ü SAFE
+    - »ç¿ëÀÚ schoolId¿Í mealMenu ¼Ò¼Ó schoolId °ËÁõ Ãß°¡
+  - `MealCrawlPersistencePort`¿¡ ¸Ş´º »ó¼¼ Á¶È¸¿ë ¸Ş¼­µå¸¦ Ãß°¡ÇÏ°í default ¸Ş¼­µå·Î ÇÏÀ§ È£È¯À» À¯ÁöÇß´Ù.
+  - `MealCrawlPersistenceAdapter`¿¡ °ü·Ã SQLÀ» Ãß°¡Çß´Ù.
+    - ¸Ş´º ±âº» Á¤º¸ + school_id Á¶È¸
+    - menu_translation / ingredient_translation / allergy_translation fallback Á¶ÇÕ
+    - ÃÖ½Å SUCCESS menu_ai_analysis_ingredient Á¶È¸
+    - `user_allergy` + `allergy_ingredient` ¸ÅÇÎ Á¶ÀÎ ±â¹İ ¸ÅÄª Á¶È¸
+  - `MenuDetailQueryServiceTest`¸¦ Ãß°¡ÇØ ¿ä±¸ ½Ã³ª¸®¿À(¿ì¼±¼øÀ§/¸ÅÄª/UNKNOWN/¾ğ¾î ¸Ş½ÃÁö/fallback/Å¸ÇĞ±³ Â÷´Ü)¸¦ °ËÁõÇß´Ù.
+- Why:
+  - ÇÁ·ĞÆ® ¸Ş´º »ó¼¼ Ä«µå¿¡ ÇÊ¿äÇÑ »ç¿ëÀÚ ¸ÂÃã À§Çè Á¤º¸¿Í ¾Ë·¹¸£±â °ãÄ§ Á¤º¸¸¦ mealMenuId ±âÁØÀ¸·Î Á¦°øÇÏ±â À§ÇØ.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/controller/MenuDetailController.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/swagger/MenuDetailApi.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/dto/response/MenuDetailResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/MenuDetailRow.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/NamedIngredientRow.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/UserAllergyRow.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/MatchedAllergyRow.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - ½Å±Ô API `GET /api/v1/mealcrawl/menus/{mealMenuId}` Ãß°¡.
+  - ±âÁ¸ weekly/cafeteria API °è¾àÀº º¯°æ ¾øÀ½.
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - ÇöÀç È¯°æ¿¡¼­ Maven wrapper ½ÇÇà ¿À·ù(`Cannot start maven from wrapper`)·Î ÀÚµ¿ Å×½ºÆ® ½ÇÇà °ËÁõÀº ¹Ì¿Ï·á.
+### 2026-05-02 (menu detail ì‘ë‹µì—ì„œ userAllergies ì œê±°)
+- What changed:
+  - `MenuDetailResponse`ì—ì„œ `userAllergies` í•„ë“œì™€ ë‚´ë¶€ `UserAllergyResponse` íƒ€ì…ì„ ì œê±°í–ˆë‹¤.
+  - `MenuDetailQueryService`ì—ì„œ ì‚¬ìš©ì ì•Œë ˆë¥´ê¸° ëª©ë¡ ì¡°íšŒ/ë§¤í•‘ ë¡œì§ì„ ì œê±°í–ˆë‹¤.
+  - `MealCrawlPersistencePort`ì—ì„œ `findUserAllergies` default ë©”ì„œë“œë¥¼ ì œê±°í–ˆë‹¤.
+  - `MealCrawlPersistenceAdapter`ì—ì„œ `findUserAllergies` SQL êµ¬í˜„ì„ ì œê±°í–ˆë‹¤.
+  - ë¯¸ì‚¬ìš© DTO `UserAllergyRow` íŒŒì¼ì„ ì‚­ì œí–ˆë‹¤.
+  - `MenuDetailQueryServiceTest`ì˜ `userAllergies` ê´€ë ¨ ë‹¨ì–¸/ìŠ¤í…ì„ ì œê±°í–ˆë‹¤.
+- Why:
+  - ë™ì¼ ì •ë³´ê°€ `settings` APIì—ì„œ ì´ë¯¸ ì œê³µë˜ê³  ìˆì–´ menu detail ì‘ë‹µ ì¤‘ë³µì„ ì œê±°í•˜ê¸° ìœ„í•´.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/dto/response/MenuDetailResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/UserAllergyRow.java` (deleted)
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - `GET /api/v1/mealcrawl/menus/{mealMenuId}` ì‘ë‹µì—ì„œ `userAllergies` í•„ë“œê°€ ì œê±°ë¨.
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - ì´ í™˜ê²½ì—ì„œëŠ” Maven wrapper ì‹¤í–‰ ì œì•½ì´ ìˆì„ ìˆ˜ ìˆì–´, ë¡œì»¬ IDE/ì •ìƒ wrapper í™˜ê²½ì—ì„œ ì „ì²´ í…ŒìŠ¤íŠ¸ ê²€ì¦ì´ í•„ìš”í•¨.
+
+### 2026-05-02 (weekly ìœ„í—˜ë„ ê·œì¹™ ì •í•©í™”: AI ì•Œë ˆë¥´ê¸° ë§¤ì¹­ì€ DANGER)
+- What changed:
+  - `WeeklyMealResponseAssembler`ì˜ ìœ„í—˜ë„ í‰ê°€ì—ì„œ ì•Œë ˆë¥´ê¸° ìœ„í—˜ê³¼ ì¢…êµ ìœ„í—˜ì„ ë¶„ë¦¬ íŒì •í•˜ë„ë¡ ìˆ˜ì •í–ˆë‹¤.
+  - AI ì¶œì²˜ ë©”ë‰´ë¼ë„ ì•Œë ˆë¥´ê¸° ë§¤ì¹­ì´ ìˆìœ¼ë©´ `DANGER`ë¥¼ ë°˜í™˜í•˜ë„ë¡ ë³€ê²½í–ˆë‹¤.
+  - ì¢…êµ ìœ„í—˜ì€ ê¸°ì¡´ ì •ì±…ì„ ìœ ì§€í•´ CONFIRMEDëŠ” `DANGER`, AIëŠ” `CAUTION`ìœ¼ë¡œ ìœ ì§€í–ˆë‹¤.
+  - `WeeklyMealResponseAssemblerTest`ë¥¼ ê°±ì‹ í•´ AI+ì•Œë ˆë¥´ê¸° ë§¤ì¹­ `DANGER`ë¥¼ ê²€ì¦í•˜ê³ , AI+ì¢…êµ ë§¤ì¹­ `CAUTION` íšŒê·€ í…ŒìŠ¤íŠ¸ë¥¼ ì¶”ê°€í–ˆë‹¤.
+- Why:
+  - `MenuDetailQueryService`ì™€ weekly ì‘ë‹µ ê°„ ì•Œë ˆë¥´ê¸° ìœ„í—˜ë„ ê·œì¹™ì„ ì¼ì¹˜ì‹œì¼œ ì‚¬ìš©ìì—ê²Œ ì¼ê´€ëœ ìœ„í—˜ ì •ë³´ë¥¼ ì œê³µí•˜ê¸° ìœ„í•´.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealResponseAssembler.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealResponseAssemblerTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - `GET /api/v1/mealcrawl/weekly-meals`ì—ì„œ AI ì¶œì²˜ ë©”ë‰´ì˜ ì•Œë ˆë¥´ê¸° ë§¤ì¹­ ìœ„í—˜ë„ê°€ `CAUTION`ì´ ì•„ë‹Œ `DANGER`ë¡œ ë°˜í™˜ë¨.
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - í˜„ì¬ í™˜ê²½ì˜ Maven wrapper ì‹¤í–‰ ì˜¤ë¥˜(`Cannot start maven from wrapper`)ë¡œ ìë™ í…ŒìŠ¤íŠ¸ ì‹¤í–‰ ê²€ì¦ í•„ìš”.

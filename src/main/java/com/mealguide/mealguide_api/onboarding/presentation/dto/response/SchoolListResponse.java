@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 public record SchoolListResponse(
-        @Schema(description = "?�교 목록")
+        @Schema(description = "학교 목록")
         List<SchoolResponse> schools
 ) {
     public static SchoolListResponse from(List<SchoolOption> schools) {
@@ -16,10 +16,10 @@ public record SchoolListResponse(
     }
 
     public record SchoolResponse(
-            @Schema(description = "?�교 ID", example = "1")
+            @Schema(description = "학교 ID", example = "1")
             Long id,
 
-            @Schema(description = "?�교 ?�름", example = "Kumoh National Institute of Technology")
+            @Schema(description = "학교 이름", example = "Kumoh National Institute of Technology")
             String name
     ) {
         private static SchoolResponse from(SchoolOption school) {
