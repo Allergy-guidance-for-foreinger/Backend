@@ -46,7 +46,8 @@ public class OnboardingController implements OnboardingApi {
                                 request.languageCode(),
                                 request.schoolId(),
                                 request.allergyCodes(),
-                                request.religiousCode()
+                                request.religiousCode(),
+                                request.countryCode()
                         )
                 )
         ));

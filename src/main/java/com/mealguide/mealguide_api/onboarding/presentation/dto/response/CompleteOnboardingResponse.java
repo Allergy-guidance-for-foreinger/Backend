@@ -18,6 +18,9 @@ public record CompleteOnboardingResponse(
         @Schema(description = "저장된 종교 식이 제한 코드. 미선택 시 null", example = "HALAL")
         String religiousCode,
 
+        @Schema(description = "저장된 국가 코드", example = "KR")
+        String countryCode,
+
         @Schema(description = "온보딩 완료 여부", example = "true")
         boolean onboardingCompleted
 ) {
@@ -27,6 +30,7 @@ public record CompleteOnboardingResponse(
                 completion.schoolId(),
                 completion.allergyCodes(),
                 completion.religiousCode(),
+                completion.countryCode(),
                 completion.onboardingCompleted()
         );
     }

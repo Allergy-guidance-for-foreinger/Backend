@@ -37,12 +37,22 @@ public interface OnboardingUserJpaRepository extends JpaRepository<User, Long> {
             """, nativeQuery = true)
     boolean existsReligiousCode(@Param("religiousCode") String religiousCode);
 
+    @Query(value = """
+            select exists(
+                select 1
+                from country c
+                where c.code = :countryCode
+            )
+            """, nativeQuery = true)
+    boolean existsCountryCode(@Param("countryCode") String countryCode);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             update User u
             set u.languageCode = :languageCode,
                 u.schoolId = :schoolId,
                 u.religiousCode = :religiousCode,
+                u.countryCode = :countryCode,
                 u.onboardingCompleted = true
             where u.id = :userId
               and u.deletedAt is null
@@ -53,6 +63,7 @@ public interface OnboardingUserJpaRepository extends JpaRepository<User, Long> {
             @Param("languageCode") String languageCode,
             @Param("schoolId") Long schoolId,
             @Param("religiousCode") String religiousCode,
+            @Param("countryCode") String countryCode,
             @Param("status") UserStatus status
     );
 }

@@ -38,6 +38,9 @@ public class User extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @Column(name = "country_code", length = 10)
+    private String countryCode;
+
     @Column(name = "language_code", length = 10)
     private String languageCode;
 
@@ -67,6 +70,7 @@ public class User extends BaseEntity {
         user.schoolId = null;
         user.email = email;
         user.name = (name == null || name.isBlank()) ? email : name;
+        user.countryCode = null;
         user.languageCode = null;
         user.religiousCode = null;
         user.status = UserStatus.ACTIVE;

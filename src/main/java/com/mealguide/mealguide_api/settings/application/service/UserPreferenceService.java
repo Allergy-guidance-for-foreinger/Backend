@@ -37,6 +37,11 @@ public class UserPreferenceService {
         return findUser(userId).getReligiousCode();
     }
 
+    @Transactional(readOnly = true)
+    public String getCountry(Long userId) {
+        return findUser(userId).getCountryCode();
+    }
+
     @Transactional
     public String updateLanguage(Long userId, String languageCode) {
         String normalizedLanguageCode = requireText(languageCode, ErrorCode.INVALID_LANGUAGE_CODE);
@@ -71,6 +76,19 @@ public class UserPreferenceService {
         UserPreference user = findUser(userId);
         user.updateReligiousCode(normalizedReligiousCode);
         return user.getReligiousCode();
+    }
+
+    @Transactional
+    public String updateCountry(Long userId, String countryCode) {
+        String normalizedCountryCode = requireText(countryCode, ErrorCode.INVALID_COUNTRY_CODE);
+        if (!settingsMasterQueryPort.existsCountryCode(normalizedCountryCode)) {
+            throw new ServiceException(ErrorCode.INVALID_COUNTRY_CODE);
+        }
+
+        UserPreference user = findUser(userId);
+        user.updateCountryCode(normalizedCountryCode);
+        userPreferencePort.updateCountry(userId, normalizedCountryCode);
+        return user.getCountryCode();
     }
 
     private UserPreference findUser(Long userId) {

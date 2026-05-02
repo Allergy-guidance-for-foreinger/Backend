@@ -58,6 +58,11 @@ public class SchoolPersistenceAdapter implements SchoolQueryPort, OnboardingComm
     }
 
     @Override
+    public boolean existsCountryCode(String countryCode) {
+        return onboardingUserJpaRepository.existsCountryCode(countryCode);
+    }
+
+    @Override
     public void replaceAllergies(Long userId, List<String> allergyCodes) {
         onboardingUserAllergyJpaRepository.deleteByUserId(userId);
         List<OnboardingUserAllergy> userAllergies = allergyCodes.stream()
@@ -67,8 +72,15 @@ public class SchoolPersistenceAdapter implements SchoolQueryPort, OnboardingComm
     }
 
     @Override
-    public boolean completeOnboarding(Long userId, String languageCode, Long schoolId, String religiousCode) {
-        return onboardingUserJpaRepository.completeOnboarding(userId, languageCode, schoolId, religiousCode, ACTIVE_STATUS) > 0;
+    public boolean completeOnboarding(Long userId, String languageCode, Long schoolId, String religiousCode, String countryCode) {
+        return onboardingUserJpaRepository.completeOnboarding(
+                userId,
+                languageCode,
+                schoolId,
+                religiousCode,
+                countryCode,
+                ACTIVE_STATUS
+        ) > 0;
     }
 }
 

@@ -123,3 +123,13 @@
 - Controller에 비즈니스 로직을 넣지 않고 service에서 유스케이스를 조정한다.
 - settings 보안 정책(ROLE 기반 접근 제어)을 약화하지 않는다.
 - DTO 경계를 유지하고 entity를 직접 API 응답으로 노출하지 않는다.
+
+## 9. 최근 변경 (2026-05-02)
+- 나라 설정 조회/수정 API를 추가했다.
+  - `GET /api/v1/settings/country`
+  - `PATCH /api/v1/settings/country`
+- 나라 옵션 조회 API를 추가했다.
+  - `GET /api/v1/settings/options/countries`
+- 관련 테이블에 `country`를 추가했다.
+- 개인 설정 핵심 컬럼에 `users.country_code`를 추가했다.
+- 나라 설정은 code-only 응답 정책으로 `countryCode`를 반환한다.

@@ -2,6 +2,7 @@ package com.mealguide.mealguide_api.settings.application.service;
 
 import com.mealguide.mealguide_api.settings.application.port.SettingsMasterQueryPort;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
+import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
 import com.mealguide.mealguide_api.settings.domain.ReligiousRestrictionOption;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,11 @@ public class SettingsService {
     @Transactional(readOnly = true)
     public List<ReligiousRestrictionOption> getReligions(String langCode) {
         return settingsMasterQueryPort.findReligiousRestrictions(normalize(langCode));
+    }
+
+    @Transactional(readOnly = true)
+    public List<CountryOption> getCountries() {
+        return settingsMasterQueryPort.findCountries();
     }
 
     private String normalize(String value) {

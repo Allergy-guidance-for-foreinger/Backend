@@ -32,7 +32,7 @@ public interface OnboardingApi {
     @SecurityRequirement(name = "Access Token")
     @Operation(
             summary = "온보딩 정보 저장",
-            description = "언어, 학교, 알레르기, 종교 식이 제한 정보를 한 번에 저장하고 온보딩 완료 상태로 변경합니다."
+            description = "언어, 학교, 알레르기, 종교 식이 제한, 국가 정보를 한 번에 저장하고 온보딩 완료 상태로 변경합니다."
     )
     @SwaggerApiResponses(
             success = @SwaggerApiSuccessResponse(response = CompleteOnboardingResponse.class, description = "온보딩 저장 성공"),
@@ -42,6 +42,7 @@ public interface OnboardingApi {
                     @SwaggerApiFailedResponse(ErrorCode.INVALID_LANGUAGE_CODE),
                     @SwaggerApiFailedResponse(ErrorCode.INVALID_ALLERGY_CODE),
                     @SwaggerApiFailedResponse(ErrorCode.INVALID_RELIGIOUS_CODE),
+                    @SwaggerApiFailedResponse(ErrorCode.INVALID_COUNTRY_CODE),
                     @SwaggerApiFailedResponse(ErrorCode.BINDING_ERROR)
             }
     )

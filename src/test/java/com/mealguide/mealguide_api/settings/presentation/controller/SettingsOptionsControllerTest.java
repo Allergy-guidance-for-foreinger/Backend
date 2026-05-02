@@ -5,9 +5,11 @@ import com.mealguide.mealguide_api.global.base.dto.SuccessResponseBody;
 import com.mealguide.mealguide_api.settings.application.service.SettingsService;
 import com.mealguide.mealguide_api.settings.application.service.UserPreferenceService;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
+import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
 import com.mealguide.mealguide_api.settings.domain.ReligiousRestrictionOption;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.AllergyOptionsResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.CountryOptionsResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.LanguageOptionsResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.ReligionOptionsResponse;
 import org.junit.jupiter.api.Test;
@@ -93,6 +95,25 @@ class SettingsOptionsControllerTest {
                 .extracting(item -> item.name())
                 .containsExactly("Halal", "Hindu");
         verify(settingsService).getReligions("en");
+    }
+
+    @Test
+    void getCountryOptionsReturnsCountryList() {
+        when(settingsService.getCountries()).thenReturn(List.of(
+                new CountryOption("KR", "Korea"),
+                new CountryOption("US", "United States")
+        ));
+
+        ResponseBody<CountryOptionsResponse> body = settingsOptionsController.getCountryOptions().getBody();
+
+        assertThat(body).isInstanceOf(SuccessResponseBody.class);
+        CountryOptionsResponse response = ((SuccessResponseBody<CountryOptionsResponse>) body).getData();
+        assertThat(response.countries())
+                .extracting(item -> item.code())
+                .containsExactly("KR", "US");
+        assertThat(response.countries())
+                .extracting(item -> item.name())
+                .containsExactly("Korea", "United States");
     }
 }
 

@@ -38,5 +38,10 @@ public class UserPreferencePersistenceAdapter implements UserPreferencePort {
                 .toList();
         userAllergyJpaRepository.saveAll(userAllergies);
     }
+
+    @Override
+    public void updateCountry(Long userId, String countryCode) {
+        userPreferenceJpaRepository.updateCountryCode(userId, countryCode, ACTIVE_STATUS);
+    }
 }
 

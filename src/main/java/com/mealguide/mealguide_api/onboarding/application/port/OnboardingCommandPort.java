@@ -14,8 +14,10 @@ public interface OnboardingCommandPort {
 
     boolean existsReligiousCode(String religiousCode);
 
+    boolean existsCountryCode(String countryCode);
+
     void replaceAllergies(Long userId, List<String> allergyCodes);
 
-    boolean completeOnboarding(Long userId, String languageCode, Long schoolId, String religiousCode);
+    boolean completeOnboarding(Long userId, String languageCode, Long schoolId, String religiousCode, String countryCode);
 }
 
