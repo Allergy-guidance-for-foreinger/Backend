@@ -223,7 +223,7 @@ class WeeklyMealQueryServiceTest {
                                 1,
                                 2L,
                                 true,
-                                new WeeklyMealResponse.MenuRiskResponse("SAFE", List.of())
+                                new WeeklyMealResponse.MenuRiskResponse("SAFE")
                         ))
                 ))
         );

@@ -7,9 +7,8 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 public record UpdateAllergiesRequest(
-        @Schema(description = "?�택???�레르기 코드 목록", example = "[\"EGG\", \"MILK\", \"SHRIMP\"]")
+        @Schema(description = "선택한 알레르기 코드 목록", example = "[\"EGG\", \"MILK\", \"SHRIMP\"]")
         @NotNull
         List<@NotBlank String> allergyCodes
 ) {
 }
-

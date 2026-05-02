@@ -27,7 +27,6 @@ class WeeklyMealResponseAssemblerTest {
     @Test
     void confirmedAllergyMatchReturnsDanger() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
-        port.confirmedMealMenuIds = Set.of(11L);
         port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.allergyRestrictions = List.of(new RestrictionIngredientRow("PORK", "PORK", "Pork"));
 
@@ -35,14 +34,11 @@ class WeeklyMealResponseAssemblerTest {
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
 
         assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("DANGER");
-        assertThat(response.mealSchedules().get(0).menus().get(0).risk().reasons().get(0).message())
-                .isEqualTo("Allergy risk detected for this menu.");
     }
 
     @Test
     void confirmedReligionMatchReturnsDanger() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
-        port.confirmedMealMenuIds = Set.of(11L);
         port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.religionRestrictions = List.of(new RestrictionIngredientRow("HALAL", "PORK", "Pork"));
 
@@ -55,7 +51,6 @@ class WeeklyMealResponseAssemblerTest {
     @Test
     void aiOnlyMatchReturnsCaution() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
-        port.aiMealMenuIds = Set.of(11L);
         port.aiIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.allergyRestrictions = List.of(new RestrictionIngredientRow("PORK", "PORK", "Pork"));
 
@@ -78,7 +73,6 @@ class WeeklyMealResponseAssemblerTest {
     @Test
     void ingredientExistsWithoutMatchReturnsSafeAndNoMenuIdField() throws Exception {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
-        port.confirmedMealMenuIds = Set.of(11L);
         port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "RICE", "Rice"));
 
         WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port);
@@ -103,7 +97,7 @@ class WeeklyMealResponseAssemblerTest {
     }
 
     @Test
-    void returnsKoreanRiskMessageWhenUserLanguageIsKorean() {
+    void koreanLanguageStillReturnsRiskLevelOnly() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
         port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.allergyRestrictions = List.of(new RestrictionIngredientRow("PORK", "PORK", "Pork"));
@@ -111,8 +105,7 @@ class WeeklyMealResponseAssemblerTest {
         WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port);
         WeeklyMealResponse response = assembler.assemble(samplePayload(), koreanPreference());
 
-        assertThat(response.mealSchedules().get(0).menus().get(0).risk().reasons().get(0).message())
-                .isEqualTo("이 메뉴에서 알레르기 위험 성분이 확인되었습니다.");
+        assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("DANGER");
     }
 
     private WeeklyMealCachePayload samplePayload() {
@@ -158,9 +151,7 @@ class WeeklyMealResponseAssemblerTest {
 
     private static class FakeMealCrawlPersistencePort implements MealCrawlPersistencePort {
         private Map<Long, String> translatedMenuNames = Map.of();
-        private Set<Long> confirmedMealMenuIds = Set.of();
         private List<MealMenuIngredientRow> confirmedIngredients = List.of();
-        private Set<Long> aiMealMenuIds = Set.of();
         private List<MealMenuIngredientRow> aiIngredients = List.of();
         private List<RestrictionIngredientRow> allergyRestrictions = List.of();
         private List<RestrictionIngredientRow> religionRestrictions = List.of();
@@ -219,7 +210,7 @@ class WeeklyMealResponseAssemblerTest {
 
         @Override
         public Set<Long> findMealMenuIdsHavingConfirmedIngredients(Set<Long> mealMenuIds) {
-            return confirmedMealMenuIds;
+            return Set.of();
         }
 
         @Override
@@ -229,7 +220,7 @@ class WeeklyMealResponseAssemblerTest {
 
         @Override
         public Set<Long> findMealMenuIdsHavingAiIngredients(Set<Long> mealMenuIds) {
-            return aiMealMenuIds;
+            return Set.of();
         }
 
         @Override
