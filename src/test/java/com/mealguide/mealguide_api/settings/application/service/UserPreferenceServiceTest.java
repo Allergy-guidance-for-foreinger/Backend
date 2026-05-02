@@ -163,11 +163,6 @@ class UserPreferenceServiceTest {
         public void replaceAllergies(Long userId, List<String> allergyCodes) {
             savedAllergyCodes = new ArrayList<>(allergyCodes);
         }
-
-        @Override
-        public void updateCountry(Long userId, String countryCode) {
-            user.updateCountryCode(countryCode);
-        }
     }
 
     private static class FakeSettingsMasterQueryPort implements SettingsMasterQueryPort {

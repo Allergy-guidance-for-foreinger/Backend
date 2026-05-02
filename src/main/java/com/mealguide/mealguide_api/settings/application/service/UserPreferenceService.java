@@ -86,8 +86,6 @@ public class UserPreferenceService {
         }
 
         UserPreference user = findUser(userId);
-        user.updateCountryCode(normalizedCountryCode);
-        userPreferencePort.updateCountry(userId, normalizedCountryCode);
         return user.getCountryCode();
     }
 

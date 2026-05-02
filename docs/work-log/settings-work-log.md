@@ -91,7 +91,10 @@
   - `src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerTest.java`
   - `docs/features/settings-context.md`
   - `docs/work-log/settings-work-log.md`
-- DB schema changed: No
+- DB schema changed: Yes
+  - `country` 테이블 추가 (code PK, name, created_at)
+  - users.country_code VARCHAR(10)` 컬럼 및 `fk_users_country` 외래키 추가
+  - idx_users_country_code` 인덱스 추가
 - API behavior changed:
   - settings에 country 조회/수정 및 country 옵션 조회 API가 추가됨.
 - Related docs updated:

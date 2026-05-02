@@ -11,7 +11,5 @@ public interface UserPreferencePort {
     List<String> findAllergyCodesByUserId(Long userId);
 
     void replaceAllergies(Long userId, List<String> allergyCodes);
-
-    void updateCountry(Long userId, String countryCode);
 }
 
