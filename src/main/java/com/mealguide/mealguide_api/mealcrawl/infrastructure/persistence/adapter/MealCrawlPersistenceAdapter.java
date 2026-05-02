@@ -551,20 +551,16 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                     from meal_menu mm
                     where mm.id in (:mealMenuIds)
                 ),
-                latest_success_analysis as (
-                    select maa.menu_id, max(coalesce(maa.analyzed_at, maa.created_at)) as latest_at
-                    from menu_ai_analysis maa
-                    join target_meal_menu tmm on tmm.menu_id = maa.menu_id
-                    where maa.status = 'SUCCESS'
-                    group by maa.menu_id
-                ),
                 latest_analysis_id as (
-                    select maa.id, maa.menu_id
-                    from menu_ai_analysis maa
-                    join latest_success_analysis lsa
-                      on lsa.menu_id = maa.menu_id
-                     and coalesce(maa.analyzed_at, maa.created_at) = lsa.latest_at
-                    where maa.status = 'SUCCESS'
+                    select id, menu_id
+                    from (
+                            select maa.id, maa.menu_id,
+                                row_number() over (partition by maa.menu_id order by coalesce(maa.analyzed_at, maa.created_at) desc, maa.id desc) as rn
+                         from menu_ai_analysis maa
+                         join target_meal_menu tmm on tmm.menu_id = maa.menu_id
+                         where maa.status = 'SUCCESS'
+                         ) t
+                          where rn = 1
                 )
                 select tmm.meal_menu_id,
                        mai.ingredient_code,

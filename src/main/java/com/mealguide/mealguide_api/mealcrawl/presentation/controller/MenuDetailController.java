@@ -36,7 +36,7 @@ public class MenuDetailController implements MenuDetailApi {
         return ResponseEntity.ok(ResponseUtils.createSuccessResponse(response));
     }
 
-    @PostMapping("/menus/details")
+    @PostMapping("/mealcrawl/menus/details")
     public ResponseEntity<ResponseBody<MenuDetailBatchResponse>> getMenuDetails(
             @CurrentUserId Long currentUserId,
             @Valid @RequestBody MenuDetailBatchRequest request
