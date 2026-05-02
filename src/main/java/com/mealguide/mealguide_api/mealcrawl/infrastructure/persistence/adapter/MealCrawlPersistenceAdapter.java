@@ -392,6 +392,41 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
 
     @Override
     @Transactional(readOnly = true)
+    public List<MenuDetailRow> findMenuDetailsByMealMenuIds(Set<Long> mealMenuIds) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
+            return List.of();
+        }
+
+        String sql = """
+                select mm.id as meal_menu_id,
+                       mm.menu_id,
+                       m.name as menu_name,
+                       mm.corner_name,
+                       mm.display_order,
+                       m.spicy_level,
+                       m.ai_analysis_status,
+                       c.school_id
+                from meal_menu mm
+                join menu m on m.id = mm.menu_id
+                join meal_schedule ms on ms.id = mm.meal_schedule_id
+                join cafeteria c on c.id = ms.cafeteria_id
+                where mm.id in (:mealMenuIds)
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource("mealMenuIds", mealMenuIds);
+        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MenuDetailRow(
+                rs.getLong("meal_menu_id"),
+                rs.getLong("menu_id"),
+                rs.getString("menu_name"),
+                rs.getString("corner_name"),
+                rs.getInt("display_order"),
+                rs.getLong("spicy_level"),
+                rs.getString("ai_analysis_status"),
+                rs.getLong("school_id")
+        ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<String> findTranslatedMenuNameByMealMenuId(Long mealMenuId, String langCode) {
         if (langCode == null || langCode.isBlank()) {
             return Optional.empty();
@@ -470,6 +505,83 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
         return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new NamedIngredientRow(
                 rs.getString("code"),
                 rs.getString("name")
+        ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MealMenuIngredientRow> findConfirmedIngredientsForMenuDetails(Set<Long> mealMenuIds, String langCode) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
+            return List.of();
+        }
+
+        String sql = """
+                select mmci.meal_menu_id,
+                       mmci.ingredient_code,
+                       coalesce(it.name, i.name) as ingredient_name
+                from meal_menu_confirmed_ingredient mmci
+                join ingredient i on i.code = mmci.ingredient_code
+                left join ingredient_translation it
+                  on it.ingredient_code = i.code
+                 and it.lang_code = :langCode
+                where mmci.meal_menu_id in (:mealMenuIds)
+                order by mmci.meal_menu_id, mmci.ingredient_code
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("mealMenuIds", mealMenuIds)
+                .addValue("langCode", normalizeLanguageCode(langCode));
+        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MealMenuIngredientRow(
+                rs.getLong("meal_menu_id"),
+                rs.getString("ingredient_code"),
+                rs.getString("ingredient_name")
+        ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MealMenuIngredientRow> findAiIngredientsForMenuDetails(Set<Long> mealMenuIds, String langCode) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
+            return List.of();
+        }
+
+        String sql = """
+                with target_meal_menu as (
+                    select mm.id as meal_menu_id, mm.menu_id
+                    from meal_menu mm
+                    where mm.id in (:mealMenuIds)
+                ),
+                latest_analysis_id as (
+                    select id, menu_id
+                    from (
+                            select maa.id, maa.menu_id,
+                                row_number() over (partition by maa.menu_id order by coalesce(maa.analyzed_at, maa.created_at) desc, maa.id desc) as rn
+                         from menu_ai_analysis maa
+                         join target_meal_menu tmm on tmm.menu_id = maa.menu_id
+                         where maa.status = 'SUCCESS'
+                         ) t
+                          where rn = 1
+                )
+                select tmm.meal_menu_id,
+                       mai.ingredient_code,
+                       coalesce(it.name, i.name) as ingredient_name
+                from target_meal_menu tmm
+                join latest_analysis_id lai on lai.menu_id = tmm.menu_id
+                join menu_ai_analysis_ingredient mai on mai.menu_ai_analysis_id = lai.id
+                join ingredient i on i.code = mai.ingredient_code
+                left join ingredient_translation it
+                  on it.ingredient_code = i.code
+                 and it.lang_code = :langCode
+                order by tmm.meal_menu_id, mai.ingredient_code
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("mealMenuIds", mealMenuIds)
+                .addValue("langCode", normalizeLanguageCode(langCode));
+        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MealMenuIngredientRow(
+                rs.getLong("meal_menu_id"),
+                rs.getString("ingredient_code"),
+                rs.getString("ingredient_name")
         ));
     }
 

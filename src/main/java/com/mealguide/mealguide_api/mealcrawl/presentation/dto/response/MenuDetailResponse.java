@@ -21,17 +21,13 @@ public record MenuDetailResponse(
 
     public record IngredientResponse(
             String code,
-            String name,
             String source
     ) {
     }
 
     public record MatchedAllergyResponse(
             String allergyCode,
-            String allergyName,
-            String ingredientCode,
-            String ingredientName,
-            String message
+            String ingredientCode
     ) {
     }
 }
