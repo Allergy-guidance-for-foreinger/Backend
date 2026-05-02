@@ -2,7 +2,7 @@
 
 ## 1. 역할
 `onboarding` 기능은 최초 로그인 이후 사용자 기본 설정을 완료시키는 흐름을 담당한다.
-학교 목록 조회와 onboarding 완료 저장을 제공한다.
+onboarding 완료 저장을 제공한다.
 
 ## 2. 주요 패키지
 - `onboarding.presentation.controller`
@@ -16,12 +16,12 @@
 - `onboarding.infrastructure.persistence.adapter`
 
 ## 3. 주요 클래스
-- `OnboardingController`: 학교 목록 조회/완료 API 진입점
+- `OnboardingController`: onboarding 완료 API 진입점
 - `OnboardingService`: onboarding 완료 오케스트레이션
-- `SchoolQueryPort`, `OnboardingCommandPort`: 조회/저장 추상화
-- `SchoolPersistenceAdapter`: 학교/완료 저장 포트 구현체
+- `OnboardingCommandPort`: 저장 추상화
+- `SchoolPersistenceAdapter`: 완료 저장 포트 구현체
 - `SchoolJpaRepository`, `OnboardingUserJpaRepository`, `OnboardingUserAllergyJpaRepository`: 영속성 접근
-- `CompleteOnboardingRequest`, `CompleteOnboardingResponse`, `SchoolListResponse`: 요청/응답 DTO
+- `CompleteOnboardingRequest`, `CompleteOnboardingResponse`: 요청/응답 DTO
 - `OnboardingCompletion`, `OnboardingUserAllergy`: 도메인 모델
 
 ## 4. DB 사용 규칙
@@ -46,13 +46,10 @@
 
 ## 5. API 규칙
 - 외부 API 경로
-  - `GET /api/v1/onboarding/schools`
   - `POST /api/v1/onboarding/complete`
 - 요청/응답 방향
-  - `schools`: `lang` 쿼리 기반 학교 목록 응답
-  - `complete`: `CompleteOnboardingRequest(languageCode, schoolId, allergyCodes, religiousCode)` -> `CompleteOnboardingResponse`
+  - `complete`: `CompleteOnboardingRequest(languageCode, schoolId, allergyCodes, religiousCode, countryCode)` -> `CompleteOnboardingResponse`
 - 인증 필요 여부
-  - `GET /api/v1/onboarding/schools`: 인증 불필요
   - `POST /api/v1/onboarding/complete`: `USER`/`MANAGER`/`ADMIN` 인증 필요
 
 ## 6. 공통 비즈니스 규칙
@@ -66,16 +63,10 @@
 
 ## 7. API별 비즈니스 규칙
 
-### 7.1 `GET /api/v1/onboarding/schools`
-- 학교 선택 화면에 필요한 학교 목록을 제공한다.
-- 요청 언어의 `school_translation`이 있으면 번역명을 사용한다.
-- 요청 언어 번역이 없으면 `school.name`으로 fallback한다.
-- 인증 필요 여부: 인증 불필요.
-
-### 7.2 `POST /api/v1/onboarding/complete`
+### 7.1 `POST /api/v1/onboarding/complete`
 - 인증된 사용자만 호출할 수 있다.
-- 요청에는 `languageCode`, `schoolId`, `allergyCodes`, `religiousCode`가 포함된다.
-- `languageCode`, `schoolId`, `allergyCodes`, `religiousCode`가 유효한 master data인지 검증한다.
+- 요청에는 `languageCode`, `schoolId`, `allergyCodes`, `religiousCode`, `countryCode`가 포함된다.
+- `languageCode`, `schoolId`, `allergyCodes`, `religiousCode`, `countryCode`가 유효한 master data인지 검증한다.
 - `religiousCode`가 null이면 종교 제한 없음으로 저장한다.
 - 기존 `user_allergy`를 삭제하고 요청 allergy 목록으로 전체 교체한다.
 - 사용자 설정 저장이 모두 성공하면 `users.onboarding_completed = true`로 변경한다.
@@ -83,8 +74,7 @@
 
 ## 8. 주의사항
 - onboarding 저장 흐름에서 트랜잭션 경계가 깨지면 사용자 상태 불일치가 발생할 수 있다.
-- 학교 목록/번역 조회 로직 변경 시 fallback 규칙을 유지한다.
-- 요청 필드명(`languageCode`, `schoolId`, `allergyCodes`, `religiousCode`)과 저장 컬럼 매핑을 임의로 변경하지 않는다.
+- 요청 필드명(`languageCode`, `schoolId`, `allergyCodes`, `religiousCode`, `countryCode`)과 저장 컬럼 매핑을 임의로 변경하지 않는다.
 
 ## 9. 최근 변경 (2026-05-02)
 - 온보딩 완료 저장 항목에 `countryCode`를 추가했다.
@@ -92,3 +82,9 @@
 - `CompleteOnboardingRequest`는 `countryCode`를 포함한다.
 - 온보딩 완료 시 저장 항목은 `languageCode`, `schoolId`, `allergyCodes`, `religiousCode`, `countryCode`다.
 - `countryCode`는 master data(`country.code`) 유효성 검증 후 저장한다.
+
+## 10. 최근 변경 (2026-05-02)
+- `GET /api/v1/onboarding/schools` 학교 목록 조회 API를 제거하고 settings 옵션 API로 이동했다.
+- OnboardingController는 `POST /api/v1/onboarding/complete`만 담당한다.
+- 온보딩 완료의 `schoolId` 유효성 검증/저장/`onboarding_completed=true` 처리 규칙은 유지한다.
+- 학교 목록 조회 책임은 `GET /api/v1/settings/options/schools`로 이관됐다.

@@ -4,6 +4,7 @@ import com.mealguide.mealguide_api.settings.domain.AllergyOption;
 import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
 import com.mealguide.mealguide_api.settings.domain.ReligiousRestrictionOption;
+import com.mealguide.mealguide_api.settings.domain.SchoolOption;
 
 import java.util.List;
 import java.util.Set;
@@ -24,5 +25,9 @@ public interface SettingsMasterQueryPort {
     List<CountryOption> findCountries();
 
     boolean existsCountryCode(String countryCode);
+
+    List<SchoolOption> findSchools(String langCode);
+
+    boolean existsSchoolId(Long schoolId);
 }
 

@@ -8,10 +8,13 @@ import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateAller
 import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateCountryRequest;
 import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateLanguageRequest;
 import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateReligionRequest;
+import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateSchoolRequest;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.AllergyUpdateResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.CountryUpdateResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.LanguageUpdateResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.ReligionUpdateResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.SchoolSettingResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.SchoolUpdateResponse;
 import com.mealguide.mealguide_api.settings.presentation.swagger.SettingsApi;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +58,13 @@ public class UserSettingsController implements SettingsApi {
         ));
     }
 
+    @GetMapping("/school")
+    public ResponseEntity<ResponseBody<SchoolSettingResponse>> getSchool(@CurrentUserId Long currentUserId) {
+        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(
+                new SchoolSettingResponse(userPreferenceService.getSchool(currentUserId))
+        ));
+    }
+
     @PatchMapping("/language")
     public ResponseEntity<ResponseBody<LanguageUpdateResponse>> updateLanguage(
             @CurrentUserId Long currentUserId,
@@ -90,6 +100,15 @@ public class UserSettingsController implements SettingsApi {
     ) {
         String countryCode = userPreferenceService.updateCountry(currentUserId, request.countryCode());
         return ResponseEntity.ok(ResponseUtils.createSuccessResponse(new CountryUpdateResponse(countryCode)));
+    }
+
+    @PatchMapping("/school")
+    public ResponseEntity<ResponseBody<SchoolUpdateResponse>> updateSchool(
+            @CurrentUserId Long currentUserId,
+            @Valid @RequestBody UpdateSchoolRequest request
+    ) {
+        Long schoolId = userPreferenceService.updateSchool(currentUserId, request.schoolId());
+        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(new SchoolUpdateResponse(schoolId)));
     }
 }
 

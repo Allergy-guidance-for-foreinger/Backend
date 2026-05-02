@@ -6,6 +6,7 @@ import com.mealguide.mealguide_api.settings.domain.AllergyOption;
 import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
 import com.mealguide.mealguide_api.settings.domain.ReligiousRestrictionOption;
+import com.mealguide.mealguide_api.settings.domain.SchoolOption;
 import com.mealguide.mealguide_api.settings.domain.UserPreference;
 import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
@@ -138,6 +139,29 @@ class UserPreferenceServiceTest {
                 .isEqualTo(ErrorCode.INVALID_COUNTRY_CODE);
     }
 
+    @Test
+    void getSchoolReturnsCurrentUserSchool() {
+        userPreferencePort.user.updateSchoolId(1L);
+
+        assertThat(userPreferenceService.getSchool(1L)).isEqualTo(1L);
+    }
+
+    @Test
+    void updateSchoolSuccess() {
+        Long updated = userPreferenceService.updateSchool(1L, 2L);
+
+        assertThat(updated).isEqualTo(2L);
+        assertThat(userPreferencePort.user.getSchoolId()).isEqualTo(2L);
+    }
+
+    @Test
+    void updateSchoolFailsWhenSchoolIdDoesNotExist() {
+        assertThatThrownBy(() -> userPreferenceService.updateSchool(1L, 999L))
+                .isInstanceOf(ServiceException.class)
+                .extracting(exception -> ((ServiceException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_SCHOOL_ID);
+    }
+
     private UserPreference createUser(Long id) {
         UserPreference user = BeanUtils.instantiateClass(UserPreference.class);
         ReflectionTestUtils.setField(user, "id", id);
@@ -170,6 +194,7 @@ class UserPreferenceServiceTest {
         private final Set<String> allergyCodes = Set.of("EGG", "MILK", "SHRIMP");
         private final Set<String> religiousCodes = Set.of("HALAL", "HINDU");
         private final Set<String> countryCodes = Set.of("KR", "US");
+        private final Set<Long> schoolIds = Set.of(1L, 2L, 10L);
 
         @Override
         public List<LanguageOption> findLanguages() {
@@ -209,6 +234,16 @@ class UserPreferenceServiceTest {
         @Override
         public boolean existsCountryCode(String countryCode) {
             return countryCodes.contains(countryCode);
+        }
+
+        @Override
+        public List<SchoolOption> findSchools(String langCode) {
+            return List.of();
+        }
+
+        @Override
+        public boolean existsSchoolId(Long schoolId) {
+            return schoolIds.contains(schoolId);
         }
     }
 }

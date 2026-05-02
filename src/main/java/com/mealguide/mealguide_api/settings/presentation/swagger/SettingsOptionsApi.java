@@ -10,6 +10,7 @@ import com.mealguide.mealguide_api.settings.presentation.dto.response.AllergyOpt
 import com.mealguide.mealguide_api.settings.presentation.dto.response.CountryOptionsResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.LanguageOptionsResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.ReligionOptionsResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.SchoolOptionsResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.ResponseEntity;
@@ -17,10 +18,7 @@ import org.springframework.http.ResponseEntity;
 @SecurityRequirement(name = "Access Token")
 public interface SettingsOptionsApi {
 
-    @Operation(
-            summary = "언어 전체 선택지 조회",
-            description = "설정 화면에서 사용하는 전체 언어 선택지 목록을 조회합니다."
-    )
+    @Operation(summary = "언어 전체 선택지 조회", description = "설정 화면에서 사용하는 전체 언어 선택지 목록을 조회합니다.")
     @SwaggerApiResponses(
             success = @SwaggerApiSuccessResponse(response = LanguageOptionsResponse.class, description = "언어 선택지 조회 성공"),
             errors = {
@@ -29,10 +27,7 @@ public interface SettingsOptionsApi {
     )
     ResponseEntity<ResponseBody<LanguageOptionsResponse>> getLanguageOptions();
 
-    @Operation(
-            summary = "알레르기 전체 선택지 조회",
-            description = "인증된 사용자의 언어 설정 기준으로 번역된 알레르기 선택지 목록을 조회합니다."
-    )
+    @Operation(summary = "알레르기 전체 선택지 조회", description = "인증된 사용자의 언어 설정 기준으로 번역된 알레르기 선택지 목록을 조회합니다.")
     @SwaggerApiResponses(
             success = @SwaggerApiSuccessResponse(response = AllergyOptionsResponse.class, description = "알레르기 선택지 조회 성공"),
             errors = {
@@ -42,10 +37,7 @@ public interface SettingsOptionsApi {
     )
     ResponseEntity<ResponseBody<AllergyOptionsResponse>> getAllergyOptions(@CurrentUserId Long currentUserId);
 
-    @Operation(
-            summary = "종교별 음식 제한 전체 선택지 조회",
-            description = "인증된 사용자의 언어 설정 기준으로 번역된 종교별 음식 제한 선택지 목록을 조회합니다."
-    )
+    @Operation(summary = "종교별 음식 제한 전체 선택지 조회", description = "인증된 사용자의 언어 설정 기준으로 번역된 종교별 음식 제한 선택지 목록을 조회합니다.")
     @SwaggerApiResponses(
             success = @SwaggerApiSuccessResponse(response = ReligionOptionsResponse.class, description = "종교별 음식 제한 선택지 조회 성공"),
             errors = {
@@ -55,10 +47,7 @@ public interface SettingsOptionsApi {
     )
     ResponseEntity<ResponseBody<ReligionOptionsResponse>> getReligionOptions(@CurrentUserId Long currentUserId);
 
-    @Operation(
-            summary = "국가 전체 선택지 조회",
-            description = "설정 화면에서 사용하는 전체 국가 선택지 목록을 조회합니다."
-    )
+    @Operation(summary = "국가 전체 선택지 조회", description = "설정 화면에서 사용하는 전체 국가 선택지 목록을 조회합니다.")
     @SwaggerApiResponses(
             success = @SwaggerApiSuccessResponse(response = CountryOptionsResponse.class, description = "국가 선택지 조회 성공"),
             errors = {
@@ -66,4 +55,14 @@ public interface SettingsOptionsApi {
             }
     )
     ResponseEntity<ResponseBody<CountryOptionsResponse>> getCountryOptions();
+
+    @Operation(summary = "학교 전체 선택지 조회", description = "인증 사용자 언어 설정을 기준으로 학교 선택지 목록을 조회합니다.")
+    @SwaggerApiResponses(
+            success = @SwaggerApiSuccessResponse(response = SchoolOptionsResponse.class, description = "학교 선택지 조회 성공"),
+            errors = {
+                    @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED),
+                    @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND)
+            }
+    )
+    ResponseEntity<ResponseBody<SchoolOptionsResponse>> getSchoolOptions(@CurrentUserId Long currentUserId);
 }

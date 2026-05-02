@@ -42,6 +42,11 @@ public class UserPreferenceService {
         return findUser(userId).getCountryCode();
     }
 
+    @Transactional(readOnly = true)
+    public Long getSchool(Long userId) {
+        return findUser(userId).getSchoolId();
+    }
+
     @Transactional
     public String updateLanguage(Long userId, String languageCode) {
         String normalizedLanguageCode = requireText(languageCode, ErrorCode.INVALID_LANGUAGE_CODE);
@@ -86,7 +91,19 @@ public class UserPreferenceService {
         }
 
         UserPreference user = findUser(userId);
+        user.updateCountryCode(normalizedCountryCode);
         return user.getCountryCode();
+    }
+
+    @Transactional
+    public Long updateSchool(Long userId, Long schoolId) {
+        if (schoolId == null || schoolId <= 0 || !settingsMasterQueryPort.existsSchoolId(schoolId)) {
+            throw new ServiceException(ErrorCode.INVALID_SCHOOL_ID);
+        }
+
+        UserPreference user = findUser(userId);
+        user.updateSchoolId(schoolId);
+        return user.getSchoolId();
     }
 
     private UserPreference findUser(Long userId) {

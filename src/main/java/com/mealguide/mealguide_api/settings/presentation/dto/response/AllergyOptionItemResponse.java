@@ -1,5 +1,6 @@
 package com.mealguide.mealguide_api.settings.presentation.dto.response;
 
+import com.mealguide.mealguide_api.settings.domain.AllergyOption;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 public record AllergyOptionItemResponse(
@@ -8,4 +9,7 @@ public record AllergyOptionItemResponse(
         @Schema(description = "사용자 설정 언어 기준 알레르기 이름", example = "Egg")
         String name
 ) {
+    public static AllergyOptionItemResponse from(AllergyOption option) {
+        return new AllergyOptionItemResponse(option.code(), option.name());
+    }
 }

@@ -70,3 +70,33 @@
   - `docs/work-log/onboarding-work-log.md`
 - Remaining follow-ups:
   - 현재 환경에서는 Maven wrapper 실행 오류로 자동 테스트 실행 검증이 필요함.
+
+### 2026-05-02 (학교 목록 조회 API를 onboarding에서 settings로 이동)
+- What changed:
+  - `GET /api/v1/onboarding/schools`를 제거했다.
+  - `OnboardingController`/`OnboardingApi`는 온보딩 완료 API만 유지하도록 정리했다.
+  - `OnboardingService`에서 학교 목록 조회 유스케이스를 제거했다.
+  - 온보딩 완료의 `schoolId` 저장/검증 및 기존 저장 흐름(언어/알레르기/종교/국가/완료 플래그)은 유지했다.
+- Why:
+  - 학교 목록 조회 책임을 settings options API로 통합해 기능 경계를 정리하기 위해.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/controller/OnboardingController.java`
+  - `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/swagger/OnboardingApi.java`
+  - `src/main/java/com/mealguide/mealguide_api/onboarding/application/service/OnboardingService.java`
+  - `src/main/java/com/mealguide/mealguide_api/onboarding/infrastructure/persistence/adapter/SchoolPersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/onboarding/infrastructure/persistence/repository/SchoolJpaRepository.java`
+  - `src/main/java/com/mealguide/mealguide_api/onboarding/application/port/SchoolQueryPort.java` (deleted)
+  - `src/main/java/com/mealguide/mealguide_api/onboarding/domain/SchoolOption.java` (deleted)
+  - `src/main/java/com/mealguide/mealguide_api/onboarding/presentation/dto/response/SchoolListResponse.java` (deleted)
+  - `src/test/java/com/mealguide/mealguide_api/onboarding/application/service/OnboardingServiceTest.java`
+  - `src/main/java/com/mealguide/mealguide_api/global/config/security/SecurityConfig.java`
+  - `docs/features/onboarding-context.md`
+  - `docs/work-log/onboarding-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - `GET /api/v1/onboarding/schools` 제거
+- Related docs updated:
+  - `docs/features/onboarding-context.md`
+  - `docs/work-log/onboarding-work-log.md`
+- Remaining follow-ups:
+  - 현재 환경에서는 Maven wrapper 실행 오류로 자동 테스트 실행 검증이 필요함.

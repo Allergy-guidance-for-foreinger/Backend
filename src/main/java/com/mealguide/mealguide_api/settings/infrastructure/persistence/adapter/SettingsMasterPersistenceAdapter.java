@@ -5,10 +5,12 @@ import com.mealguide.mealguide_api.settings.domain.AllergyOption;
 import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
 import com.mealguide.mealguide_api.settings.domain.ReligiousRestrictionOption;
+import com.mealguide.mealguide_api.settings.domain.SchoolOption;
 import com.mealguide.mealguide_api.settings.infrastructure.persistence.repository.AllergyJpaRepository;
 import com.mealguide.mealguide_api.settings.infrastructure.persistence.repository.CountryJpaRepository;
 import com.mealguide.mealguide_api.settings.infrastructure.persistence.repository.LanguageJpaRepository;
 import com.mealguide.mealguide_api.settings.infrastructure.persistence.repository.ReligiousFoodRestrictionJpaRepository;
+import com.mealguide.mealguide_api.settings.infrastructure.persistence.repository.SettingsSchoolJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +25,7 @@ public class SettingsMasterPersistenceAdapter implements SettingsMasterQueryPort
     private final AllergyJpaRepository allergyJpaRepository;
     private final ReligiousFoodRestrictionJpaRepository religiousFoodRestrictionJpaRepository;
     private final CountryJpaRepository countryJpaRepository;
+    private final SettingsSchoolJpaRepository schoolJpaRepository;
 
     @Override
     public List<LanguageOption> findLanguages() {
@@ -69,6 +72,16 @@ public class SettingsMasterPersistenceAdapter implements SettingsMasterQueryPort
     @Override
     public boolean existsCountryCode(String countryCode) {
         return countryJpaRepository.existsByCode(countryCode);
+    }
+
+    @Override
+    public List<SchoolOption> findSchools(String langCode) {
+        return schoolJpaRepository.findSchoolOptions(langCode);
+    }
+
+    @Override
+    public boolean existsSchoolId(Long schoolId) {
+        return schoolJpaRepository.existsById(schoolId);
     }
 }
 

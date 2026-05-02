@@ -1,4 +1,4 @@
-package com.mealguide.mealguide_api.onboarding.domain;
+package com.mealguide.mealguide_api.settings.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -40,4 +40,3 @@ public class SchoolTranslation {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 }
-

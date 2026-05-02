@@ -2,34 +2,21 @@ package com.mealguide.mealguide_api.onboarding.application.service;
 
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.onboarding.application.port.OnboardingCommandPort;
-import com.mealguide.mealguide_api.onboarding.application.port.SchoolQueryPort;
 import com.mealguide.mealguide_api.onboarding.domain.OnboardingCompletion;
-import com.mealguide.mealguide_api.onboarding.domain.SchoolOption;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class OnboardingServiceTest {
 
     @Test
-    void getSchoolsReturnsTranslatedOrFallbackSchoolNamesFromPort() {
-        OnboardingService onboardingService = new OnboardingService(new FakeSchoolQueryPort(), new FakeOnboardingCommandPort());
-
-        assertThat(onboardingService.getSchools("en"))
-                .containsExactly(
-                        new SchoolOption(1L, "Kumoh National Institute of Technology"),
-                        new SchoolOption(2L, "Base School Name")
-                );
-    }
-
-    @Test
     void completeOnboardingSavesSchoolAllergiesReligionAndCompletionFlag() {
         FakeOnboardingCommandPort commandPort = new FakeOnboardingCommandPort();
-        OnboardingService onboardingService = new OnboardingService(new FakeSchoolQueryPort(), commandPort);
+        OnboardingService onboardingService = new OnboardingService(commandPort);
 
         OnboardingCompletion completion = onboardingService.completeOnboarding(
                 1L,
@@ -50,7 +37,7 @@ class OnboardingServiceTest {
 
     @Test
     void completeOnboardingFailsWhenSchoolIdIsInvalid() {
-        OnboardingService onboardingService = new OnboardingService(new FakeSchoolQueryPort(), new FakeOnboardingCommandPort());
+        OnboardingService onboardingService = new OnboardingService(new FakeOnboardingCommandPort());
 
         assertThatThrownBy(() -> onboardingService.completeOnboarding(
                 1L,
@@ -64,7 +51,7 @@ class OnboardingServiceTest {
 
     @Test
     void completeOnboardingFailsWhenCountryCodeIsInvalid() {
-        OnboardingService onboardingService = new OnboardingService(new FakeSchoolQueryPort(), new FakeOnboardingCommandPort());
+        OnboardingService onboardingService = new OnboardingService(new FakeOnboardingCommandPort());
 
         assertThatThrownBy(() -> onboardingService.completeOnboarding(
                 1L,
@@ -74,16 +61,6 @@ class OnboardingServiceTest {
                 null,
                 "XX"
         )).isInstanceOf(ServiceException.class);
-    }
-
-    private static class FakeSchoolQueryPort implements SchoolQueryPort {
-        @Override
-        public List<SchoolOption> findSchools(String langCode) {
-            return List.of(
-                    new SchoolOption(1L, "Kumoh National Institute of Technology"),
-                    new SchoolOption(2L, "Base School Name")
-            );
-        }
     }
 
     private static class FakeOnboardingCommandPort implements OnboardingCommandPort {
