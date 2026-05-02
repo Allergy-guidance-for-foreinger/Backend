@@ -7,9 +7,11 @@ import com.mealguide.mealguide_api.global.config.swagger.SwaggerApiFailedRespons
 import com.mealguide.mealguide_api.global.config.swagger.SwaggerApiResponses;
 import com.mealguide.mealguide_api.global.config.swagger.SwaggerApiSuccessResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateAllergiesRequest;
+import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateCountryRequest;
 import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateLanguageRequest;
 import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateReligionRequest;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.AllergyUpdateResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.CountryUpdateResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.LanguageUpdateResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.ReligionUpdateResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -59,6 +61,19 @@ public interface SettingsApi {
             }
     )
     ResponseEntity<ResponseBody<ReligionUpdateResponse>> getReligion(@CurrentUserId Long currentUserId);
+
+    @Operation(
+            summary = "내 국가 설정 조회",
+            description = "인증된 사용자의 현재 국가 코드를 조회합니다."
+    )
+    @SwaggerApiResponses(
+            success = @SwaggerApiSuccessResponse(response = CountryUpdateResponse.class, description = "국가 설정 조회 성공"),
+            errors = {
+                    @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED),
+                    @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND)
+            }
+    )
+    ResponseEntity<ResponseBody<CountryUpdateResponse>> getCountry(@CurrentUserId Long currentUserId);
 
     @Operation(
             summary = "언어 설정 변경",
@@ -111,5 +126,23 @@ public interface SettingsApi {
     ResponseEntity<ResponseBody<ReligionUpdateResponse>> updateReligion(
             @CurrentUserId Long currentUserId,
             @Valid @RequestBody UpdateReligionRequest request
+    );
+
+    @Operation(
+            summary = "국가 설정 변경",
+            description = "인증된 사용자의 국가 설정을 변경합니다."
+    )
+    @SwaggerApiResponses(
+            success = @SwaggerApiSuccessResponse(response = CountryUpdateResponse.class, description = "국가 설정 변경 성공"),
+            errors = {
+                    @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED),
+                    @SwaggerApiFailedResponse(ErrorCode.BINDING_ERROR),
+                    @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND),
+                    @SwaggerApiFailedResponse(ErrorCode.INVALID_COUNTRY_CODE)
+            }
+    )
+    ResponseEntity<ResponseBody<CountryUpdateResponse>> updateCountry(
+            @CurrentUserId Long currentUserId,
+            @Valid @RequestBody UpdateCountryRequest request
     );
 }

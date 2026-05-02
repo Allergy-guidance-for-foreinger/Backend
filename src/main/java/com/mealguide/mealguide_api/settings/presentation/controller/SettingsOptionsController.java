@@ -7,6 +7,8 @@ import com.mealguide.mealguide_api.settings.application.service.SettingsService;
 import com.mealguide.mealguide_api.settings.application.service.UserPreferenceService;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.AllergyOptionItemResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.AllergyOptionsResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.CountryOptionItemResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.CountryOptionsResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.LanguageOptionItemResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.LanguageOptionsResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.ReligionOptionItemResponse;
@@ -54,6 +56,14 @@ public class SettingsOptionsController implements SettingsOptionsApi {
                 .map(religion -> new ReligionOptionItemResponse(religion.code(), religion.name()))
                 .toList();
         return ResponseEntity.ok(ResponseUtils.createSuccessResponse(new ReligionOptionsResponse(religions)));
+    }
+
+    @GetMapping("/countries")
+    public ResponseEntity<ResponseBody<CountryOptionsResponse>> getCountryOptions() {
+        List<CountryOptionItemResponse> countries = settingsService.getCountries().stream()
+                .map(country -> new CountryOptionItemResponse(country.code(), country.name()))
+                .toList();
+        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(new CountryOptionsResponse(countries)));
     }
 }
 

@@ -36,13 +36,15 @@ class OnboardingServiceTest {
                 "en",
                 10L,
                 List.of("EGG", "MILK", "EGG"),
-                "HALAL"
+                "HALAL",
+                "KR"
         );
 
         assertThat(completion.languageCode()).isEqualTo("en");
         assertThat(completion.schoolId()).isEqualTo(10L);
         assertThat(completion.allergyCodes()).containsExactly("EGG", "MILK");
         assertThat(completion.religiousCode()).isEqualTo("HALAL");
+        assertThat(completion.countryCode()).isEqualTo("KR");
         assertThat(completion.onboardingCompleted()).isTrue();
     }
 
@@ -55,7 +57,22 @@ class OnboardingServiceTest {
                 "en",
                 999L,
                 List.of("EGG"),
-                null
+                null,
+                "KR"
+        )).isInstanceOf(ServiceException.class);
+    }
+
+    @Test
+    void completeOnboardingFailsWhenCountryCodeIsInvalid() {
+        OnboardingService onboardingService = new OnboardingService(new FakeSchoolQueryPort(), new FakeOnboardingCommandPort());
+
+        assertThatThrownBy(() -> onboardingService.completeOnboarding(
+                1L,
+                "en",
+                10L,
+                List.of("EGG"),
+                null,
+                "XX"
         )).isInstanceOf(ServiceException.class);
     }
 
@@ -96,12 +113,17 @@ class OnboardingServiceTest {
         }
 
         @Override
+        public boolean existsCountryCode(String countryCode) {
+            return "KR".equals(countryCode) || "US".equals(countryCode);
+        }
+
+        @Override
         public void replaceAllergies(Long userId, List<String> allergyCodes) {
             // no-op for test fake
         }
 
         @Override
-        public boolean completeOnboarding(Long userId, String languageCode, Long schoolId, String religiousCode) {
+        public boolean completeOnboarding(Long userId, String languageCode, Long schoolId, String religiousCode, String countryCode) {
             // no-op for test fake
             return true;
         }

@@ -33,12 +33,14 @@ public class OnboardingService {
             String languageCode,
             Long schoolId,
             List<String> allergyCodes,
-            String religiousCode
+            String religiousCode,
+            String countryCode
     ) {
         String normalizedLanguageCode = requireText(languageCode, ErrorCode.INVALID_LANGUAGE_CODE);
         Long normalizedSchoolId = requireSchoolId(schoolId);
         List<String> normalizedAllergyCodes = normalizeAllergyCodes(allergyCodes);
         String normalizedReligiousCode = normalize(religiousCode);
+        String normalizedCountryCode = requireText(countryCode, ErrorCode.INVALID_COUNTRY_CODE);
 
         if (!onboardingCommandPort.existsActiveUserById(userId)) {
             throw new ServiceException(ErrorCode.USER_NOT_FOUND);
@@ -60,8 +62,18 @@ public class OnboardingService {
             throw new ServiceException(ErrorCode.INVALID_RELIGIOUS_CODE);
         }
 
+        if (!onboardingCommandPort.existsCountryCode(normalizedCountryCode)) {
+            throw new ServiceException(ErrorCode.INVALID_COUNTRY_CODE);
+        }
+
         onboardingCommandPort.replaceAllergies(userId, normalizedAllergyCodes);
-        boolean updated = onboardingCommandPort.completeOnboarding(userId, normalizedLanguageCode, normalizedSchoolId, normalizedReligiousCode);
+        boolean updated = onboardingCommandPort.completeOnboarding(
+                userId,
+                normalizedLanguageCode,
+                normalizedSchoolId,
+                normalizedReligiousCode,
+                normalizedCountryCode
+        );
         if (!updated) {
             throw new ServiceException(ErrorCode.USER_NOT_FOUND);
         }
@@ -71,6 +83,7 @@ public class OnboardingService {
                 normalizedSchoolId,
                 normalizedAllergyCodes,
                 normalizedReligiousCode,
+                normalizedCountryCode,
                 true
         );
     }

@@ -3,6 +3,7 @@ package com.mealguide.mealguide_api.settings.application.service;
 import com.mealguide.mealguide_api.settings.application.port.SettingsMasterQueryPort;
 import com.mealguide.mealguide_api.settings.application.port.UserPreferencePort;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
+import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
 import com.mealguide.mealguide_api.settings.domain.ReligiousRestrictionOption;
 import com.mealguide.mealguide_api.settings.domain.UserPreference;
@@ -114,6 +115,29 @@ class UserPreferenceServiceTest {
         assertThat(userPreferencePort.user.getReligiousCode()).isNull();
     }
 
+    @Test
+    void getCountryReturnsCurrentUserCountry() {
+        userPreferencePort.user.updateCountryCode("KR");
+
+        assertThat(userPreferenceService.getCountry(1L)).isEqualTo("KR");
+    }
+
+    @Test
+    void updateCountrySuccess() {
+        String updated = userPreferenceService.updateCountry(1L, "KR");
+
+        assertThat(updated).isEqualTo("KR");
+        assertThat(userPreferencePort.user.getCountryCode()).isEqualTo("KR");
+    }
+
+    @Test
+    void updateCountryFailsWhenCodeDoesNotExist() {
+        assertThatThrownBy(() -> userPreferenceService.updateCountry(1L, "missing"))
+                .isInstanceOf(ServiceException.class)
+                .extracting(exception -> ((ServiceException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_COUNTRY_CODE);
+    }
+
     private UserPreference createUser(Long id) {
         UserPreference user = BeanUtils.instantiateClass(UserPreference.class);
         ReflectionTestUtils.setField(user, "id", id);
@@ -145,6 +169,7 @@ class UserPreferenceServiceTest {
         private final Set<String> languageCodes = Set.of("ko", "en");
         private final Set<String> allergyCodes = Set.of("EGG", "MILK", "SHRIMP");
         private final Set<String> religiousCodes = Set.of("HALAL", "HINDU");
+        private final Set<String> countryCodes = Set.of("KR", "US");
 
         @Override
         public List<LanguageOption> findLanguages() {
@@ -174,6 +199,16 @@ class UserPreferenceServiceTest {
         @Override
         public boolean existsReligiousCode(String religiousCode) {
             return religiousCodes.contains(religiousCode);
+        }
+
+        @Override
+        public List<CountryOption> findCountries() {
+            return List.of();
+        }
+
+        @Override
+        public boolean existsCountryCode(String countryCode) {
+            return countryCodes.contains(countryCode);
         }
     }
 }

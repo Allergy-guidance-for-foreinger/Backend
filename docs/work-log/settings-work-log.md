@@ -50,3 +50,55 @@
   - 없음
 
 
+
+### 2026-05-02 (settings country 설정/옵션 API 추가)
+- What changed:
+  - 개인 설정 API에 나라 조회/수정 엔드포인트를 추가했다.
+    - `GET /api/v1/settings/country`
+    - `PATCH /api/v1/settings/country`
+  - 옵션 API에 나라 목록 조회 엔드포인트를 추가했다.
+    - `GET /api/v1/settings/options/countries`
+  - `SettingsService`, `UserPreferenceService`, `SettingsMasterQueryPort`, `UserPreferencePort`에 country 유스케이스를 추가했다.
+  - `SettingsMasterPersistenceAdapter`에 country 목록 조회/존재 검증 구현을 추가했다.
+  - `Country` 엔티티/`CountryJpaRepository`/country 관련 DTO를 추가했다.
+  - `UserPreference`에 `countryCode` 필드를 추가하고 업데이트 로직을 반영했다.
+  - `SettingsApi`/`SettingsOptionsApi` Swagger 문서를 업데이트했다.
+  - 관련 서비스/컨트롤러 테스트를 보강했다.
+- Why:
+  - `users.country_code` 및 `country` master data 추가에 맞춰 세팅 화면에서 국가 설정과 선택지 조회를 지원하기 위해.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/settings/application/port/SettingsMasterQueryPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/application/port/UserPreferencePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/application/service/SettingsService.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceService.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/domain/UserPreference.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/domain/Country.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/domain/CountryOption.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/repository/CountryJpaRepository.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/repository/UserPreferenceJpaRepository.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/adapter/SettingsMasterPersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/adapter/UserPreferencePersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/UserSettingsController.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsController.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/request/UpdateCountryRequest.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/CountryUpdateResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/CountryOptionItemResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/dto/response/CountryOptionsResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsApi.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsOptionsApi.java`
+  - `src/test/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/settings/application/service/SettingsServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerTest.java`
+  - `docs/features/settings-context.md`
+  - `docs/work-log/settings-work-log.md`
+- DB schema changed: Yes
+  - `country` 테이블 추가 (code PK, name, created_at)
+  - users.country_code VARCHAR(10)` 컬럼 및 `fk_users_country` 외래키 추가
+  - idx_users_country_code` 인덱스 추가
+- API behavior changed:
+  - settings에 country 조회/수정 및 country 옵션 조회 API가 추가됨.
+- Related docs updated:
+  - `docs/features/settings-context.md`
+  - `docs/work-log/settings-work-log.md`
+- Remaining follow-ups:
+  - 현재 환경에서는 Maven wrapper 실행 오류로 자동 테스트 실행 검증이 필요함.

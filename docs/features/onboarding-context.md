@@ -85,3 +85,10 @@
 - onboarding 저장 흐름에서 트랜잭션 경계가 깨지면 사용자 상태 불일치가 발생할 수 있다.
 - 학교 목록/번역 조회 로직 변경 시 fallback 규칙을 유지한다.
 - 요청 필드명(`languageCode`, `schoolId`, `allergyCodes`, `religiousCode`)과 저장 컬럼 매핑을 임의로 변경하지 않는다.
+
+## 9. 최근 변경 (2026-05-02)
+- 온보딩 완료 저장 항목에 `countryCode`를 추가했다.
+- 관련 테이블에 `country`를 추가해 `users.country_code`를 함께 검증/저장한다.
+- `CompleteOnboardingRequest`는 `countryCode`를 포함한다.
+- 온보딩 완료 시 저장 항목은 `languageCode`, `schoolId`, `allergyCodes`, `religiousCode`, `countryCode`다.
+- `countryCode`는 master data(`country.code`) 유효성 검증 후 저장한다.

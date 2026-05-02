@@ -2,9 +2,11 @@ package com.mealguide.mealguide_api.settings.infrastructure.persistence.adapter;
 
 import com.mealguide.mealguide_api.settings.application.port.SettingsMasterQueryPort;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
+import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
 import com.mealguide.mealguide_api.settings.domain.ReligiousRestrictionOption;
 import com.mealguide.mealguide_api.settings.infrastructure.persistence.repository.AllergyJpaRepository;
+import com.mealguide.mealguide_api.settings.infrastructure.persistence.repository.CountryJpaRepository;
 import com.mealguide.mealguide_api.settings.infrastructure.persistence.repository.LanguageJpaRepository;
 import com.mealguide.mealguide_api.settings.infrastructure.persistence.repository.ReligiousFoodRestrictionJpaRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ public class SettingsMasterPersistenceAdapter implements SettingsMasterQueryPort
     private final LanguageJpaRepository languageJpaRepository;
     private final AllergyJpaRepository allergyJpaRepository;
     private final ReligiousFoodRestrictionJpaRepository religiousFoodRestrictionJpaRepository;
+    private final CountryJpaRepository countryJpaRepository;
 
     @Override
     public List<LanguageOption> findLanguages() {
@@ -54,6 +57,18 @@ public class SettingsMasterPersistenceAdapter implements SettingsMasterQueryPort
     @Override
     public boolean existsReligiousCode(String religiousCode) {
         return religiousFoodRestrictionJpaRepository.existsByCode(religiousCode);
+    }
+
+    @Override
+    public List<CountryOption> findCountries() {
+        return countryJpaRepository.findAllByOrderByNameAsc().stream()
+                .map(country -> new CountryOption(country.getCode(), country.getName()))
+                .toList();
+    }
+
+    @Override
+    public boolean existsCountryCode(String countryCode) {
+        return countryJpaRepository.existsByCode(countryCode);
     }
 }
 

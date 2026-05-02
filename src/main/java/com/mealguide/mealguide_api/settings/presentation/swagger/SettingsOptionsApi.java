@@ -7,6 +7,7 @@ import com.mealguide.mealguide_api.global.config.swagger.SwaggerApiFailedRespons
 import com.mealguide.mealguide_api.global.config.swagger.SwaggerApiResponses;
 import com.mealguide.mealguide_api.global.config.swagger.SwaggerApiSuccessResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.AllergyOptionsResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.CountryOptionsResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.LanguageOptionsResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.ReligionOptionsResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,4 +54,16 @@ public interface SettingsOptionsApi {
             }
     )
     ResponseEntity<ResponseBody<ReligionOptionsResponse>> getReligionOptions(@CurrentUserId Long currentUserId);
+
+    @Operation(
+            summary = "국가 전체 선택지 조회",
+            description = "설정 화면에서 사용하는 전체 국가 선택지 목록을 조회합니다."
+    )
+    @SwaggerApiResponses(
+            success = @SwaggerApiSuccessResponse(response = CountryOptionsResponse.class, description = "국가 선택지 조회 성공"),
+            errors = {
+                    @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED)
+            }
+    )
+    ResponseEntity<ResponseBody<CountryOptionsResponse>> getCountryOptions();
 }

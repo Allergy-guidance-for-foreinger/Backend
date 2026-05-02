@@ -2,6 +2,7 @@ package com.mealguide.mealguide_api.settings.application.service;
 
 import com.mealguide.mealguide_api.settings.application.port.SettingsMasterQueryPort;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
+import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
 import com.mealguide.mealguide_api.settings.domain.ReligiousRestrictionOption;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,7 @@ class SettingsServiceTest {
     @Test
     void getLanguagesReturnsSelectableLanguageOptions() {
         assertThat(settingsService.getLanguages())
-                .containsExactly(new LanguageOption("en", "?�어", "English"));
+                .containsExactly(new LanguageOption("en", "영어", "English"));
     }
 
     @Test
@@ -34,10 +35,19 @@ class SettingsServiceTest {
                 .containsExactly(new ReligiousRestrictionOption("HALAL", "Halal"));
     }
 
+    @Test
+    void getCountriesReturnsCountryOptionsOrderedByName() {
+        assertThat(settingsService.getCountries())
+                .containsExactly(
+                        new CountryOption("KR", "Korea"),
+                        new CountryOption("US", "United States")
+                );
+    }
+
     private static class FakeSettingsMasterQueryPort implements SettingsMasterQueryPort {
         @Override
         public List<LanguageOption> findLanguages() {
-            return List.of(new LanguageOption("en", "?�어", "English"));
+            return List.of(new LanguageOption("en", "영어", "English"));
         }
 
         @Override
@@ -64,6 +74,18 @@ class SettingsServiceTest {
         public boolean existsReligiousCode(String religiousCode) {
             return true;
         }
+
+        @Override
+        public List<CountryOption> findCountries() {
+            return List.of(
+                    new CountryOption("KR", "Korea"),
+                    new CountryOption("US", "United States")
+            );
+        }
+
+        @Override
+        public boolean existsCountryCode(String countryCode) {
+            return true;
+        }
     }
 }
-

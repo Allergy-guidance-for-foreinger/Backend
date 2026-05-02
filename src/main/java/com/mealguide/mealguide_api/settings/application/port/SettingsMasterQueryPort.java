@@ -1,6 +1,7 @@
 package com.mealguide.mealguide_api.settings.application.port;
 
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
+import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
 import com.mealguide.mealguide_api.settings.domain.ReligiousRestrictionOption;
 
@@ -19,5 +20,9 @@ public interface SettingsMasterQueryPort {
     List<ReligiousRestrictionOption> findReligiousRestrictions(String langCode);
 
     boolean existsReligiousCode(String religiousCode);
+
+    List<CountryOption> findCountries();
+
+    boolean existsCountryCode(String countryCode);
 }
 

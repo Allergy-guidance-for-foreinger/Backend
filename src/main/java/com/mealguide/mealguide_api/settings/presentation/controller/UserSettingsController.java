@@ -5,9 +5,11 @@ import com.mealguide.mealguide_api.settings.application.service.UserPreferenceSe
 import com.mealguide.mealguide_api.global.base.dto.ResponseBody;
 import com.mealguide.mealguide_api.global.base.dto.ResponseUtils;
 import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateAllergiesRequest;
+import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateCountryRequest;
 import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateLanguageRequest;
 import com.mealguide.mealguide_api.settings.presentation.dto.request.UpdateReligionRequest;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.AllergyUpdateResponse;
+import com.mealguide.mealguide_api.settings.presentation.dto.response.CountryUpdateResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.LanguageUpdateResponse;
 import com.mealguide.mealguide_api.settings.presentation.dto.response.ReligionUpdateResponse;
 import com.mealguide.mealguide_api.settings.presentation.swagger.SettingsApi;
@@ -46,6 +48,13 @@ public class UserSettingsController implements SettingsApi {
         ));
     }
 
+    @GetMapping("/country")
+    public ResponseEntity<ResponseBody<CountryUpdateResponse>> getCountry(@CurrentUserId Long currentUserId) {
+        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(
+                new CountryUpdateResponse(userPreferenceService.getCountry(currentUserId))
+        ));
+    }
+
     @PatchMapping("/language")
     public ResponseEntity<ResponseBody<LanguageUpdateResponse>> updateLanguage(
             @CurrentUserId Long currentUserId,
@@ -72,6 +81,15 @@ public class UserSettingsController implements SettingsApi {
     ) {
         String religiousCode = userPreferenceService.updateReligion(currentUserId, request.religiousCode());
         return ResponseEntity.ok(ResponseUtils.createSuccessResponse(new ReligionUpdateResponse(religiousCode)));
+    }
+
+    @PatchMapping("/country")
+    public ResponseEntity<ResponseBody<CountryUpdateResponse>> updateCountry(
+            @CurrentUserId Long currentUserId,
+            @Valid @RequestBody UpdateCountryRequest request
+    ) {
+        String countryCode = userPreferenceService.updateCountry(currentUserId, request.countryCode());
+        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(new CountryUpdateResponse(countryCode)));
     }
 }
 
