@@ -29,3 +29,18 @@
 ## 6. 업데이트 규칙
 - 공통 DB 작업 원칙이 변경될 때 본 문서를 업데이트한다.
 - 기능별 상세 DB 규칙이 변경될 때는 해당 `docs/features/*-context.md`를 우선 업데이트한다.
+
+## 7. menu_like table (2026-05-03)
+- Added `menu_like` table for menu preference by `(cafeteria_id, menu_id)`.
+- Uniqueness: `UNIQUE(user_id, cafeteria_id, menu_id)`.
+- Indexes: `idx_menu_like_target(cafeteria_id, menu_id)`, `idx_menu_like_user(user_id)`.
+- FK policy follows existing user cleanup policy with `ON DELETE CASCADE` on `user_id`.
+
+## 8. menu_review tables (2026-05-03)
+- Added `menu_review`, `menu_review_like`, `menu_review_comment` tables.
+- Review list target is `(cafeteria_id, menu_id)` and stores `meal_menu_id`, `meal_date` as write context.
+- Review supports multiple posts by same user on same menu (no uniqueness for user/menu).
+- `menu_review_like` prevents duplicate likes per user with `UNIQUE(review_id, user_id)`.
+- Review/comment delete is soft-delete by `deleted_at`.
+- Review list API uses page/size and latest-first ordering by date and recency.
+- Comment list API uses page/size and oldest-first ordering.

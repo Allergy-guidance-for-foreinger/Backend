@@ -6,9 +6,11 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.CurrentUserMealPref
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MatchedAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
-import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealUserPreferencePort;
+import com.mealguide.mealguide_api.mealcrawl.application.port.MenuLikePort;
+import com.mealguide.mealguide_api.review.application.port.MenuReviewPort;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuLikeTarget;
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuDetailBatchResponse;
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuDetailResponse;
 import org.junit.jupiter.api.Test;
@@ -21,14 +23,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class MenuDetailQueryServiceTest {
 
     @Test
     void batchFailsWhenMealMenuIdsEmpty() {
-        MenuDetailQueryService service = new MenuDetailQueryService(mock(MealUserPreferencePort.class), mock(MealCrawlPersistencePort.class));
+        MenuDetailQueryService service = new MenuDetailQueryService(
+                mock(MealUserPreferencePort.class),
+                mock(MealCrawlPersistencePort.class),
+                mock(MenuLikePort.class),
+                mock(MenuReviewPort.class)
+        );
 
         assertThatThrownBy(() -> service.getMenuDetails(1L, List.of()))
                 .isInstanceOf(ServiceException.class)
@@ -38,7 +44,12 @@ class MenuDetailQueryServiceTest {
 
     @Test
     void batchFailsWhenMealMenuIdsExceedLimit() {
-        MenuDetailQueryService service = new MenuDetailQueryService(mock(MealUserPreferencePort.class), mock(MealCrawlPersistencePort.class));
+        MenuDetailQueryService service = new MenuDetailQueryService(
+                mock(MealUserPreferencePort.class),
+                mock(MealCrawlPersistencePort.class),
+                mock(MenuLikePort.class),
+                mock(MenuReviewPort.class)
+        );
         List<Long> ids = java.util.stream.LongStream.rangeClosed(1, 31).boxed().toList();
 
         assertThatThrownBy(() -> service.getMenuDetails(1L, ids))
@@ -51,12 +62,14 @@ class MenuDetailQueryServiceTest {
     void batchReturnsMenusInRequestOrderAndDeduplicates() {
         MealUserPreferencePort preferencePort = mock(MealUserPreferencePort.class);
         MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
-        MenuDetailQueryService service = new MenuDetailQueryService(preferencePort, persistencePort);
+        MenuLikePort menuLikePort = mock(MenuLikePort.class);
+        MenuReviewPort menuReviewPort = mock(MenuReviewPort.class);
+        MenuDetailQueryService service = new MenuDetailQueryService(preferencePort, persistencePort, menuLikePort, menuReviewPort);
 
         stubPreference(preferencePort);
         when(persistencePort.findMenuDetailsByMealMenuIds(Set.of(20L, 10L))).thenReturn(List.of(
-                new MenuDetailRow(10L, 1L, "Menu-10", "A", 2, 1L, "SUCCESS", 100L),
-                new MenuDetailRow(20L, 2L, "Menu-20", "B", 1, 2L, "SUCCESS", 100L)
+                new MenuDetailRow(10L, 1L, 1L, "Menu-10", "A", 2, 1L, "SUCCESS", 100L),
+                new MenuDetailRow(20L, 1L, 2L, "Menu-20", "B", 1, 2L, "SUCCESS", 100L)
         ));
         when(persistencePort.findTranslatedMenuNamesByMealMenuIds(Set.of(20L, 10L), "en"))
                 .thenReturn(java.util.Map.of(10L, "Menu-10-en", 20L, "Menu-20-en"));
@@ -69,21 +82,38 @@ class MenuDetailQueryServiceTest {
         when(persistencePort.findMatchedAllergies(1L, Set.of("PORK", "RICE"), "en"))
                 .thenReturn(List.of(new MatchedAllergyRow("PORK", "Pork", "PORK", "Pork")));
         when(persistencePort.findReligiousRestrictionIngredients("HALAL")).thenReturn(List.of());
+        when(menuLikePort.countLikesByTargets(Set.of(
+                new MenuLikeTarget(1L, 1L),
+                new MenuLikeTarget(1L, 2L)
+        ))).thenReturn(java.util.Map.of(new MenuLikeTarget(1L, 1L), 2L, new MenuLikeTarget(1L, 2L), 1L));
+        when(menuLikePort.findLikedTargetsByUser(1L, Set.of(
+                new MenuLikeTarget(1L, 1L),
+                new MenuLikeTarget(1L, 2L)
+        ))).thenReturn(Set.of(new MenuLikeTarget(1L, 2L)));
+        when(menuReviewPort.countActiveReviewsByTargets(Set.of(
+                new MenuLikeTarget(1L, 1L),
+                new MenuLikeTarget(1L, 2L)
+        ))).thenReturn(java.util.Map.of(new MenuLikeTarget(1L, 1L), 10L, new MenuLikeTarget(1L, 2L), 7L));
 
         MenuDetailBatchResponse response = service.getMenuDetails(1L, List.of(20L, 10L, 20L));
 
         assertThat(response.menus()).extracting(MenuDetailResponse::mealMenuId).containsExactly(20L, 10L);
+        assertThat(response.menus().get(0).like().likedByMe()).isTrue();
+        assertThat(response.menus().get(1).like().count()).isEqualTo(2L);
+        assertThat(response.menus().get(0).review().count()).isEqualTo(7L);
     }
 
     @Test
     void batchFailsWhenAnyMealMenuIdDoesNotExist() {
         MealUserPreferencePort preferencePort = mock(MealUserPreferencePort.class);
         MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
-        MenuDetailQueryService service = new MenuDetailQueryService(preferencePort, persistencePort);
+        MenuLikePort menuLikePort = mock(MenuLikePort.class);
+        MenuReviewPort menuReviewPort = mock(MenuReviewPort.class);
+        MenuDetailQueryService service = new MenuDetailQueryService(preferencePort, persistencePort, menuLikePort, menuReviewPort);
 
         stubPreference(preferencePort);
         when(persistencePort.findMenuDetailsByMealMenuIds(Set.of(10L, 99L))).thenReturn(List.of(
-                new MenuDetailRow(10L, 1L, "Menu-10", "A", 1, 1L, "SUCCESS", 100L)
+                new MenuDetailRow(10L, 1L, 1L, "Menu-10", "A", 1, 1L, "SUCCESS", 100L)
         ));
 
         assertThatThrownBy(() -> service.getMenuDetails(1L, List.of(10L, 99L)))
@@ -96,12 +126,14 @@ class MenuDetailQueryServiceTest {
     void batchIncludesMatchedAndUnmatchedMenusTogether() {
         MealUserPreferencePort preferencePort = mock(MealUserPreferencePort.class);
         MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
-        MenuDetailQueryService service = new MenuDetailQueryService(preferencePort, persistencePort);
+        MenuLikePort menuLikePort = mock(MenuLikePort.class);
+        MenuReviewPort menuReviewPort = mock(MenuReviewPort.class);
+        MenuDetailQueryService service = new MenuDetailQueryService(preferencePort, persistencePort, menuLikePort, menuReviewPort);
 
         stubPreference(preferencePort);
         when(persistencePort.findMenuDetailsByMealMenuIds(Set.of(10L, 20L))).thenReturn(List.of(
-                new MenuDetailRow(10L, 1L, "Menu-10", "A", 1, 1L, "SUCCESS", 100L),
-                new MenuDetailRow(20L, 2L, "Menu-20", "B", 2, 2L, "SUCCESS", 100L)
+                new MenuDetailRow(10L, 1L, 1L, "Menu-10", "A", 1, 1L, "SUCCESS", 100L),
+                new MenuDetailRow(20L, 1L, 2L, "Menu-20", "B", 2, 2L, "SUCCESS", 100L)
         ));
         when(persistencePort.findTranslatedMenuNamesByMealMenuIds(Set.of(10L, 20L), "en")).thenReturn(java.util.Map.of());
         when(persistencePort.findConfirmedIngredientsForMenuDetails(Set.of(10L, 20L), "en"))
@@ -113,6 +145,18 @@ class MenuDetailQueryServiceTest {
         when(persistencePort.findMatchedAllergies(1L, Set.of("PORK", "RICE"), "en"))
                 .thenReturn(List.of(new MatchedAllergyRow("PORK", "Pork", "PORK", "Pork")));
         when(persistencePort.findReligiousRestrictionIngredients("HALAL")).thenReturn(List.of());
+        when(menuLikePort.countLikesByTargets(Set.of(
+                new MenuLikeTarget(1L, 1L),
+                new MenuLikeTarget(1L, 2L)
+        ))).thenReturn(java.util.Map.of());
+        when(menuLikePort.findLikedTargetsByUser(1L, Set.of(
+                new MenuLikeTarget(1L, 1L),
+                new MenuLikeTarget(1L, 2L)
+        ))).thenReturn(Set.of());
+        when(menuReviewPort.countActiveReviewsByTargets(Set.of(
+                new MenuLikeTarget(1L, 1L),
+                new MenuLikeTarget(1L, 2L)
+        ))).thenReturn(java.util.Map.of());
 
         MenuDetailBatchResponse response = service.getMenuDetails(1L, List.of(10L, 20L));
 
@@ -128,11 +172,13 @@ class MenuDetailQueryServiceTest {
     void singleStillWorksViaBatchPath() {
         MealUserPreferencePort preferencePort = mock(MealUserPreferencePort.class);
         MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
-        MenuDetailQueryService service = new MenuDetailQueryService(preferencePort, persistencePort);
+        MenuLikePort menuLikePort = mock(MenuLikePort.class);
+        MenuReviewPort menuReviewPort = mock(MenuReviewPort.class);
+        MenuDetailQueryService service = new MenuDetailQueryService(preferencePort, persistencePort, menuLikePort, menuReviewPort);
 
         stubPreference(preferencePort);
         when(persistencePort.findMenuDetailsByMealMenuIds(Set.of(10L))).thenReturn(List.of(
-                new MenuDetailRow(10L, 1L, "Menu-10", "A", 1, 1L, "SUCCESS", 100L)
+                new MenuDetailRow(10L, 1L, 1L, "Menu-10", "A", 1, 1L, "SUCCESS", 100L)
         ));
         when(persistencePort.findTranslatedMenuNamesByMealMenuIds(Set.of(10L), "en"))
                 .thenReturn(java.util.Map.of(10L, "Menu-10-en"));
@@ -141,11 +187,20 @@ class MenuDetailQueryServiceTest {
         when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("en"))).thenReturn(List.of());
         when(persistencePort.findMatchedAllergies(1L, Set.of("RICE"), "en")).thenReturn(List.of());
         when(persistencePort.findReligiousRestrictionIngredients("HALAL")).thenReturn(List.of());
+        when(menuLikePort.countLikesByTargets(Set.of(new MenuLikeTarget(1L, 1L))))
+                .thenReturn(java.util.Map.of(new MenuLikeTarget(1L, 1L), 5L));
+        when(menuLikePort.findLikedTargetsByUser(1L, Set.of(new MenuLikeTarget(1L, 1L))))
+                .thenReturn(Set.of(new MenuLikeTarget(1L, 1L)));
+        when(menuReviewPort.countActiveReviewsByTargets(Set.of(new MenuLikeTarget(1L, 1L))))
+                .thenReturn(java.util.Map.of(new MenuLikeTarget(1L, 1L), 3L));
 
         MenuDetailResponse response = service.getMenuDetail(1L, 10L);
 
         assertThat(response.mealMenuId()).isEqualTo(10L);
         assertThat(response.menuName()).isEqualTo("Menu-10-en");
+        assertThat(response.like().count()).isEqualTo(5L);
+        assertThat(response.like().likedByMe()).isTrue();
+        assertThat(response.review().count()).isEqualTo(3L);
     }
 
     private void stubPreference(MealUserPreferencePort preferencePort) {

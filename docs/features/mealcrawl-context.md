@@ -89,3 +89,22 @@
 - `@Scheduled` 실행은 다중 인스턴스 환경을 전제로 lock 없이 확장하면 안 된다.
 - `PythonMealClientAdapter` 예외를 일반 예외로 덮어 원인 스택을 잃지 않도록 주의한다.
 - 트랜잭션 경계 변경 시 import 성공 보장 규칙과 후속 처리 분리를 함께 검토한다.
+
+## 9. Menu Like (2026-05-03)
+- Added menu-like target model based on `(cafeteria_id, menu_id)` instead of `meal_menu_id`.
+- Added `POST /api/v1/meal-menus/{mealMenuId}/like` toggle API.
+- Added `like { count, likedByMe }` to menu detail response (single and batch).
+- Duplicate likes are blocked by DB unique constraint: `UNIQUE(user_id, cafeteria_id, menu_id)`.
+
+## 10. Menu Review Community (2026-05-03)
+- Added menu community review APIs (review CRUD, review-like toggle, comment CRUD/list).
+- Review aggregation key is `(cafeteria_id, menu_id)` so same menu across different meal dates shares one community timeline.
+- Review write context stores `meal_menu_id` and `meal_date`.
+- Menu detail response now includes review summary count.
+
+## 11. Review Anonymous Display (2026-05-03)
+- Review/comment writer name no longer returns `users.name`.
+- Display name format: `Anonymous N`.
+- Anonymous numbering scope: `(cafeteria_id, menu_id)` participant set.
+- Participant set includes active review writers + active comment writers under active reviews.
+- Same user gets stable `Anonymous N` across pages and comment endpoints in same menu target.

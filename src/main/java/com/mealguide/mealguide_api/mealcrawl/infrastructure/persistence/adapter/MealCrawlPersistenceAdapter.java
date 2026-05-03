@@ -362,6 +362,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
     public Optional<MenuDetailRow> findMenuDetailByMealMenuId(Long mealMenuId) {
         String sql = """
                 select mm.id as meal_menu_id,
+                       ms.cafeteria_id,
                        mm.menu_id,
                        m.name as menu_name,
                        mm.corner_name,
@@ -379,6 +380,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
         MapSqlParameterSource params = new MapSqlParameterSource("mealMenuId", mealMenuId);
         List<MenuDetailRow> rows = namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MenuDetailRow(
                 rs.getLong("meal_menu_id"),
+                rs.getLong("cafeteria_id"),
                 rs.getLong("menu_id"),
                 rs.getString("menu_name"),
                 rs.getString("corner_name"),
@@ -399,6 +401,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
 
         String sql = """
                 select mm.id as meal_menu_id,
+                       ms.cafeteria_id,
                        mm.menu_id,
                        m.name as menu_name,
                        mm.corner_name,
@@ -415,6 +418,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
         MapSqlParameterSource params = new MapSqlParameterSource("mealMenuIds", mealMenuIds);
         return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MenuDetailRow(
                 rs.getLong("meal_menu_id"),
+                rs.getLong("cafeteria_id"),
                 rs.getLong("menu_id"),
                 rs.getString("menu_name"),
                 rs.getString("corner_name"),
