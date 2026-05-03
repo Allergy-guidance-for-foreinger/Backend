@@ -29,7 +29,8 @@ class MenuReviewServiceTest {
         MenuReviewPort port = mock(MenuReviewPort.class);
         MenuReviewService service = new MenuReviewService(port);
         when(port.findTargetByMealMenuId(10L)).thenReturn(Optional.of(new MenuReviewTargetRow(10L, 1L, 25L, LocalDate.now())));
-        when(port.findParticipantUserIdsByMenuTarget(1L, 25L)).thenReturn(List.of(1L));
+        when(port.findAnonymousNamesByMenuTargetAndUserIds(1L, 25L, Set.of(1L)))
+                .thenReturn(java.util.Map.of(1L, "Anonymous 1"));
         when(port.saveReview(1L, 1L, 25L, 10L, LocalDate.now(), "first")).thenReturn(100L);
         when(port.findActiveReviewById(100L)).thenReturn(Optional.of(reviewRow(100L, 1L, 1L, 25L, "first", 0, 0)));
 
@@ -48,7 +49,8 @@ class MenuReviewServiceTest {
         MenuReviewService service = new MenuReviewService(port);
         when(port.findTargetByMealMenuId(10L)).thenReturn(Optional.of(new MenuReviewTargetRow(10L, 1L, 25L, LocalDate.now())));
         when(port.countActiveReviews(1L, 25L)).thenReturn(2L);
-        when(port.findParticipantUserIdsByMenuTarget(1L, 25L)).thenReturn(List.of(2L, 3L));
+        when(port.findAnonymousNamesByMenuTargetAndUserIds(1L, 25L, Set.of(2L, 3L)))
+                .thenReturn(java.util.Map.of(2L, "Anonymous 1", 3L, "Anonymous 2"));
         when(port.findReviewPage(1L, 25L, 0, 20)).thenReturn(List.of(
                 reviewRow(101L, 2L, 1L, 25L, "a", 3, 1),
                 reviewRow(100L, 3L, 1L, 25L, "b", 1, 0)
@@ -71,7 +73,8 @@ class MenuReviewServiceTest {
         MenuReviewPort port = mock(MenuReviewPort.class);
         MenuReviewService service = new MenuReviewService(port);
         when(port.findActiveReviewById(10L)).thenReturn(Optional.of(reviewRow(10L, 2L, 1L, 25L, "c", 0, 0)));
-        when(port.findParticipantUserIdsByMenuTarget(1L, 25L)).thenReturn(List.of(1L, 2L));
+        when(port.findAnonymousNamesByMenuTargetAndUserIds(1L, 25L, Set.of(2L)))
+                .thenReturn(java.util.Map.of(2L, "Anonymous 2"));
         when(port.existsReviewLike(10L, 1L)).thenReturn(false, true);
         when(port.findReviewLikeCount(10L)).thenReturn(Optional.of(1L));
 
@@ -89,7 +92,8 @@ class MenuReviewServiceTest {
         MenuReviewService service = new MenuReviewService(port);
         when(port.findTargetByMealMenuId(10L)).thenReturn(Optional.of(new MenuReviewTargetRow(10L, 1L, 25L, LocalDate.now())));
         when(port.findActiveReviewById(99L)).thenReturn(Optional.of(reviewRow(99L, 2L, 1L, 25L, "x", 0, 0)));
-        when(port.findParticipantUserIdsByMenuTarget(1L, 25L)).thenReturn(List.of(1L, 2L));
+        when(port.findAnonymousNamesByMenuTargetAndUserIds(1L, 25L, Set.of(2L)))
+                .thenReturn(java.util.Map.of(2L, "Anonymous 2"));
 
         assertThatThrownBy(() -> service.updateReview(1L, 10L, 99L, "new"))
                 .isInstanceOf(ServiceException.class);
@@ -100,7 +104,8 @@ class MenuReviewServiceTest {
         MenuReviewPort port = mock(MenuReviewPort.class);
         MenuReviewService service = new MenuReviewService(port);
         when(port.findActiveReviewById(10L)).thenReturn(Optional.of(reviewRow(10L, 2L, 1L, 25L, "c", 0, 0)));
-        when(port.findParticipantUserIdsByMenuTarget(1L, 25L)).thenReturn(List.of(1L, 2L));
+        when(port.findAnonymousNamesByMenuTargetAndUserIds(1L, 25L, Set.of(1L)))
+                .thenReturn(java.util.Map.of(1L, "Anonymous 1"));
         when(port.saveComment(10L, 1L, "hello")).thenReturn(5L);
         when(port.findActiveCommentById(5L)).thenReturn(Optional.of(new MenuReviewCommentRow(
                 5L, 10L, 1L, "writer", "hello", LocalDateTime.now(), LocalDateTime.now()

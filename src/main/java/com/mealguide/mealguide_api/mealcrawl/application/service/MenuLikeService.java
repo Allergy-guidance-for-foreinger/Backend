@@ -22,18 +22,20 @@ public class MenuLikeService {
                 .orElseThrow(() -> new ServiceException(ErrorCode.BINDING_ERROR));
 
         boolean liked = menuLikePort.existsLike(userId, target.cafeteriaId(), target.menuId());
+        boolean likedByMe;
         if (liked) {
             menuLikePort.deleteLike(userId, target.cafeteriaId(), target.menuId());
+            likedByMe = false;
         } else {
             try {
                 menuLikePort.saveLike(userId, target.cafeteriaId(), target.menuId());
+                likedByMe = true;
             } catch (DataIntegrityViolationException ignored) {
-                // unique(user_id, cafeteria_id, menu_id) 충돌은 이미 좋아요가 있는 상태로 간주
+                likedByMe = true;
             }
         }
 
         long likeCount = menuLikePort.countLikes(target.cafeteriaId(), target.menuId());
-        boolean likedByMe = menuLikePort.existsLike(userId, target.cafeteriaId(), target.menuId());
         return new MenuLikeToggleResponse(
                 mealMenuId,
                 target.cafeteriaId(),

@@ -38,7 +38,7 @@ public class MenuReview {
     @Column(name = "meal_date")
     private LocalDate mealDate;
 
-    @Column(name = "content", nullable = false)
+    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
     @Column(name = "like_count", nullable = false)

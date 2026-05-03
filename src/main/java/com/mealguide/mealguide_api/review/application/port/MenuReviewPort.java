@@ -26,7 +26,7 @@ public interface MenuReviewPort {
 
     Map<MenuLikeTarget, Long> countActiveReviewsByTargets(Set<MenuLikeTarget> targets);
 
-    List<Long> findParticipantUserIdsByMenuTarget(Long cafeteriaId, Long menuId);
+    Map<Long, String> findAnonymousNamesByMenuTargetAndUserIds(Long cafeteriaId, Long menuId, Set<Long> userIds);
 
     List<MenuReviewRow> findReviewPage(Long cafeteriaId, Long menuId, int page, int size);
 

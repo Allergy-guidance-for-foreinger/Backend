@@ -7,10 +7,8 @@ import com.mealguide.mealguide_api.review.application.port.MenuReviewPort;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuLikeTarget;
 import com.mealguide.mealguide_api.review.domain.MenuReview;
 import com.mealguide.mealguide_api.review.domain.MenuReviewComment;
-import com.mealguide.mealguide_api.review.domain.MenuReviewLike;
 import com.mealguide.mealguide_api.review.infrastructure.persistence.repository.MenuReviewCommentJpaRepository;
 import com.mealguide.mealguide_api.review.infrastructure.persistence.repository.MenuReviewJpaRepository;
-import com.mealguide.mealguide_api.review.infrastructure.persistence.repository.MenuReviewLikeJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -30,7 +28,6 @@ import java.util.Set;
 public class MenuReviewPersistenceAdapter implements MenuReviewPort {
 
     private final MenuReviewJpaRepository menuReviewJpaRepository;
-    private final MenuReviewLikeJpaRepository menuReviewLikeJpaRepository;
     private final MenuReviewCommentJpaRepository menuReviewCommentJpaRepository;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
@@ -48,7 +45,7 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
                 rs.getLong("meal_menu_id"),
                 rs.getLong("cafeteria_id"),
                 rs.getLong("menu_id"),
-                rs.getDate("meal_date").toLocalDate()
+                rs.getObject("meal_date", LocalDate.class)
         ));
         return rows.stream().findFirst();
     }
@@ -163,31 +160,49 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Long> findParticipantUserIdsByMenuTarget(Long cafeteriaId, Long menuId) {
+    public Map<Long, String> findAnonymousNamesByMenuTargetAndUserIds(Long cafeteriaId, Long menuId, Set<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Map.of();
+        }
         String sql = """
-                select distinct participant.user_id
-                from (
-                    select mr.user_id
-                    from menu_review mr
-                    where mr.cafeteria_id = :cafeteriaId
-                      and mr.menu_id = :menuId
-                      and mr.deleted_at is null
+                with participants as (
+                    select distinct participant.user_id
+                    from (
+                        select mr.user_id
+                        from menu_review mr
+                        where mr.cafeteria_id = :cafeteriaId
+                          and mr.menu_id = :menuId
+                          and mr.deleted_at is null
 
-                    union
+                        union
 
-                    select mrc.user_id
-                    from menu_review_comment mrc
-                    join menu_review mr on mr.id = mrc.review_id
-                    where mr.cafeteria_id = :cafeteriaId
-                      and mr.menu_id = :menuId
-                      and mr.deleted_at is null
-                      and mrc.deleted_at is null
-                ) participant
-                order by participant.user_id asc
+                        select mrc.user_id
+                        from menu_review_comment mrc
+                        join menu_review mr on mr.id = mrc.review_id
+                        where mr.cafeteria_id = :cafeteriaId
+                          and mr.menu_id = :menuId
+                          and mr.deleted_at is null
+                          and mrc.deleted_at is null
+                    ) participant
+                ),
+                ranked as (
+                    select user_id, dense_rank() over (order by user_id asc) as anon_no
+                    from participants
+                )
+                select user_id, anon_no
+                from ranked
+                where user_id in (:userIds)
                 """;
-        return namedParameterJdbcTemplate.query(sql, new MapSqlParameterSource()
+        Map<Long, String> anonymousNames = new HashMap<>();
+        namedParameterJdbcTemplate.query(sql, new MapSqlParameterSource()
                 .addValue("cafeteriaId", cafeteriaId)
-                .addValue("menuId", menuId), (rs, rowNum) -> rs.getLong("user_id"));
+                .addValue("menuId", menuId)
+                .addValue("userIds", userIds), rs -> {
+            long userId = rs.getLong("user_id");
+            long anonNo = rs.getLong("anon_no");
+            anonymousNames.put(userId, "Anonymous " + anonNo);
+        });
+        return anonymousNames;
     }
 
     @Override
@@ -263,7 +278,13 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
     @Override
     @Transactional
     public void saveReviewLike(Long reviewId, Long userId) {
-        menuReviewLikeJpaRepository.save(MenuReviewLike.create(reviewId, userId));
+        String sql = """
+                insert into menu_review_like (review_id, user_id, created_at)
+                values (:reviewId, :userId, now())
+                """;
+        namedParameterJdbcTemplate.update(sql, new MapSqlParameterSource()
+                .addValue("reviewId", reviewId)
+                .addValue("userId", userId));
     }
 
     @Override

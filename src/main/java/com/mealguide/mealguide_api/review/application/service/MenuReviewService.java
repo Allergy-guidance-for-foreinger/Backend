@@ -19,9 +19,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
 import java.util.Set;
 
 @Service
@@ -47,7 +47,8 @@ public class MenuReviewService {
         List<MenuReviewRow> rows = menuReviewPort.findReviewPage(target.cafeteriaId(), target.menuId(), normalizedPage, normalizedSize);
         List<Long> reviewIds = rows.stream().map(MenuReviewRow::reviewId).toList();
         Set<Long> likedIds = menuReviewPort.findLikedReviewIds(userId, reviewIds);
-        Map<Long, String> anonymousNames = resolveAnonymousNames(target.cafeteriaId(), target.menuId());
+        Set<Long> writerUserIds = rows.stream().map(MenuReviewRow::userId).collect(java.util.stream.Collectors.toSet());
+        Map<Long, String> anonymousNames = resolveAnonymousNamesForUsers(target.cafeteriaId(), target.menuId(), writerUserIds);
 
         List<MenuReviewItemResponse> items = rows.stream().map(row -> new MenuReviewItemResponse(
                 row.reviewId(),
@@ -87,8 +88,12 @@ public class MenuReviewService {
         );
         MenuReviewRow review = menuReviewPort.findActiveReviewById(reviewId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.BINDING_ERROR));
-        Map<Long, String> anonymousNames = resolveAnonymousNames(review.cafeteriaId(), review.menuId());
-        return toReviewResponse(review, true, true, anonymousNames);
+        Map<Long, String> anonymousNames = resolveAnonymousNamesForUsers(
+                review.cafeteriaId(),
+                review.menuId(),
+                Set.of(review.userId())
+        );
+        return toReviewResponse(review, false, true, anonymousNames);
     }
 
     @Transactional
@@ -107,7 +112,11 @@ public class MenuReviewService {
         MenuReviewRow updated = menuReviewPort.findActiveReviewById(reviewId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.BINDING_ERROR));
         boolean likedByMe = menuReviewPort.existsReviewLike(reviewId, userId);
-        Map<Long, String> anonymousNames = resolveAnonymousNames(updated.cafeteriaId(), updated.menuId());
+        Map<Long, String> anonymousNames = resolveAnonymousNamesForUsers(
+                updated.cafeteriaId(),
+                updated.menuId(),
+                Set.of(updated.userId())
+        );
         return toReviewResponse(updated, likedByMe, true, anonymousNames);
     }
 
@@ -130,21 +139,23 @@ public class MenuReviewService {
                 .orElseThrow(() -> new ServiceException(ErrorCode.REVIEW_NOT_FOUND));
 
         boolean exists = menuReviewPort.existsReviewLike(reviewId, userId);
+        boolean likedByMe;
         if (exists) {
             menuReviewPort.deleteReviewLike(reviewId, userId);
             menuReviewPort.decrementReviewLikeCount(reviewId);
+            likedByMe = false;
         } else {
             try {
                 menuReviewPort.saveReviewLike(reviewId, userId);
                 menuReviewPort.incrementReviewLikeCount(reviewId);
+                likedByMe = true;
             } catch (DataIntegrityViolationException ignored) {
-                // unique 충돌은 이미 좋아요 상태로 간주
+                likedByMe = true;
             }
         }
 
         long likeCount = menuReviewPort.findReviewLikeCount(reviewId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.BINDING_ERROR));
-        boolean likedByMe = menuReviewPort.existsReviewLike(reviewId, userId);
         return new ReviewLikeToggleResponse(reviewId, likeCount, likedByMe);
     }
 
@@ -154,10 +165,15 @@ public class MenuReviewService {
         int normalizedSize = normalizeSize(size);
         MenuReviewRow review = menuReviewPort.findActiveReviewById(reviewId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.REVIEW_NOT_FOUND));
-        Map<Long, String> anonymousNames = resolveAnonymousNames(review.cafeteriaId(), review.menuId());
+        List<MenuReviewCommentRow> commentRows = menuReviewPort.findCommentPage(reviewId, normalizedPage, normalizedSize);
+        Set<Long> commentUserIds = commentRows
+                .stream()
+                .map(MenuReviewCommentRow::userId)
+                .collect(java.util.stream.Collectors.toSet());
+        Map<Long, String> anonymousNames = resolveAnonymousNamesForUsers(review.cafeteriaId(), review.menuId(), commentUserIds);
 
         long total = menuReviewPort.countActiveComments(reviewId);
-        List<ReviewCommentItemResponse> comments = menuReviewPort.findCommentPage(reviewId, normalizedPage, normalizedSize)
+        List<ReviewCommentItemResponse> comments = commentRows
                 .stream()
                 .map(row -> new ReviewCommentItemResponse(
                         row.commentId(),
@@ -184,7 +200,11 @@ public class MenuReviewService {
         menuReviewPort.incrementReviewCommentCount(reviewId);
         MenuReviewCommentRow comment = menuReviewPort.findActiveCommentById(commentId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.COMMENT_NOT_FOUND));
-        Map<Long, String> anonymousNames = resolveAnonymousNames(review.cafeteriaId(), review.menuId());
+        Map<Long, String> anonymousNames = resolveAnonymousNamesForUsers(
+                review.cafeteriaId(),
+                review.menuId(),
+                Set.of(comment.userId())
+        );
         return toCommentResponse(comment, true, anonymousNames);
     }
 
@@ -204,7 +224,11 @@ public class MenuReviewService {
         menuReviewPort.updateCommentContent(commentId, normalizedContent);
         MenuReviewCommentRow updated = menuReviewPort.findActiveCommentById(commentId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.BINDING_ERROR));
-        Map<Long, String> anonymousNames = resolveAnonymousNames(review.cafeteriaId(), review.menuId());
+        Map<Long, String> anonymousNames = resolveAnonymousNamesForUsers(
+                review.cafeteriaId(),
+                review.menuId(),
+                Set.of(updated.userId())
+        );
         return toCommentResponse(updated, true, anonymousNames);
     }
 
@@ -324,17 +348,11 @@ public class MenuReviewService {
         );
     }
 
-    private Map<Long, String> resolveAnonymousNames(Long cafeteriaId, Long menuId) {
-        List<Long> participantIds = menuReviewPort.findParticipantUserIdsByMenuTarget(cafeteriaId, menuId);
-        if (participantIds == null) {
-            participantIds = List.of();
+    private Map<Long, String> resolveAnonymousNamesForUsers(Long cafeteriaId, Long menuId, Set<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Map.of();
         }
-        Map<Long, String> map = new LinkedHashMap<>();
-        int index = 1;
-        for (Long participantId : participantIds) {
-            map.put(participantId, "Anonymous " + index);
-            index++;
-        }
-        return map;
+        Map<Long, String> map = menuReviewPort.findAnonymousNamesByMenuTargetAndUserIds(cafeteriaId, menuId, new HashSet<>(userIds));
+        return map == null ? Map.of() : map;
     }
 }
