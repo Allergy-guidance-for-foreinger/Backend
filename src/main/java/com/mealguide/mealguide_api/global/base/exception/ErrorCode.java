@@ -50,7 +50,15 @@ public enum ErrorCode {
     INVALID_ALLERGY_CODE(BAD_REQUEST, "USER_018", "???쟿?쒕떯由??꾨뗀諭뜹첎? ??而?몴?? ??녿뮸??덈뼄."),
     INVALID_RELIGIOUS_CODE(BAD_REQUEST, "USER_019", "?ル굛?????뱀뵠 ??쀫립 ?꾨뗀諭뜹첎? ??而?몴?? ??녿뮸??덈뼄."),
     INVALID_COUNTRY_CODE(BAD_REQUEST, "USER_020", "援?? 肄붾뱶媛 ?щ컮瑜댁? ?딆뒿?덈떎."),
-    INVALID_SCHOOL_ID(BAD_REQUEST, "USER_021", "?숆탳 ID媛 ?щ컮瑜댁? ?딆뒿?덈떎.");
+    INVALID_SCHOOL_ID(BAD_REQUEST, "USER_021", "?숆탳 ID媛 ?щ컮瑜댁? ?딆뒿?덈떎."),
+
+    MEAL_MENU_NOT_FOUND(NOT_FOUND, "MEAL_001", "Meal menu not found."),
+    REVIEW_NOT_FOUND(NOT_FOUND, "REVIEW_001", "Review not found."),
+    COMMENT_NOT_FOUND(NOT_FOUND, "COMMENT_001", "Comment not found."),
+    REVIEW_FORBIDDEN(FORBIDDEN, "REVIEW_002", "No permission for this review."),
+    COMMENT_FORBIDDEN(FORBIDDEN, "COMMENT_002", "No permission for this comment."),
+    INVALID_REVIEW_CONTENT(BAD_REQUEST, "REVIEW_003", "Invalid review content."),
+    INVALID_COMMENT_CONTENT(BAD_REQUEST, "COMMENT_003", "Invalid comment content.");
 
     private final HttpStatus status;
     private final String code;

@@ -9,7 +9,10 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealUserPreferencePort;
+import com.mealguide.mealguide_api.mealcrawl.application.port.MenuLikePort;
+import com.mealguide.mealguide_api.review.application.port.MenuReviewPort;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuRiskLevel;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuLikeTarget;
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuDetailBatchResponse;
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuDetailResponse;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +38,8 @@ public class MenuDetailQueryService {
 
     private final MealUserPreferencePort mealUserPreferencePort;
     private final MealCrawlPersistencePort mealCrawlPersistencePort;
+    private final MenuLikePort menuLikePort;
+    private final MenuReviewPort menuReviewPort;
 
     public MenuDetailResponse getMenuDetail(Long userId, Long mealMenuId) {
         MenuDetailBatchResponse response = getMenuDetails(userId, List.of(mealMenuId));
@@ -84,6 +89,17 @@ public class MenuDetailQueryService {
         Set<String> religiousRestrictedCodes = religiousRestrictions.stream()
                 .map(RestrictionIngredientRow::ingredientCode)
                 .collect(Collectors.toSet());
+        Map<Long, MenuLikeTarget> likeTargetsByMealMenuId = new LinkedHashMap<>();
+        for (MenuDetailRow detailRow : detailsById.values()) {
+            likeTargetsByMealMenuId.put(
+                    detailRow.mealMenuId(),
+                    new MenuLikeTarget(detailRow.cafeteriaId(), detailRow.menuId())
+            );
+        }
+        Set<MenuLikeTarget> likeTargets = new HashSet<>(likeTargetsByMealMenuId.values());
+        Map<MenuLikeTarget, Long> likeCountByTarget = menuLikePort.countLikesByTargets(likeTargets);
+        Set<MenuLikeTarget> likedTargetsByUser = menuLikePort.findLikedTargetsByUser(userId, likeTargets);
+        Map<MenuLikeTarget, Long> reviewCountByTarget = menuReviewPort.countActiveReviewsByTargets(likeTargets);
 
         List<MenuDetailResponse> menus = new ArrayList<>(normalizedIds.size());
         for (Long mealMenuId : normalizedIds) {
@@ -103,6 +119,9 @@ public class MenuDetailQueryService {
 
             MenuRiskLevel riskLevel = evaluateRiskLevel(ingredientSelection, matchedAllergies, religiousRestrictedCodes);
             String menuName = translatedMenuNames.getOrDefault(mealMenuId, detail.menuName());
+            MenuLikeTarget likeTarget = likeTargetsByMealMenuId.get(mealMenuId);
+            long likeCount = likeCountByTarget.getOrDefault(likeTarget, 0L);
+            boolean likedByMe = likedTargetsByUser.contains(likeTarget);
 
             menus.add(new MenuDetailResponse(
                     detail.mealMenuId(),
@@ -114,7 +133,9 @@ public class MenuDetailQueryService {
                     AI_STATUS_SUCCESS.equals(detail.aiAnalysisStatus()),
                     new MenuDetailResponse.MenuRiskResponse(riskLevel.name()),
                     ingredientSelection.ingredients(),
-                    matchedAllergies
+                    matchedAllergies,
+                    new MenuDetailResponse.LikeResponse(likeCount, likedByMe),
+                    new MenuDetailResponse.ReviewSummaryResponse(reviewCountByTarget.getOrDefault(likeTarget, 0L))
             ));
         }
         return new MenuDetailBatchResponse(menus);

@@ -12,7 +12,9 @@ public record MenuDetailResponse(
         boolean aiAnalyzed,
         MenuRiskResponse risk,
         List<IngredientResponse> ingredients,
-        List<MatchedAllergyResponse> matchedAllergies
+        List<MatchedAllergyResponse> matchedAllergies,
+        LikeResponse like,
+        ReviewSummaryResponse review
 ) {
     public record MenuRiskResponse(
             String riskLevel
@@ -28,6 +30,17 @@ public record MenuDetailResponse(
     public record MatchedAllergyResponse(
             String allergyCode,
             String ingredientCode
+    ) {
+    }
+
+    public record LikeResponse(
+            long count,
+            boolean likedByMe
+    ) {
+    }
+
+    public record ReviewSummaryResponse(
+            long count
     ) {
     }
 }

@@ -2,6 +2,7 @@ package com.mealguide.mealguide_api.mealcrawl.application.dto;
 
 public record MenuDetailRow(
         Long mealMenuId,
+        Long cafeteriaId,
         Long menuId,
         String menuName,
         String cornerName,

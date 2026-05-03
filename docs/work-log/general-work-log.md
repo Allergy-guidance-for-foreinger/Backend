@@ -589,3 +589,31 @@
   - `docs/work-log/general-work-log.md`
 - Remaining follow-ups:
   - Maven wrapper execution issue remains in this environment (`Cannot start maven from wrapper`), so test execution should be verified in local IDE/shell.
+
+## 2026-05-03
+- 메뉴 상세 조회 응답에 `like(count, likedByMe)` 필드 추가.
+- `POST /api/v1/meal-menus/{mealMenuId}/like` 토글 API 추가.
+- 좋아요 기준을 `meal_menu_id`가 아닌 `(cafeteria_id, menu_id)`로 설계.
+- `menu_like` 테이블과 unique/index 제약 추가로 중복 좋아요 방지.
+- 서비스/포트/어댑터/스웨거/테스트 및 관련 문서 업데이트.
+
+## 2026-05-03 (Menu Community Review)
+- Added community-style review feature in `mealcrawl` package.
+- Added APIs:
+  - `GET/POST/PATCH/DELETE /api/v1/meal-menus/{mealMenuId}/reviews`
+  - `POST /api/v1/reviews/{reviewId}/like`
+  - `GET/POST/PATCH/DELETE /api/v1/reviews/{reviewId}/comments`
+- Added menu detail review summary field (`review.count`).
+- Added DB tables: `menu_review`, `menu_review_like`, `menu_review_comment`.
+- Review list key uses `(cafeteria_id, menu_id)` and supports multiple posts by same user.
+- Soft delete uses `deleted_at` for reviews/comments.
+- Review list ordering: `meal_date DESC NULLS LAST, like_count DESC, created_at DESC, id DESC`.
+- Comment list ordering: `created_at ASC, id ASC`.
+
+## 2026-05-03 (Review Anonymous Display)
+- Removed real-name exposure for review/comment writer fields.
+- Writer display now uses `Anonymous N` mapping.
+- Mapping key is `(cafeteria_id, menu_id)` participant scope (active reviews + active comments).
+- Same user keeps same anonymous number across review pages and comment APIs for same menu target.
+- `mine` field remains for UI ownership actions.
+- review/comment response `userId` fields removed to reduce tracking risk.
