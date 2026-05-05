@@ -38,9 +38,9 @@ public class SettingsService {
     }
 
     @Transactional(readOnly = true)
-    public AllergyOptionsResponse getAllergyOptions(Long userId) {
+    public AllergyOptionsResponse getPrimaryAllergyOptions(Long userId) {
         String languageCode = userPreferenceService.getLanguage(userId);
-        List<AllergyOptionItemResponse> allergies = getAllergies(languageCode).stream()
+        List<AllergyOptionItemResponse> allergies = getPrimaryAllergies(languageCode).stream()
                 .map(AllergyOptionItemResponse::from)
                 .toList();
         return new AllergyOptionsResponse(allergies);
@@ -78,8 +78,22 @@ public class SettingsService {
     }
 
     @Transactional(readOnly = true)
-    public List<AllergyOption> getAllergies(String langCode) {
-        return settingsMasterQueryPort.findAllergies(normalize(langCode));
+    public AllergyOptionsResponse getAdditionalAllergyOptions(Long userId) {
+        String languageCode = userPreferenceService.getLanguage(userId);
+        List<AllergyOptionItemResponse> allergies = getAdditionalAllergies(languageCode).stream()
+                .map(AllergyOptionItemResponse::from)
+                .toList();
+        return new AllergyOptionsResponse(allergies);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AllergyOption> getPrimaryAllergies(String langCode) {
+        return settingsMasterQueryPort.findPrimaryAllergies(normalize(langCode));
+    }
+
+    @Transactional(readOnly = true)
+    public List<AllergyOption> getAdditionalAllergies(String langCode) {
+        return settingsMasterQueryPort.findAdditionalAllergies(normalize(langCode));
     }
 
     @Transactional(readOnly = true)

@@ -36,6 +36,23 @@ class OnboardingServiceTest {
     }
 
     @Test
+    void completeOnboardingAllowsAdditionalAllergyCode() {
+        FakeOnboardingCommandPort commandPort = new FakeOnboardingCommandPort();
+        OnboardingService onboardingService = new OnboardingService(commandPort);
+
+        OnboardingCompletion completion = onboardingService.completeOnboarding(
+                1L,
+                "en",
+                10L,
+                List.of("CELERY"),
+                null,
+                "KR"
+        );
+
+        assertThat(completion.allergyCodes()).containsExactly("CELERY");
+    }
+
+    @Test
     void completeOnboardingFailsWhenSchoolIdIsInvalid() {
         OnboardingService onboardingService = new OnboardingService(new FakeOnboardingCommandPort());
 
@@ -76,7 +93,7 @@ class OnboardingServiceTest {
 
         @Override
         public boolean existsAllAllergyCodes(Set<String> allergyCodes) {
-            return allergyCodes.stream().allMatch(code -> code.equals("EGG") || code.equals("MILK"));
+            return allergyCodes.stream().allMatch(code -> code.equals("EGG") || code.equals("MILK") || code.equals("CELERY"));
         }
 
         @Override

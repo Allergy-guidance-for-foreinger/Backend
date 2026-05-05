@@ -2,6 +2,8 @@ package com.mealguide.mealguide_api.settings.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -22,6 +24,10 @@ public class Allergy {
 
     @Column(nullable = false, length = 100)
     private String name;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "allergy_group", nullable = false, length = 20)
+    private AllergyGroup allergyGroup;
 
     @Column(name = "display_order", nullable = false)
     private int displayOrder;

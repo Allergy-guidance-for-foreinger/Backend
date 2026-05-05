@@ -14,7 +14,9 @@ public interface SettingsMasterQueryPort {
 
     boolean existsLanguageCode(String languageCode);
 
-    List<AllergyOption> findAllergies(String langCode);
+    List<AllergyOption> findPrimaryAllergies(String langCode);
+
+    List<AllergyOption> findAdditionalAllergies(String langCode);
 
     boolean existsAllAllergyCodes(Set<String> allergyCodes);
 

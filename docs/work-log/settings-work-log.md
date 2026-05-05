@@ -22,6 +22,53 @@
 ## 참고 문서
 - 기능 맥락: `docs/features/settings-context.md`
 - 공통 규칙: `docs/project-context.md`, `docs/database-context.md`
+
+### 2026-05-05 (대표/부가 알레르기 옵션 API 분리 및 allergy_group 반영)
+- What changed:
+  - `settings.domain.AllergyGroup` enum(`PRIMARY`, `ADDITIONAL`)을 추가했다.
+  - `Allergy` entity에 `allergyGroup` 필드(`allergy_group`)를 추가했다.
+  - 기존 `GET /api/v1/settings/options/allergies`를 제거했다.
+  - 신규 옵션 API를 추가했다.
+    - `GET /api/v1/settings/options/allergies/primary`
+    - `GET /api/v1/settings/options/allergies/additional`
+  - `AllergyJpaRepository` 조회를 그룹 기준 쿼리로 변경했다.
+  - `SettingsMasterQueryPort`/`SettingsMasterPersistenceAdapter`/`SettingsService`를 대표/부가 조회 유스케이스로 분리했다.
+  - `PUT /api/v1/settings/allergies` 저장 로직은 유지했고, `allergy.code` 존재 검증 기반이라 `PRIMARY`/`ADDITIONAL` 모두 저장 가능함을 확인했다.
+  - 온보딩 `POST /api/v1/onboarding/complete`도 동일한 code 존재 검증 기반이라 `ADDITIONAL` 저장이 가능함을 테스트로 확인했다.
+  - `user_avoided_ingredient`, `UserAvoidedIngredient`, `avoidedIngredient`, `avoided_ingredient` 키워드 사용처를 검색했고 코드/문서 내 사용처가 없음을 확인했다.
+  - `ingredient`, `allergy_ingredient`, `religious_food_restriction_ingredient` 관련 구조는 변경하지 않았다.
+  - 관련 테스트를 추가/수정했다.
+- Why:
+  - 실제 DB의 `allergy_group` 반영 상태와 API 설계를 일치시키고, 대표/부가 옵션을 분리 제공하기 위해.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/settings/domain/AllergyGroup.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/domain/Allergy.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/repository/AllergyJpaRepository.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/application/port/SettingsMasterQueryPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/adapter/SettingsMasterPersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/application/service/SettingsService.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsController.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsOptionsApi.java`
+  - `src/test/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/repository/AllergyJpaRepositoryTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/settings/application/service/SettingsServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerSecurityTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/onboarding/application/service/OnboardingServiceTest.java`
+  - `docs/features/settings-context.md`
+  - `docs/features/onboarding-context.md`
+  - `docs/work-log/settings-work-log.md`
+- DB schema changed: No (`docs/schema.sql` 미수정)
+- API behavior changed:
+  - 제거: `GET /api/v1/settings/options/allergies`
+  - 추가: `GET /api/v1/settings/options/allergies/primary`, `GET /api/v1/settings/options/allergies/additional`
+  - 유지: `PUT /api/v1/settings/allergies`
+- Related docs updated:
+  - `docs/features/settings-context.md`
+  - `docs/features/onboarding-context.md`
+  - `docs/work-log/settings-work-log.md`
+- Remaining follow-ups:
+  - 없음
 ### 2026-05-02 (settings DTO 깨진 Swagger 설명 복구)
 - What changed:
   - settings DTO(request/response)에서 깨진 Swagger `description` 문자열을 정상 한글로 복구했다.

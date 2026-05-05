@@ -83,6 +83,14 @@ class UserPreferenceServiceTest {
     }
 
     @Test
+    void replaceAllergiesAllowsAdditionalAllergyCode() {
+        List<String> updated = userPreferenceService.replaceAllergies(1L, List.of("CELERY"));
+
+        assertThat(updated).containsExactly("CELERY");
+        assertThat(userPreferencePort.savedAllergyCodes).containsExactly("CELERY");
+    }
+
+    @Test
     void replaceAllergiesFailsWhenAnyCodeDoesNotExist() {
         assertThatThrownBy(() -> userPreferenceService.replaceAllergies(1L, List.of("EGG", "missing")))
                 .isInstanceOf(ServiceException.class)
@@ -191,7 +199,7 @@ class UserPreferenceServiceTest {
 
     private static class FakeSettingsMasterQueryPort implements SettingsMasterQueryPort {
         private final Set<String> languageCodes = Set.of("ko", "en");
-        private final Set<String> allergyCodes = Set.of("EGG", "MILK", "SHRIMP");
+        private final Set<String> allergyCodes = Set.of("EGG", "MILK", "SHRIMP", "CELERY");
         private final Set<String> religiousCodes = Set.of("HALAL", "HINDU");
         private final Set<String> countryCodes = Set.of("KR", "US");
         private final Set<Long> schoolIds = Set.of(1L, 2L, 10L);
@@ -207,7 +215,12 @@ class UserPreferenceServiceTest {
         }
 
         @Override
-        public List<AllergyOption> findAllergies(String langCode) {
+        public List<AllergyOption> findPrimaryAllergies(String langCode) {
+            return List.of();
+        }
+
+        @Override
+        public List<AllergyOption> findAdditionalAllergies(String langCode) {
             return List.of();
         }
 

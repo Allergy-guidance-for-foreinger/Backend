@@ -617,3 +617,20 @@
 - Same user keeps same anonymous number across review pages and comment APIs for same menu target.
 - `mine` field remains for UI ownership actions.
 - review/comment response `userId` fields removed to reduce tracking risk.
+
+## 2026-05-04 (global exception package Korean encoding fix)
+- What changed:
+  - Restored broken Korean messages in global.base.exception.ErrorCode.
+  - Kept all error codes and HTTP status mappings unchanged.
+- Why:
+  - Korean message strings were mojibake and unreadable in API error responses.
+- Affected files:
+  - src/main/java/com/mealguide/mealguide_api/global/base/exception/ErrorCode.java`r
+  - docs/work-log/general-work-log.md`r
+- DB schema changed: No
+- API behavior changed:
+  - Response schema unchanged. Human-readable Korean error messages are now restored.
+- Related docs updated:
+  - docs/work-log/general-work-log.md`r
+- Remaining follow-ups:
+  - None
