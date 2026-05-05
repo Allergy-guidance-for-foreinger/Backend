@@ -1,6 +1,7 @@
 package com.mealguide.mealguide_api.settings.application.port;
 
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
+import com.mealguide.mealguide_api.settings.domain.AllergyGroup;
 import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
 import com.mealguide.mealguide_api.settings.domain.ReligiousRestrictionOption;
@@ -14,9 +15,7 @@ public interface SettingsMasterQueryPort {
 
     boolean existsLanguageCode(String languageCode);
 
-    List<AllergyOption> findPrimaryAllergies(String langCode);
-
-    List<AllergyOption> findAdditionalAllergies(String langCode);
+    List<AllergyOption> findAllergyOptionsByGroup(String langCode, AllergyGroup group);
 
     boolean existsAllAllergyCodes(Set<String> allergyCodes);
 

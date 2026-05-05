@@ -41,13 +41,8 @@ public class SettingsMasterPersistenceAdapter implements SettingsMasterQueryPort
     }
 
     @Override
-    public List<AllergyOption> findPrimaryAllergies(String langCode) {
-        return allergyJpaRepository.findAllergyOptionsByGroup(langCode, AllergyGroup.PRIMARY);
-    }
-
-    @Override
-    public List<AllergyOption> findAdditionalAllergies(String langCode) {
-        return allergyJpaRepository.findAllergyOptionsByGroup(langCode, AllergyGroup.ADDITIONAL);
+    public List<AllergyOption> findAllergyOptionsByGroup(String langCode, AllergyGroup group) {
+        return allergyJpaRepository.findAllergyOptionsByGroup(langCode, group);
     }
 
     @Override

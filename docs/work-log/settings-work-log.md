@@ -58,7 +58,7 @@
   - `docs/features/settings-context.md`
   - `docs/features/onboarding-context.md`
   - `docs/work-log/settings-work-log.md`
-- DB schema changed: No (`docs/schema.sql` 미수정)
+- DB schema changed: Yes (`docs/schema.sql` 미수정)
 - API behavior changed:
   - 제거: `GET /api/v1/settings/options/allergies`
   - 추가: `GET /api/v1/settings/options/allergies/primary`, `GET /api/v1/settings/options/allergies/additional`

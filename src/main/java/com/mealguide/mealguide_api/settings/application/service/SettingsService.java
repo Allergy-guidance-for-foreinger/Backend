@@ -1,6 +1,7 @@
 package com.mealguide.mealguide_api.settings.application.service;
 
 import com.mealguide.mealguide_api.settings.application.port.SettingsMasterQueryPort;
+import com.mealguide.mealguide_api.settings.domain.AllergyGroup;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
 import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
@@ -40,7 +41,7 @@ public class SettingsService {
     @Transactional(readOnly = true)
     public AllergyOptionsResponse getPrimaryAllergyOptions(Long userId) {
         String languageCode = userPreferenceService.getLanguage(userId);
-        List<AllergyOptionItemResponse> allergies = getPrimaryAllergies(languageCode).stream()
+        List<AllergyOptionItemResponse> allergies = getAllergiesByGroup(languageCode, AllergyGroup.PRIMARY).stream()
                 .map(AllergyOptionItemResponse::from)
                 .toList();
         return new AllergyOptionsResponse(allergies);
@@ -80,20 +81,15 @@ public class SettingsService {
     @Transactional(readOnly = true)
     public AllergyOptionsResponse getAdditionalAllergyOptions(Long userId) {
         String languageCode = userPreferenceService.getLanguage(userId);
-        List<AllergyOptionItemResponse> allergies = getAdditionalAllergies(languageCode).stream()
+        List<AllergyOptionItemResponse> allergies = getAllergiesByGroup(languageCode, AllergyGroup.ADDITIONAL).stream()
                 .map(AllergyOptionItemResponse::from)
                 .toList();
         return new AllergyOptionsResponse(allergies);
     }
 
     @Transactional(readOnly = true)
-    public List<AllergyOption> getPrimaryAllergies(String langCode) {
-        return settingsMasterQueryPort.findPrimaryAllergies(normalize(langCode));
-    }
-
-    @Transactional(readOnly = true)
-    public List<AllergyOption> getAdditionalAllergies(String langCode) {
-        return settingsMasterQueryPort.findAdditionalAllergies(normalize(langCode));
+    private List<AllergyOption> getAllergiesByGroup(String langCode, AllergyGroup group) {
+        return settingsMasterQueryPort.findAllergyOptionsByGroup(normalize(langCode), group);
     }
 
     @Transactional(readOnly = true)

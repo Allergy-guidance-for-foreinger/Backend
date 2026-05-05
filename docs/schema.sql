@@ -854,6 +854,63 @@ SET
     allergy_group = EXCLUDED.allergy_group,
     display_order = EXCLUDED.display_order;
 
+INSERT INTO allergy_translation (
+    allergy_code,
+    lang_code,
+    name,
+    is_auto_translated,
+    created_at,
+    updated_at
+)
+VALUES
+    ('CELERY', 'ko', '셀러리', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('CELERY', 'en', 'Celery', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('MUSTARD', 'ko', '겨자', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('MUSTARD', 'en', 'Mustard', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('LUPIN', 'ko', '루핀', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('LUPIN', 'en', 'Lupin', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('TREE_NUT', 'ko', '견과류', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('TREE_NUT', 'en', 'Tree nuts', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('ALMOND', 'ko', '아몬드', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('ALMOND', 'en', 'Almond', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('CASHEW', 'ko', '캐슈넛', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('CASHEW', 'en', 'Cashew', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('PISTACHIO', 'ko', '피스타치오', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('PISTACHIO', 'en', 'Pistachio', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('HAZELNUT', 'ko', '헤이즐넛', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('HAZELNUT', 'en', 'Hazelnut', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('PECAN', 'ko', '피칸', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('PECAN', 'en', 'Pecan', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('MACADAMIA', 'ko', '마카다미아', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('MACADAMIA', 'en', 'Macadamia', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('BRAZIL_NUT', 'ko', '브라질너트', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('BRAZIL_NUT', 'en', 'Brazil nut', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('MANGO', 'ko', '망고', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('MANGO', 'en', 'Mango', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('AVOCADO', 'ko', '아보카도', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('AVOCADO', 'en', 'Avocado', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('BANANA', 'ko', '바나나', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('BANANA', 'en', 'Banana', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('KIWI', 'ko', '키위', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('KIWI', 'en', 'Kiwi', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('LATEX_RELATED', 'ko', '라텍스 관련 식품', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('LATEX_RELATED', 'en', 'Latex-related foods', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
 -- =========================================================
 -- 7. allergy_translation
 -- =========================================================
