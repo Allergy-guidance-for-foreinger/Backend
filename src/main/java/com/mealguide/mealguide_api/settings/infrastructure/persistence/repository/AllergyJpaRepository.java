@@ -1,6 +1,7 @@
 package com.mealguide.mealguide_api.settings.infrastructure.persistence.repository;
 
 import com.mealguide.mealguide_api.settings.domain.Allergy;
+import com.mealguide.mealguide_api.settings.domain.AllergyGroup;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -21,9 +22,13 @@ public interface AllergyJpaRepository extends JpaRepository<Allergy, String> {
             left join AllergyTranslation translation
                 on translation.allergyCode = allergy.code
                 and translation.langCode = :langCode
+            where allergy.allergyGroup = :allergyGroup
             order by allergy.displayOrder asc
             """)
-    List<AllergyOption> findAllergyOptions(@Param("langCode") String langCode);
+    List<AllergyOption> findAllergyOptionsByGroup(
+            @Param("langCode") String langCode,
+            @Param("allergyGroup") AllergyGroup allergyGroup
+    );
 
     long countByCodeIn(Set<String> codes);
 }

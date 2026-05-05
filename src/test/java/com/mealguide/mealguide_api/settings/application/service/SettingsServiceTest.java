@@ -1,6 +1,7 @@
 package com.mealguide.mealguide_api.settings.application.service;
 
 import com.mealguide.mealguide_api.settings.application.port.SettingsMasterQueryPort;
+import com.mealguide.mealguide_api.settings.domain.AllergyGroup;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
 import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
@@ -49,18 +50,33 @@ class SettingsServiceTest {
     }
 
     @Test
-    void getAllergyOptionsUsesUserLanguageAndReturnsMappedResponse() {
+    void getPrimaryAllergyOptionsUsesUserLanguageAndReturnsMappedResponse() {
         when(userPreferenceService.getLanguage(1L)).thenReturn("en");
-        when(settingsMasterQueryPort.findAllergies("en")).thenReturn(List.of(
+        when(settingsMasterQueryPort.findAllergyOptionsByGroup("en", AllergyGroup.PRIMARY)).thenReturn(List.of(
                 new AllergyOption("EGG", "Egg", 1)
         ));
 
-        AllergyOptionsResponse response = settingsService.getAllergyOptions(1L);
+        AllergyOptionsResponse response = settingsService.getPrimaryAllergyOptions(1L);
 
         assertThat(response.allergies()).extracting(item -> item.code()).containsExactly("EGG");
         assertThat(response.allergies()).extracting(item -> item.name()).containsExactly("Egg");
         verify(userPreferenceService).getLanguage(1L);
-        verify(settingsMasterQueryPort).findAllergies("en");
+        verify(settingsMasterQueryPort).findAllergyOptionsByGroup("en", AllergyGroup.PRIMARY);
+    }
+
+    @Test
+    void getAdditionalAllergyOptionsUsesUserLanguageAndReturnsMappedResponse() {
+        when(userPreferenceService.getLanguage(1L)).thenReturn("en");
+        when(settingsMasterQueryPort.findAllergyOptionsByGroup("en", AllergyGroup.ADDITIONAL)).thenReturn(List.of(
+                new AllergyOption("CELERY", "Celery", 101)
+        ));
+
+        AllergyOptionsResponse response = settingsService.getAdditionalAllergyOptions(1L);
+
+        assertThat(response.allergies()).extracting(item -> item.code()).containsExactly("CELERY");
+        assertThat(response.allergies()).extracting(item -> item.name()).containsExactly("Celery");
+        verify(userPreferenceService).getLanguage(1L);
+        verify(settingsMasterQueryPort).findAllergyOptionsByGroup("en", AllergyGroup.ADDITIONAL);
     }
 
     @Test

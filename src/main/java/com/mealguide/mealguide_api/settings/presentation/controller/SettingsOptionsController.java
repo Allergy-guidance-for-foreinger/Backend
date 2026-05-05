@@ -30,9 +30,14 @@ public class SettingsOptionsController implements SettingsOptionsApi {
         return ResponseEntity.ok(ResponseUtils.createSuccessResponse(settingsService.getLanguageOptions()));
     }
 
-    @GetMapping("/allergies")
-    public ResponseEntity<ResponseBody<AllergyOptionsResponse>> getAllergyOptions(@CurrentUserId Long currentUserId) {
-        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(settingsService.getAllergyOptions(currentUserId)));
+    @GetMapping("/allergies/primary")
+    public ResponseEntity<ResponseBody<AllergyOptionsResponse>> getPrimaryAllergyOptions(@CurrentUserId Long currentUserId) {
+        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(settingsService.getPrimaryAllergyOptions(currentUserId)));
+    }
+
+    @GetMapping("/allergies/additional")
+    public ResponseEntity<ResponseBody<AllergyOptionsResponse>> getAdditionalAllergyOptions(@CurrentUserId Long currentUserId) {
+        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(settingsService.getAdditionalAllergyOptions(currentUserId)));
     }
 
     @GetMapping("/religions")

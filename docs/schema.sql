@@ -93,6 +93,7 @@ CREATE TABLE ingredient (
 CREATE TABLE allergy (
     code VARCHAR(30) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
+    allergy_group VARCHAR(20) NOT NULL DEFAULT 'PRIMARY',
     display_order INT NOT NULL,
     created_at TIMESTAMP NOT NULL
 );
@@ -152,17 +153,6 @@ CREATE TABLE users (
         UNIQUE (email),
     CONSTRAINT fk_users_country
         FOREIGN KEY (country_code) REFERENCES country(code)
-);
-
-CREATE TABLE user_avoided_ingredient (
-    user_id BIGINT NOT NULL,
-    ingredient_code VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    PRIMARY KEY (user_id, ingredient_code),
-    CONSTRAINT fk_user_avoided_ingredient_user
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_user_avoided_ingredient_ingredient
-        FOREIGN KEY (ingredient_code) REFERENCES ingredient(code)
 );
 
 CREATE TABLE user_allergy (
@@ -492,9 +482,6 @@ CREATE INDEX idx_menu_ai_analysis_menu_status_analyzed_at
 CREATE INDEX idx_meal_menu_confirmed_ingredient_ingredient_code
     ON meal_menu_confirmed_ingredient (ingredient_code);
 
-CREATE INDEX idx_user_avoided_ingredient_user_id
-    ON user_avoided_ingredient (user_id);
-
 CREATE INDEX idx_user_allergy_user_id
     ON user_allergy (user_id);
 
@@ -566,6 +553,9 @@ CREATE INDEX idx_menu_review_comment_user_created
 
 CREATE INDEX idx_users_country_code
     ON users (country_code);
+
+CREATE INDEX IF NOT EXISTS idx_allergy_group_display_order
+    ON allergy (allergy_group, display_order);
 
 INSERT INTO language (code, name, english_name) VALUES
 ('ko', '한국어', 'Korean'),
@@ -832,6 +822,94 @@ INSERT INTO allergy (code, name, display_order, created_at) VALUES
 ('BEEF', '쇠고기', 16, CURRENT_TIMESTAMP),
 ('SQUID', '오징어', 17, CURRENT_TIMESTAMP),
 ('SHELLFISH', '조개류', 18, CURRENT_TIMESTAMP);
+
+-- additional allergy
+INSERT INTO allergy (
+    code,
+    name,
+    allergy_group,
+    display_order,
+    created_at
+)
+VALUES
+    ('CELERY', '셀러리', 'ADDITIONAL', 101, CURRENT_TIMESTAMP),
+    ('MUSTARD', '겨자', 'ADDITIONAL', 102, CURRENT_TIMESTAMP),
+    ('LUPIN', '루핀', 'ADDITIONAL', 103, CURRENT_TIMESTAMP),
+    ('TREE_NUT', '견과류', 'ADDITIONAL', 104, CURRENT_TIMESTAMP),
+    ('ALMOND', '아몬드', 'ADDITIONAL', 105, CURRENT_TIMESTAMP),
+    ('CASHEW', '캐슈넛', 'ADDITIONAL', 106, CURRENT_TIMESTAMP),
+    ('PISTACHIO', '피스타치오', 'ADDITIONAL', 107, CURRENT_TIMESTAMP),
+    ('HAZELNUT', '헤이즐넛', 'ADDITIONAL', 108, CURRENT_TIMESTAMP),
+    ('PECAN', '피칸', 'ADDITIONAL', 109, CURRENT_TIMESTAMP),
+    ('MACADAMIA', '마카다미아', 'ADDITIONAL', 110, CURRENT_TIMESTAMP),
+    ('BRAZIL_NUT', '브라질너트', 'ADDITIONAL', 111, CURRENT_TIMESTAMP),
+    ('MANGO', '망고', 'ADDITIONAL', 112, CURRENT_TIMESTAMP),
+    ('AVOCADO', '아보카도', 'ADDITIONAL', 113, CURRENT_TIMESTAMP),
+    ('BANANA', '바나나', 'ADDITIONAL', 114, CURRENT_TIMESTAMP),
+    ('KIWI', '키위', 'ADDITIONAL', 115, CURRENT_TIMESTAMP),
+    ('LATEX_RELATED', '라텍스 관련 식품', 'ADDITIONAL', 116, CURRENT_TIMESTAMP)
+ON CONFLICT (code) DO UPDATE
+SET
+    name = EXCLUDED.name,
+    allergy_group = EXCLUDED.allergy_group,
+    display_order = EXCLUDED.display_order;
+
+INSERT INTO allergy_translation (
+    allergy_code,
+    lang_code,
+    name,
+    is_auto_translated,
+    created_at,
+    updated_at
+)
+VALUES
+    ('CELERY', 'ko', '셀러리', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('CELERY', 'en', 'Celery', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('MUSTARD', 'ko', '겨자', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('MUSTARD', 'en', 'Mustard', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('LUPIN', 'ko', '루핀', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('LUPIN', 'en', 'Lupin', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('TREE_NUT', 'ko', '견과류', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('TREE_NUT', 'en', 'Tree nuts', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('ALMOND', 'ko', '아몬드', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('ALMOND', 'en', 'Almond', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('CASHEW', 'ko', '캐슈넛', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('CASHEW', 'en', 'Cashew', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('PISTACHIO', 'ko', '피스타치오', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('PISTACHIO', 'en', 'Pistachio', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('HAZELNUT', 'ko', '헤이즐넛', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('HAZELNUT', 'en', 'Hazelnut', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('PECAN', 'ko', '피칸', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('PECAN', 'en', 'Pecan', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('MACADAMIA', 'ko', '마카다미아', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('MACADAMIA', 'en', 'Macadamia', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('BRAZIL_NUT', 'ko', '브라질너트', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('BRAZIL_NUT', 'en', 'Brazil nut', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('MANGO', 'ko', '망고', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('MANGO', 'en', 'Mango', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('AVOCADO', 'ko', '아보카도', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('AVOCADO', 'en', 'Avocado', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('BANANA', 'ko', '바나나', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('BANANA', 'en', 'Banana', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('KIWI', 'ko', '키위', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('KIWI', 'en', 'Kiwi', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('LATEX_RELATED', 'ko', '라텍스 관련 식품', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('LATEX_RELATED', 'en', 'Latex-related foods', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- =========================================================
 -- 7. allergy_translation

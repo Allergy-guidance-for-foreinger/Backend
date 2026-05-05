@@ -1,6 +1,7 @@
 package com.mealguide.mealguide_api.settings.application.service;
 
 import com.mealguide.mealguide_api.settings.application.port.SettingsMasterQueryPort;
+import com.mealguide.mealguide_api.settings.domain.AllergyGroup;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
 import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
@@ -38,9 +39,9 @@ public class SettingsService {
     }
 
     @Transactional(readOnly = true)
-    public AllergyOptionsResponse getAllergyOptions(Long userId) {
+    public AllergyOptionsResponse getPrimaryAllergyOptions(Long userId) {
         String languageCode = userPreferenceService.getLanguage(userId);
-        List<AllergyOptionItemResponse> allergies = getAllergies(languageCode).stream()
+        List<AllergyOptionItemResponse> allergies = getAllergiesByGroup(languageCode, AllergyGroup.PRIMARY).stream()
                 .map(AllergyOptionItemResponse::from)
                 .toList();
         return new AllergyOptionsResponse(allergies);
@@ -78,8 +79,17 @@ public class SettingsService {
     }
 
     @Transactional(readOnly = true)
-    public List<AllergyOption> getAllergies(String langCode) {
-        return settingsMasterQueryPort.findAllergies(normalize(langCode));
+    public AllergyOptionsResponse getAdditionalAllergyOptions(Long userId) {
+        String languageCode = userPreferenceService.getLanguage(userId);
+        List<AllergyOptionItemResponse> allergies = getAllergiesByGroup(languageCode, AllergyGroup.ADDITIONAL).stream()
+                .map(AllergyOptionItemResponse::from)
+                .toList();
+        return new AllergyOptionsResponse(allergies);
+    }
+
+    @Transactional(readOnly = true)
+    private List<AllergyOption> getAllergiesByGroup(String langCode, AllergyGroup group) {
+        return settingsMasterQueryPort.findAllergyOptionsByGroup(normalize(langCode), group);
     }
 
     @Transactional(readOnly = true)

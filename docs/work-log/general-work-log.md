@@ -467,28 +467,28 @@
 - Remaining follow-ups:
   - In this environment, Maven wrapper cannot run (`Cannot start maven from wrapper`), so compile/test verification must be run in a local IDE or a shell where Maven execution works.
 
-### 2026-05-01 (mealcrawl ¸Ş´º »ó¼¼ Á¶È¸ API Ãß°¡)
+### 2026-05-01 (mealcrawl ï¿½Ş´ï¿½ ï¿½ï¿½ ï¿½ï¿½È¸ API ï¿½ß°ï¿½)
 - What changed:
-  - `GET /api/v1/mealcrawl/menus/{mealMenuId}` ¿£µåÆ÷ÀÎÆ®¸¦ Ãß°¡ÇÏ°í, `MenuDetailController`/`MenuDetailApi`¸¦ ½Å±Ô ±¸¼ºÇß´Ù.
-  - ÀÀ´ä DTO `MenuDetailResponse`¸¦ Ãß°¡Çß´Ù. (`riskLevel` only, ingredients/userAllergies/matchedAllergies Æ÷ÇÔ)
-  - `MenuDetailQueryService`¸¦ Ãß°¡ÇØ ¸Ş´º »ó¼¼ Á¶¸³ ·ÎÁ÷À» ±¸ÇöÇß´Ù.
-    - `meal_menu.id`(mealMenuId) ±âÁØ »ó¼¼ Á¶È¸
-    - »ç¿ëÀÚ ¾ğ¾î ±â¹İ ¸Ş´º¸í ¹ø¿ª fallback
-    - Àç·á Á¶È¸ ¿ì¼±¼øÀ§: CONFIRMED > AI SUCCESS
-    - user_allergy + allergy_translation fallback Á¶È¸
-    - `allergy_ingredient` ¸ÅÇÎ ±âÁØ matchedAllergies °è»ê
-    - ko/en »ç¿ëÀÚ ¾ğ¾îº° matched message »ı¼º
-    - À§Çèµµ °è»ê: Àç·á ¾øÀ½ UNKNOWN, ¾Ë·¹¸£±â ¸ÅÄª ÀÖÀ¸¸é DANGER, Á¾±³ Á¦ÇÑ ¸ÅÄªÀº CONFIRMED¸é DANGER/AI¸é CAUTION, ±× ¿Ü SAFE
-    - »ç¿ëÀÚ schoolId¿Í mealMenu ¼Ò¼Ó schoolId °ËÁõ Ãß°¡
-  - `MealCrawlPersistencePort`¿¡ ¸Ş´º »ó¼¼ Á¶È¸¿ë ¸Ş¼­µå¸¦ Ãß°¡ÇÏ°í default ¸Ş¼­µå·Î ÇÏÀ§ È£È¯À» À¯ÁöÇß´Ù.
-  - `MealCrawlPersistenceAdapter`¿¡ °ü·Ã SQLÀ» Ãß°¡Çß´Ù.
-    - ¸Ş´º ±âº» Á¤º¸ + school_id Á¶È¸
-    - menu_translation / ingredient_translation / allergy_translation fallback Á¶ÇÕ
-    - ÃÖ½Å SUCCESS menu_ai_analysis_ingredient Á¶È¸
-    - `user_allergy` + `allergy_ingredient` ¸ÅÇÎ Á¶ÀÎ ±â¹İ ¸ÅÄª Á¶È¸
-  - `MenuDetailQueryServiceTest`¸¦ Ãß°¡ÇØ ¿ä±¸ ½Ã³ª¸®¿À(¿ì¼±¼øÀ§/¸ÅÄª/UNKNOWN/¾ğ¾î ¸Ş½ÃÁö/fallback/Å¸ÇĞ±³ Â÷´Ü)¸¦ °ËÁõÇß´Ù.
+  - `GET /api/v1/mealcrawl/menus/{mealMenuId}` ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ß°ï¿½ï¿½Ï°ï¿½, `MenuDetailController`/`MenuDetailApi`ï¿½ï¿½ ï¿½Å±ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ß´ï¿½.
+  - ï¿½ï¿½ï¿½ï¿½ DTO `MenuDetailResponse`ï¿½ï¿½ ï¿½ß°ï¿½ï¿½ß´ï¿½. (`riskLevel` only, ingredients/userAllergies/matchedAllergies ï¿½ï¿½ï¿½ï¿½)
+  - `MenuDetailQueryService`ï¿½ï¿½ ï¿½ß°ï¿½ï¿½ï¿½ ï¿½Ş´ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ß´ï¿½.
+    - `meal_menu.id`(mealMenuId) ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½È¸
+    - ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ş´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ fallback
+    - ï¿½ï¿½ï¿½ ï¿½ï¿½È¸ ï¿½ì¼±ï¿½ï¿½ï¿½ï¿½: CONFIRMED > AI SUCCESS
+    - user_allergy + allergy_translation fallback ï¿½ï¿½È¸
+    - `allergy_ingredient` ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ matchedAllergies ï¿½ï¿½ï¿½
+    - ko/en ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½îº° matched message ï¿½ï¿½ï¿½ï¿½
+    - ï¿½ï¿½ï¿½èµµ ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ UNKNOWN, ï¿½Ë·ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Äª ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ DANGER, ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Äªï¿½ï¿½ CONFIRMEDï¿½ï¿½ DANGER/AIï¿½ï¿½ CAUTION, ï¿½ï¿½ ï¿½ï¿½ SAFE
+    - ï¿½ï¿½ï¿½ï¿½ï¿½ schoolIdï¿½ï¿½ mealMenu ï¿½Ò¼ï¿½ schoolId ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½
+  - `MealCrawlPersistencePort`ï¿½ï¿½ ï¿½Ş´ï¿½ ï¿½ï¿½ ï¿½ï¿½È¸ï¿½ï¿½ ï¿½Ş¼ï¿½ï¿½å¸¦ ï¿½ß°ï¿½ï¿½Ï°ï¿½ default ï¿½Ş¼ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È£È¯ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ß´ï¿½.
+  - `MealCrawlPersistenceAdapter`ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ SQLï¿½ï¿½ ï¿½ß°ï¿½ï¿½ß´ï¿½.
+    - ï¿½Ş´ï¿½ ï¿½âº» ï¿½ï¿½ï¿½ï¿½ + school_id ï¿½ï¿½È¸
+    - menu_translation / ingredient_translation / allergy_translation fallback ï¿½ï¿½ï¿½ï¿½
+    - ï¿½Ö½ï¿½ SUCCESS menu_ai_analysis_ingredient ï¿½ï¿½È¸
+    - `user_allergy` + `allergy_ingredient` ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½Äª ï¿½ï¿½È¸
+  - `MenuDetailQueryServiceTest`ï¿½ï¿½ ï¿½ß°ï¿½ï¿½ï¿½ ï¿½ä±¸ ï¿½Ã³ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½ì¼±ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½Äª/UNKNOWN/ï¿½ï¿½ï¿½ ï¿½Ş½ï¿½ï¿½ï¿½/fallback/Å¸ï¿½Ğ±ï¿½ ï¿½ï¿½ï¿½ï¿½)ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ß´ï¿½.
 - Why:
-  - ÇÁ·ĞÆ® ¸Ş´º »ó¼¼ Ä«µå¿¡ ÇÊ¿äÇÑ »ç¿ëÀÚ ¸ÂÃã À§Çè Á¤º¸¿Í ¾Ë·¹¸£±â °ãÄ§ Á¤º¸¸¦ mealMenuId ±âÁØÀ¸·Î Á¦°øÇÏ±â À§ÇØ.
+  - ï¿½ï¿½ï¿½ï¿½Æ® ï¿½Ş´ï¿½ ï¿½ï¿½ Ä«ï¿½å¿¡ ï¿½Ê¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ë·ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä§ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ mealMenuId ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï±ï¿½ ï¿½ï¿½ï¿½ï¿½.
 - Affected files:
   - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/controller/MenuDetailController.java`
   - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/swagger/MenuDetailApi.java`
@@ -504,12 +504,12 @@
   - `docs/work-log/general-work-log.md`
 - DB schema changed: No
 - API behavior changed:
-  - ½Å±Ô API `GET /api/v1/mealcrawl/menus/{mealMenuId}` Ãß°¡.
-  - ±âÁ¸ weekly/cafeteria API °è¾àÀº º¯°æ ¾øÀ½.
+  - ï¿½Å±ï¿½ API `GET /api/v1/mealcrawl/menus/{mealMenuId}` ï¿½ß°ï¿½.
+  - ï¿½ï¿½ï¿½ï¿½ weekly/cafeteria API ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½.
 - Related docs updated:
   - `docs/work-log/general-work-log.md`
 - Remaining follow-ups:
-  - ÇöÀç È¯°æ¿¡¼­ Maven wrapper ½ÇÇà ¿À·ù(`Cannot start maven from wrapper`)·Î ÀÚµ¿ Å×½ºÆ® ½ÇÇà °ËÁõÀº ¹Ì¿Ï·á.
+  - ï¿½ï¿½ï¿½ï¿½ È¯ï¿½æ¿¡ï¿½ï¿½ Maven wrapper ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(`Cannot start maven from wrapper`)ï¿½ï¿½ ï¿½Úµï¿½ ï¿½×½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ì¿Ï·ï¿½.
 ### 2026-05-02 (menu detail ì‘ë‹µì—ì„œ userAllergies ì œê±°)
 - What changed:
   - `MenuDetailResponse`ì—ì„œ `userAllergies` í•„ë“œì™€ ë‚´ë¶€ `UserAllergyResponse` íƒ€ì…ì„ ì œê±°í–ˆë‹¤.
@@ -591,11 +591,11 @@
   - Maven wrapper execution issue remains in this environment (`Cannot start maven from wrapper`), so test execution should be verified in local IDE/shell.
 
 ## 2026-05-03
-- ¸Ş´º »ó¼¼ Á¶È¸ ÀÀ´ä¿¡ `like(count, likedByMe)` ÇÊµå Ãß°¡.
-- `POST /api/v1/meal-menus/{mealMenuId}/like` Åä±Û API Ãß°¡.
-- ÁÁ¾Æ¿ä ±âÁØÀ» `meal_menu_id`°¡ ¾Æ´Ñ `(cafeteria_id, menu_id)`·Î ¼³°è.
-- `menu_like` Å×ÀÌºí°ú unique/index Á¦¾à Ãß°¡·Î Áßº¹ ÁÁ¾Æ¿ä ¹æÁö.
-- ¼­ºñ½º/Æ÷Æ®/¾î´ğÅÍ/½º¿ş°Å/Å×½ºÆ® ¹× °ü·Ã ¹®¼­ ¾÷µ¥ÀÌÆ®.
+- ï¿½Ş´ï¿½ ï¿½ï¿½ ï¿½ï¿½È¸ ï¿½ï¿½ï¿½ä¿¡ `like(count, likedByMe)` ï¿½Êµï¿½ ï¿½ß°ï¿½.
+- `POST /api/v1/meal-menus/{mealMenuId}/like` ï¿½ï¿½ï¿½ API ï¿½ß°ï¿½.
+- ï¿½ï¿½ï¿½Æ¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ `meal_menu_id`ï¿½ï¿½ ï¿½Æ´ï¿½ `(cafeteria_id, menu_id)`ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½.
+- `menu_like` ï¿½ï¿½ï¿½Ìºï¿½ï¿½ unique/index ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½ï¿½ï¿½ ï¿½ßºï¿½ ï¿½ï¿½ï¿½Æ¿ï¿½ ï¿½ï¿½ï¿½ï¿½.
+- ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½Æ®/ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½×½ï¿½Æ® ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®.
 
 ## 2026-05-03 (Menu Community Review)
 - Added community-style review feature in `mealcrawl` package.
@@ -617,3 +617,20 @@
 - Same user keeps same anonymous number across review pages and comment APIs for same menu target.
 - `mine` field remains for UI ownership actions.
 - review/comment response `userId` fields removed to reduce tracking risk.
+
+## 2026-05-04 (global exception package Korean encoding fix)
+- What changed:
+  - Restored broken Korean messages in global.base.exception.ErrorCode.
+  - Kept all error codes and HTTP status mappings unchanged.
+- Why:
+  - Korean message strings were mojibake and unreadable in API error responses.
+- Affected files:
+  - src/main/java/com/mealguide/mealguide_api/global/base/exception/ErrorCode.java
+  - docs/work-log/general-work-log.md
+- DB schema changed: No
+- API behavior changed:
+  - Response schema unchanged. Human-readable Korean error messages are now restored.
+- Related docs updated:
+  - docs/work-log/general-work-log.md
+- Remaining follow-ups:
+  - None

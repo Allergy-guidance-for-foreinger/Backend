@@ -3,6 +3,7 @@ package com.mealguide.mealguide_api.settings.application.service;
 import com.mealguide.mealguide_api.settings.application.port.SettingsMasterQueryPort;
 import com.mealguide.mealguide_api.settings.application.port.UserPreferencePort;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
+import com.mealguide.mealguide_api.settings.domain.AllergyGroup;
 import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
 import com.mealguide.mealguide_api.settings.domain.ReligiousRestrictionOption;
@@ -80,6 +81,14 @@ class UserPreferenceServiceTest {
 
         assertThat(updated).containsExactly("EGG", "MILK");
         assertThat(userPreferencePort.savedAllergyCodes).containsExactly("EGG", "MILK");
+    }
+
+    @Test
+    void replaceAllergiesAllowsAdditionalAllergyCode() {
+        List<String> updated = userPreferenceService.replaceAllergies(1L, List.of("CELERY"));
+
+        assertThat(updated).containsExactly("CELERY");
+        assertThat(userPreferencePort.savedAllergyCodes).containsExactly("CELERY");
     }
 
     @Test
@@ -191,7 +200,7 @@ class UserPreferenceServiceTest {
 
     private static class FakeSettingsMasterQueryPort implements SettingsMasterQueryPort {
         private final Set<String> languageCodes = Set.of("ko", "en");
-        private final Set<String> allergyCodes = Set.of("EGG", "MILK", "SHRIMP");
+        private final Set<String> allergyCodes = Set.of("EGG", "MILK", "SHRIMP", "CELERY");
         private final Set<String> religiousCodes = Set.of("HALAL", "HINDU");
         private final Set<String> countryCodes = Set.of("KR", "US");
         private final Set<Long> schoolIds = Set.of(1L, 2L, 10L);
@@ -207,7 +216,7 @@ class UserPreferenceServiceTest {
         }
 
         @Override
-        public List<AllergyOption> findAllergies(String langCode) {
+        public List<AllergyOption> findAllergyOptionsByGroup(String langCode, AllergyGroup group) {
             return List.of();
         }
 

@@ -49,17 +49,31 @@ class SettingsOptionsControllerTest {
     }
 
     @Test
-    void getAllergyOptionsWrapsServiceResponse() {
+    void getPrimaryAllergyOptionsWrapsServiceResponse() {
         AllergyOptionsResponse serviceResponse = new AllergyOptionsResponse(
                 List.of(new AllergyOptionItemResponse("EGG", "Egg"))
         );
-        when(settingsService.getAllergyOptions(1L)).thenReturn(serviceResponse);
+        when(settingsService.getPrimaryAllergyOptions(1L)).thenReturn(serviceResponse);
 
-        ResponseBody<AllergyOptionsResponse> body = settingsOptionsController.getAllergyOptions(1L).getBody();
+        ResponseBody<AllergyOptionsResponse> body = settingsOptionsController.getPrimaryAllergyOptions(1L).getBody();
 
         assertThat(body).isInstanceOf(SuccessResponseBody.class);
         assertThat(((SuccessResponseBody<AllergyOptionsResponse>) body).getData()).isEqualTo(serviceResponse);
-        verify(settingsService).getAllergyOptions(1L);
+        verify(settingsService).getPrimaryAllergyOptions(1L);
+    }
+
+    @Test
+    void getAdditionalAllergyOptionsWrapsServiceResponse() {
+        AllergyOptionsResponse serviceResponse = new AllergyOptionsResponse(
+                List.of(new AllergyOptionItemResponse("CELERY", "Celery"))
+        );
+        when(settingsService.getAdditionalAllergyOptions(1L)).thenReturn(serviceResponse);
+
+        ResponseBody<AllergyOptionsResponse> body = settingsOptionsController.getAdditionalAllergyOptions(1L).getBody();
+
+        assertThat(body).isInstanceOf(SuccessResponseBody.class);
+        assertThat(((SuccessResponseBody<AllergyOptionsResponse>) body).getData()).isEqualTo(serviceResponse);
+        verify(settingsService).getAdditionalAllergyOptions(1L);
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.mealguide.mealguide_api.settings.infrastructure.persistence.adapter;
 
 import com.mealguide.mealguide_api.settings.application.port.SettingsMasterQueryPort;
+import com.mealguide.mealguide_api.settings.domain.AllergyGroup;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
 import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
@@ -40,8 +41,8 @@ public class SettingsMasterPersistenceAdapter implements SettingsMasterQueryPort
     }
 
     @Override
-    public List<AllergyOption> findAllergies(String langCode) {
-        return allergyJpaRepository.findAllergyOptions(langCode);
+    public List<AllergyOption> findAllergyOptionsByGroup(String langCode, AllergyGroup group) {
+        return allergyJpaRepository.findAllergyOptionsByGroup(langCode, group);
     }
 
     @Override
