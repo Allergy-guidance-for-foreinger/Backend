@@ -633,6 +633,90 @@
 - Remaining follow-ups:
   - Reimport Maven project in IntelliJ and re-run test compilation.
 
+## 2026-05-07 (settings security test import ordering fix)
+- What changed:
+  - Moved `MockBean` import into the top import block in `SettingsOptionsControllerSecurityTest`.
+  - Kept `AutoConfigureMockMvc` import in place and aligned import ordering for stable compilation/style.
+- Why:
+  - Remove import-block inconsistency and prevent annotation/import mismatch issues during test compilation.
+- Affected files:
+  - `src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerSecurityTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Run test compile in IntelliJ/Maven environment.
+
+## 2026-05-07 (remove duplicated Mockito dependency)
+- What changed:
+  - Removed explicit `org.mockito:mockito-junit-jupiter` test dependency from `pom.xml`.
+- Why:
+  - `spring-boot-starter-test` already manages Mockito test dependencies, so the explicit entry was redundant.
+- Affected files:
+  - `pom.xml`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Verify dependency resolution in IntelliJ Maven reimport.
+  - Validate `spring-boot-starter-parent` version (`4.0.5`) in an environment with Maven CLI (current shell has no `mvn` command).
+
+## 2026-05-07 (Spring Boot 4 test annotation migration: MockBean -> MockitoBean)
+- What changed:
+  - Replaced `@MockBean` with `@MockitoBean` in `SettingsOptionsControllerSecurityTest`.
+  - Updated import from `org.springframework.boot.test.mock.mockito.MockBean` to `org.springframework.test.context.bean.override.mockito.MockitoBean`.
+- Why:
+  - In Spring Boot 4, Boot-provided `@MockBean` support was removed in favor of Framework `@MockitoBean`.
+- Affected files:
+  - `src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerSecurityTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Reimport Maven project in IntelliJ and rebuild test sources to refresh unresolved symbols.
+
+## 2026-05-07 (Spring Boot 4 DataJpaTest package migration)
+- What changed:
+  - Updated `DataJpaTest` import in `AllergyJpaRepositoryTest`:
+    - from `org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest`
+    - to `org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest`
+- Why:
+  - Spring Boot 4 test-slice package layout changed and old import path is not resolvable.
+- Affected files:
+  - `src/test/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/repository/AllergyJpaRepositoryTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Reimport Maven project in IntelliJ and run test compile.
+
+## 2026-05-07 (Spring Boot 4 MockMvc test package/module alignment)
+- What changed:
+  - Updated `AutoConfigureMockMvc` import in `SettingsOptionsControllerSecurityTest`:
+    - from `org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc`
+    - to `org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc`
+  - Added test dependency `org.springframework.boot:spring-boot-starter-webmvc-test` (`test` scope) to `pom.xml`.
+- Why:
+  - In Spring Boot 4, MockMvc test auto-configuration was modularized and package/module paths changed.
+- Affected files:
+  - `src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerSecurityTest.java`
+  - `pom.xml`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Reload Maven project in IntelliJ and rebuild tests.
+
 ## 2026-05-04 (global exception package Korean encoding fix)
 - What changed:
   - Restored broken Korean messages in global.base.exception.ErrorCode.
