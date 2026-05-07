@@ -618,6 +618,21 @@
 - `mine` field remains for UI ownership actions.
 - review/comment response `userId` fields removed to reduce tracking risk.
 
+## 2026-05-07 (Mockito test dependency explicit add)
+- What changed:
+  - Added `org.mockito:mockito-junit-jupiter` with `test` scope to `pom.xml`.
+- Why:
+  - Resolve IDE/build errors like `Cannot resolve symbol 'mockito'` in test sources and make Mockito JUnit 5 integration explicit.
+- Affected files:
+  - `pom.xml`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Reimport Maven project in IntelliJ and re-run test compilation.
+
 ## 2026-05-04 (global exception package Korean encoding fix)
 - What changed:
   - Restored broken Korean messages in global.base.exception.ErrorCode.
