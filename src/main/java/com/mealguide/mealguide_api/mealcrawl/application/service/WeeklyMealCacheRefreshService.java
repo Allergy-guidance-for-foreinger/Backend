@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -30,6 +31,11 @@ public class WeeklyMealCacheRefreshService {
     private final ObjectMapper objectMapper;
 
     public void refreshWeeklyMealCache(Long schoolId, Long cafeteriaId, LocalDate weekStartDate) {
+        refreshWeeklyMealCache("manual", schoolId, cafeteriaId, weekStartDate);
+    }
+
+    public void refreshWeeklyMealCache(String runId, Long schoolId, Long cafeteriaId, LocalDate weekStartDate) {
+        Instant startedAt = Instant.now();
         LocalDate normalizedWeekStartDate = WeekStartDateNormalizer.normalize(weekStartDate);
         String redisKey = weeklyMealCachePort.createWeeklyMealCacheKey(schoolId, cafeteriaId, normalizedWeekStartDate);
         try {
@@ -37,25 +43,28 @@ public class WeeklyMealCacheRefreshService {
             int scheduleCount = payload.mealSchedules().size();
 
             log.info(
-                    "Weekly meal cache refresh started: schoolId={}, cafeteriaId={}, weekStartDate={}, redisKey={}, scheduleCount={}",
-                    schoolId, cafeteriaId, normalizedWeekStartDate, redisKey, scheduleCount
+                    "event=START stage=cache_refresh runId={} schoolId={} cafeteriaId={} weekStartDate={} redisKey={} scheduleCount={}",
+                    runId, schoolId, cafeteriaId, normalizedWeekStartDate, redisKey, scheduleCount
             );
 
             upsertWeeklyMealCachePayload(payload);
+            long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
 
             log.info(
-                    "Weekly meal cache refresh succeeded: schoolId={}, cafeteriaId={}, weekStartDate={}, redisKey={}, scheduleCount={}",
-                    schoolId, cafeteriaId, normalizedWeekStartDate, redisKey, scheduleCount
+                    "event=END stage=cache_refresh runId={} schoolId={} cafeteriaId={} weekStartDate={} redisKey={} scheduleCount={} durationMs={} result=SUCCESS",
+                    runId, schoolId, cafeteriaId, normalizedWeekStartDate, redisKey, scheduleCount, durationMs
             );
         } catch (JsonProcessingException exception) {
+            long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
             log.warn(
-                    "Weekly meal cache refresh failed while serializing payload: schoolId={}, cafeteriaId={}, weekStartDate={}, redisKey={}",
-                    schoolId, cafeteriaId, normalizedWeekStartDate, redisKey, exception
+                    "event=FAIL stage=cache_refresh runId={} schoolId={} cafeteriaId={} weekStartDate={} redisKey={} durationMs={} errorType=SERIALIZE_FAIL message={}",
+                    runId, schoolId, cafeteriaId, normalizedWeekStartDate, redisKey, durationMs, exception.getMessage(), exception
             );
         } catch (Exception exception) {
+            long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
             log.warn(
-                    "Weekly meal cache refresh failed: schoolId={}, cafeteriaId={}, weekStartDate={}, redisKey={}",
-                    schoolId, cafeteriaId, normalizedWeekStartDate, redisKey, exception
+                    "event=FAIL stage=cache_refresh runId={} schoolId={} cafeteriaId={} weekStartDate={} redisKey={} durationMs={} errorType=CACHE_REFRESH_FAIL message={}",
+                    runId, schoolId, cafeteriaId, normalizedWeekStartDate, redisKey, durationMs, exception.getMessage(), exception
             );
         }
     }

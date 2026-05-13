@@ -43,7 +43,7 @@ public class Menu {
     public static Menu create(String name, MenuAiStatus aiAnalysisStatus) {
         Menu menu = new Menu();
         menu.name = name;
-        menu.spicyLevel = 0L;
+        menu.spicyLevel = MenuSpicyLevel.LEVEL_0.value();
         menu.aiAnalysisStatus = aiAnalysisStatus;
         menu.latestAiAnalyzedAt = null;
         menu.createdAt = LocalDateTime.now();
@@ -51,8 +51,15 @@ public class Menu {
     }
 
     public void updateAiAnalysis(MenuAiStatus aiAnalysisStatus, LocalDateTime analyzedAt) {
+        updateAiAnalysis(aiAnalysisStatus, analyzedAt, null);
+    }
+
+    public void updateAiAnalysis(MenuAiStatus aiAnalysisStatus, LocalDateTime analyzedAt, MenuSpicyLevel spicyLevel) {
         this.aiAnalysisStatus = aiAnalysisStatus;
         this.latestAiAnalyzedAt = analyzedAt;
+        if (spicyLevel != null) {
+            this.spicyLevel = spicyLevel.value();
+        }
     }
 }
 

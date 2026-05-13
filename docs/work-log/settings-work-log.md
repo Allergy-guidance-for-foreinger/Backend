@@ -198,3 +198,65 @@
   - `docs/work-log/settings-work-log.md`
 - Remaining follow-ups:
   - 현재 환경에서는 Maven wrapper 실행 오류로 자동 테스트 실행 검증이 필요함.
+
+### 2026-05-13 (알레르기 옵션 API 단일 목록 조회로 복구)
+- What changed:
+  - 알레르기 옵션 API를 대표/부가 분리 방식에서 단일 전체 목록 조회 방식으로 변경했다.
+    - 추가/복구: GET /api/v1/settings/options/allergies
+    - 제거: GET /api/v1/settings/options/allergies/primary, GET /api/v1/settings/options/allergies/additional
+  - SettingsOptionsController/SettingsOptionsApi에서 primary/additional 핸들러/Swagger 메서드를 제거하고 단일 핸들러를 추가했다.
+  - SettingsService를 전체 알레르기 옵션 조회 유스케이스로 단순화했다.
+  - SettingsMasterQueryPort/SettingsMasterPersistenceAdapter/AllergyJpaRepository를 group 조건 없는 전체 조회 메서드로 변경했다.
+  - AllergyJpaRepository 정렬을 display_order ASC, code ASC로 변경했다.
+  - settings.domain.AllergyGroup enum을 삭제하고 Allergy entity의 llergyGroup 매핑을 제거했다.
+  - 관련 테스트(SettingsOptionsControllerTest, SettingsOptionsControllerSecurityTest, SettingsServiceTest, AllergyJpaRepositoryTest, UserPreferenceServiceTest)를 단일 API/전체 조회 기준으로 수정했다.
+- Why:
+  - 대표/부가 구분 없이 전체 알레르기 목록을 한 번에 조회하는 요구사항과 현재 스키마/데이터(llergy_group의 다중 카테고리 값) 구조를 일치시키기 위해.
+- Affected files:
+  - src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsController.java
+  - src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsOptionsApi.java
+  - src/main/java/com/mealguide/mealguide_api/settings/application/service/SettingsService.java
+  - src/main/java/com/mealguide/mealguide_api/settings/application/port/SettingsMasterQueryPort.java
+  - src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/adapter/SettingsMasterPersistenceAdapter.java
+  - src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/repository/AllergyJpaRepository.java
+  - src/main/java/com/mealguide/mealguide_api/settings/domain/Allergy.java
+  - src/main/java/com/mealguide/mealguide_api/settings/domain/AllergyGroup.java (deleted)
+  - src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerTest.java
+  - src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerSecurityTest.java
+  - src/test/java/com/mealguide/mealguide_api/settings/application/service/SettingsServiceTest.java
+  - src/test/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/repository/AllergyJpaRepositoryTest.java
+  - src/test/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceServiceTest.java
+  - docs/features/settings-context.md
+  - docs/features/onboarding-context.md
+  - docs/work-log/settings-work-log.md
+- DB schema changed: No (source-of-truth docs/schema.sql 사용)
+- API behavior changed:
+  - GET /api/v1/settings/options/allergies 제공
+  - GET /api/v1/settings/options/allergies/primary 제거
+  - GET /api/v1/settings/options/allergies/additional 제거
+- Related docs updated:
+  - docs/features/settings-context.md
+  - docs/features/onboarding-context.md
+  - docs/work-log/settings-work-log.md
+- Remaining follow-ups:
+  - Maven wrapper 실행 불가 환경에서 테스트 자동 실행 검증 필요.
+
+### 2026-05-13 (country options 사용자 언어 기준 로컬라이징)
+- What changed:
+  - `GET /api/v1/settings/options/countries`가 `@CurrentUserId`를 사용해 사용자 언어 설정을 기준으로 국가명을 반환하도록 반영했다.
+  - `SettingsService.getCountryOptions(Long userId)` 시그니처 기준으로 사용자 언어를 조회해 `Locale` 기반 국가명 로컬라이징을 적용했다.
+  - 국가 코드가 유효하지 않은 경우 DB 기본 이름으로 fallback 하도록 유지했다.
+  - controller/service 테스트를 새 시그니처와 로컬라이징/fallback 검증 기준으로 수정했다.
+- Why:
+  - 국가 선택지 표시 언어를 사용자 설정과 일치시켜 UI 사용성을 높이기 위해.
+- Affected files:
+  - `src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/settings/application/service/SettingsServiceTest.java`
+  - `docs/work-log/settings-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - `GET /api/v1/settings/options/countries`가 사용자 언어 기준 로컬라이즈된 국가명을 반환한다.
+- Related docs updated:
+  - `docs/work-log/settings-work-log.md`
+- Remaining follow-ups:
+  - Maven wrapper 실행 이슈 해결 후 전체 테스트 검증 필요.

@@ -1,13 +1,15 @@
 package com.mealguide.mealguide_api.mealcrawl.application.port;
 
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientRow;
-import com.mealguide.mealguide_api.mealcrawl.application.dto.MatchedAllergyRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuMatchedAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.NamedIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuAllergyCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuSpicyLevel;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCacheRow;
 
@@ -48,8 +50,6 @@ public interface MealCrawlPersistencePort {
 
     Set<Long> findMealMenuIdsHavingAiIngredients(Set<Long> mealMenuIds);
 
-    List<RestrictionIngredientRow> findAllergyRestrictionIngredients(Set<String> allergyCodes);
-
     List<RestrictionIngredientRow> findReligiousRestrictionIngredients(String religiousCode);
 
     default Optional<MenuDetailRow> findMenuDetailByMealMenuId(Long mealMenuId) {
@@ -80,8 +80,16 @@ public interface MealCrawlPersistencePort {
         return List.of();
     }
 
-    default List<MatchedAllergyRow> findMatchedAllergies(Long userId, Set<String> ingredientCodes, String langCode) {
+    default List<MealMenuMatchedAllergyRow> findMatchedAllergiesByMealMenuIds(
+            Long userId,
+            Set<Long> mealMenuIds,
+            String langCode
+    ) {
         return List.of();
+    }
+
+    default Set<Long> findMealMenuIdsHavingMatchedAllergies(Long userId, Set<Long> mealMenuIds) {
+        return Set.of();
     }
 
     Set<Long> findAnalyzedMenuIds(Set<Long> menuIds);
@@ -98,6 +106,9 @@ public interface MealCrawlPersistencePort {
             List<MenuIngredientCandidate> ingredients
     );
 
+    default void saveMenuAnalysisAllergies(Long menuAiAnalysisId, List<MenuAllergyCandidate> allergies) {
+    }
+
     default Set<String> findExistingIngredientCodes(Set<String> ingredientCodes) {
         if (ingredientCodes == null || ingredientCodes.isEmpty()) {
             return Set.of();
@@ -105,7 +116,18 @@ public interface MealCrawlPersistencePort {
         return Set.copyOf(ingredientCodes);
     }
 
+    default Set<String> findExistingAllergyCodes(Set<String> allergyCodes) {
+        if (allergyCodes == null || allergyCodes.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(allergyCodes);
+    }
+
     void updateMenuAiStatus(Long menuId, MenuAiStatus aiStatus, LocalDateTime analyzedAt);
+
+    default void updateMenuAiStatus(Long menuId, MenuAiStatus aiStatus, LocalDateTime analyzedAt, MenuSpicyLevel spicyLevel) {
+        updateMenuAiStatus(menuId, aiStatus, analyzedAt);
+    }
 
     default void saveMenuAnalysisAndUpdateStatus(
             Long menuId,
@@ -128,7 +150,22 @@ public interface MealCrawlPersistencePort {
             String reason,
             LocalDateTime analyzedAt,
             List<MenuIngredientCandidate> ingredients,
-            Set<String> validIngredientCodes
+            MenuSpicyLevel spicyLevel
+    ) {
+        saveMenuAnalysis(menuId, status, modelName, modelVersion, reason, analyzedAt, ingredients);
+        updateMenuAiStatus(menuId, status, analyzedAt, spicyLevel);
+    }
+
+    default void saveMenuAnalysisAndUpdateStatus(
+            Long menuId,
+            MenuAiStatus status,
+            String modelName,
+            String modelVersion,
+            String reason,
+            LocalDateTime analyzedAt,
+            List<MenuIngredientCandidate> ingredients,
+            Set<String> validIngredientCodes,
+            MenuSpicyLevel spicyLevel
     ) {
         Set<String> allowedCodes = validIngredientCodes == null ? Set.of() : validIngredientCodes;
         List<MenuIngredientCandidate> filteredIngredients = ingredients == null
@@ -146,7 +183,26 @@ public interface MealCrawlPersistencePort {
                 modelVersion,
                 reason,
                 analyzedAt,
-                filteredIngredients
+                filteredIngredients,
+                spicyLevel
+        );
+    }
+
+    default void saveMenuAnalysisAndUpdateStatus(
+            Long menuId,
+            MenuAiStatus status,
+            String modelName,
+            String modelVersion,
+            String reason,
+            LocalDateTime analyzedAt,
+            List<MenuIngredientCandidate> ingredients,
+            Set<String> validIngredientCodes,
+            List<MenuAllergyCandidate> allergies,
+            Set<String> validAllergyCodes,
+            MenuSpicyLevel spicyLevel
+    ) {
+        throw new UnsupportedOperationException(
+                "saveMenuAnalysisAndUpdateStatus with allergies must be implemented by persistence adapter"
         );
     }
 

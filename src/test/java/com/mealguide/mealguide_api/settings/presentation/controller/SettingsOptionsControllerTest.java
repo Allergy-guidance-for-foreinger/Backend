@@ -49,31 +49,17 @@ class SettingsOptionsControllerTest {
     }
 
     @Test
-    void getPrimaryAllergyOptionsWrapsServiceResponse() {
+    void getAllergyOptionsWrapsServiceResponse() {
         AllergyOptionsResponse serviceResponse = new AllergyOptionsResponse(
                 List.of(new AllergyOptionItemResponse("EGG", "Egg"))
         );
-        when(settingsService.getPrimaryAllergyOptions(1L)).thenReturn(serviceResponse);
+        when(settingsService.getAllergyOptions(1L)).thenReturn(serviceResponse);
 
-        ResponseBody<AllergyOptionsResponse> body = settingsOptionsController.getPrimaryAllergyOptions(1L).getBody();
-
-        assertThat(body).isInstanceOf(SuccessResponseBody.class);
-        assertThat(((SuccessResponseBody<AllergyOptionsResponse>) body).getData()).isEqualTo(serviceResponse);
-        verify(settingsService).getPrimaryAllergyOptions(1L);
-    }
-
-    @Test
-    void getAdditionalAllergyOptionsWrapsServiceResponse() {
-        AllergyOptionsResponse serviceResponse = new AllergyOptionsResponse(
-                List.of(new AllergyOptionItemResponse("CELERY", "Celery"))
-        );
-        when(settingsService.getAdditionalAllergyOptions(1L)).thenReturn(serviceResponse);
-
-        ResponseBody<AllergyOptionsResponse> body = settingsOptionsController.getAdditionalAllergyOptions(1L).getBody();
+        ResponseBody<AllergyOptionsResponse> body = settingsOptionsController.getAllergyOptions(1L).getBody();
 
         assertThat(body).isInstanceOf(SuccessResponseBody.class);
         assertThat(((SuccessResponseBody<AllergyOptionsResponse>) body).getData()).isEqualTo(serviceResponse);
-        verify(settingsService).getAdditionalAllergyOptions(1L);
+        verify(settingsService).getAllergyOptions(1L);
     }
 
     @Test
@@ -95,13 +81,13 @@ class SettingsOptionsControllerTest {
         CountryOptionsResponse serviceResponse = new CountryOptionsResponse(
                 List.of(new CountryOptionItemResponse("KR", "Korea"))
         );
-        when(settingsService.getCountryOptions()).thenReturn(serviceResponse);
+        when(settingsService.getCountryOptions(1L)).thenReturn(serviceResponse);
 
-        ResponseBody<CountryOptionsResponse> body = settingsOptionsController.getCountryOptions().getBody();
+        ResponseBody<CountryOptionsResponse> body = settingsOptionsController.getCountryOptions(1L).getBody();
 
         assertThat(body).isInstanceOf(SuccessResponseBody.class);
         assertThat(((SuccessResponseBody<CountryOptionsResponse>) body).getData()).isEqualTo(serviceResponse);
-        verify(settingsService).getCountryOptions();
+        verify(settingsService).getCountryOptions(1L);
     }
 
     @Test

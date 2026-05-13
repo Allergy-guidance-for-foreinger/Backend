@@ -31,7 +31,7 @@
 ## 4. DB 사용 규칙
 - 관련 테이블
   - import: `meal_schedule`, `menu`, `meal_menu`
-  - AI 후속: `menu_ai_analysis`, `menu_ai_analysis_ingredient`
+  - AI 후속: `menu_ai_analysis`, `menu_ai_analysis_ingredient`, `menu_ai_analysis_allergy`
   - 번역 후속: `menu_translation`
   - 확정 데이터(자동 생성 금지): `meal_menu_confirmed_ingredient`, `meal_menu_confirmation_history`
 - 저장 규칙
@@ -77,8 +77,14 @@
 
 ### 7.4 AI analysis follow-up
 - import 이후 필요한 대상에 대해 AI 분석을 요청한다.
-- 결과는 `menu_ai_analysis`, `menu_ai_analysis_ingredient`에 저장한다.
+- 결과는 `menu_ai_analysis`, `menu_ai_analysis_ingredient`, `menu_ai_analysis_allergy`에 저장한다.
 - AI 분석 실패는 meal import 성공을 실패로 바꾸면 안 된다.
+
+### 7.6 Allergy risk matching (AI allergy code based)
+- 알레르기 위험도 계산은 더 이상 `allergy_ingredient` 매핑을 사용하지 않는다.
+- 메뉴별 알레르기 정보는 최신 `SUCCESS` AI 분석의 `menu_ai_analysis_allergy`를 기준으로 사용한다.
+- 사용자 알레르기(`user_allergy`)와 AI 분석 알레르기 코드의 교집합이 있으면 알레르기 위험으로 판단한다.
+- 종교 제한 위험도 계산은 기존 `religious_food_restriction_ingredient` 기반 재료 매칭을 유지한다.
 
 ### 7.5 Translation follow-up
 - import 이후 필요한 대상에 대해 번역을 요청한다.

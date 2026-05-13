@@ -55,8 +55,9 @@ public class WeeklyMealResponseAssembler {
         );
         Set<Long> aiMealMenuIds = aiByMealMenuId.keySet();
 
-        Map<String, List<RestrictionIngredientRow>> allergyIngredientIndex = indexRestrictionIngredientsByIngredientCode(
-                mealCrawlPersistencePort.findAllergyRestrictionIngredients(Set.copyOf(preference.allergyCodes()))
+        Set<Long> mealMenuIdsWithAllergyRisk = mealCrawlPersistencePort.findMealMenuIdsHavingMatchedAllergies(
+                preference.userId(),
+                mealMenuIds
         );
         Map<String, List<RestrictionIngredientRow>> religionIngredientIndex = indexRestrictionIngredientsByIngredientCode(
                 mealCrawlPersistencePort.findReligiousRestrictionIngredients(preference.religiousCode())
@@ -72,7 +73,7 @@ public class WeeklyMealResponseAssembler {
                         confirmedByMealMenuId,
                         aiMealMenuIds,
                         aiByMealMenuId,
-                        allergyIngredientIndex,
+                        mealMenuIdsWithAllergyRisk,
                         religionIngredientIndex
                 );
             } catch (Exception exception) {
@@ -108,18 +109,14 @@ public class WeeklyMealResponseAssembler {
             Map<Long, List<MealMenuIngredientRow>> confirmedByMealMenuId,
             Set<Long> aiMealMenuIds,
             Map<Long, List<MealMenuIngredientRow>> aiByMealMenuId,
-            Map<String, List<RestrictionIngredientRow>> allergyIngredientIndex,
+            Set<Long> mealMenuIdsWithAllergyRisk,
             Map<String, List<RestrictionIngredientRow>> religionIngredientIndex
     ) {
-        if (confirmedMealMenuIds.contains(mealMenuId)) {
-            boolean hasAllergyRisk = hasRestrictionMatch(
-                    confirmedByMealMenuId.getOrDefault(mealMenuId, List.of()),
-                    allergyIngredientIndex
-            );
-            if (hasAllergyRisk) {
-                return new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.DANGER.name());
-            }
+        if (mealMenuIdsWithAllergyRisk.contains(mealMenuId)) {
+            return new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.DANGER.name());
+        }
 
+        if (confirmedMealMenuIds.contains(mealMenuId)) {
             boolean hasReligionRisk = hasRestrictionMatch(
                     confirmedByMealMenuId.getOrDefault(mealMenuId, List.of()),
                     religionIngredientIndex
@@ -129,14 +126,6 @@ public class WeeklyMealResponseAssembler {
         }
 
         if (aiMealMenuIds.contains(mealMenuId)) {
-            boolean hasAllergyRisk = hasRestrictionMatch(
-                    aiByMealMenuId.getOrDefault(mealMenuId, List.of()),
-                    allergyIngredientIndex
-            );
-            if (hasAllergyRisk) {
-                return new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.DANGER.name());
-            }
-
             boolean hasReligionRisk = hasRestrictionMatch(
                     aiByMealMenuId.getOrDefault(mealMenuId, List.of()),
                     religionIngredientIndex

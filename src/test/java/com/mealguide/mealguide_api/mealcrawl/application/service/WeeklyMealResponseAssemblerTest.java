@@ -29,7 +29,7 @@ class WeeklyMealResponseAssemblerTest {
     void confirmedAllergyMatchReturnsDanger() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
         port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
-        port.allergyRestrictions = List.of(new RestrictionIngredientRow("PORK", "PORK", "Pork"));
+        port.allergyRiskMealMenuIds = Set.of(11L);
 
         WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port);
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
@@ -53,7 +53,7 @@ class WeeklyMealResponseAssemblerTest {
     void aiAllergyMatchReturnsDanger() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
         port.aiIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
-        port.allergyRestrictions = List.of(new RestrictionIngredientRow("PORK", "PORK", "Pork"));
+        port.allergyRiskMealMenuIds = Set.of(11L);
 
         WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port);
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
@@ -113,7 +113,7 @@ class WeeklyMealResponseAssemblerTest {
     void koreanLanguageStillReturnsRiskLevelOnly() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
         port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
-        port.allergyRestrictions = List.of(new RestrictionIngredientRow("PORK", "PORK", "Pork"));
+        port.allergyRiskMealMenuIds = Set.of(11L);
 
         WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port);
         WeeklyMealResponse response = assembler.assemble(samplePayload(), koreanPreference());
@@ -166,7 +166,7 @@ class WeeklyMealResponseAssemblerTest {
         private Map<Long, String> translatedMenuNames = Map.of();
         private List<MealMenuIngredientRow> confirmedIngredients = List.of();
         private List<MealMenuIngredientRow> aiIngredients = List.of();
-        private List<RestrictionIngredientRow> allergyRestrictions = List.of();
+        private Set<Long> allergyRiskMealMenuIds = Set.of();
         private List<RestrictionIngredientRow> religionRestrictions = List.of();
 
         @Override
@@ -237,13 +237,13 @@ class WeeklyMealResponseAssemblerTest {
         }
 
         @Override
-        public List<RestrictionIngredientRow> findAllergyRestrictionIngredients(Set<String> allergyCodes) {
-            return allergyRestrictions;
+        public List<RestrictionIngredientRow> findReligiousRestrictionIngredients(String religiousCode) {
+            return religionRestrictions;
         }
 
         @Override
-        public List<RestrictionIngredientRow> findReligiousRestrictionIngredients(String religiousCode) {
-            return religionRestrictions;
+        public Set<Long> findMealMenuIdsHavingMatchedAllergies(Long userId, Set<Long> mealMenuIds) {
+            return allergyRiskMealMenuIds;
         }
 
         @Override

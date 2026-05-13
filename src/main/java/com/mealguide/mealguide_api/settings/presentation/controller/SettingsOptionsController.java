@@ -30,14 +30,9 @@ public class SettingsOptionsController implements SettingsOptionsApi {
         return ResponseEntity.ok(ResponseUtils.createSuccessResponse(settingsService.getLanguageOptions()));
     }
 
-    @GetMapping("/allergies/primary")
-    public ResponseEntity<ResponseBody<AllergyOptionsResponse>> getPrimaryAllergyOptions(@CurrentUserId Long currentUserId) {
-        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(settingsService.getPrimaryAllergyOptions(currentUserId)));
-    }
-
-    @GetMapping("/allergies/additional")
-    public ResponseEntity<ResponseBody<AllergyOptionsResponse>> getAdditionalAllergyOptions(@CurrentUserId Long currentUserId) {
-        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(settingsService.getAdditionalAllergyOptions(currentUserId)));
+    @GetMapping("/allergies")
+    public ResponseEntity<ResponseBody<AllergyOptionsResponse>> getAllergyOptions(@CurrentUserId Long currentUserId) {
+        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(settingsService.getAllergyOptions(currentUserId)));
     }
 
     @GetMapping("/religions")
@@ -46,8 +41,8 @@ public class SettingsOptionsController implements SettingsOptionsApi {
     }
 
     @GetMapping("/countries")
-    public ResponseEntity<ResponseBody<CountryOptionsResponse>> getCountryOptions() {
-        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(settingsService.getCountryOptions()));
+    public ResponseEntity<ResponseBody<CountryOptionsResponse>> getCountryOptions(@CurrentUserId Long currentUserId) {
+        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(settingsService.getCountryOptions(currentUserId)));
     }
 
     @GetMapping("/schools")

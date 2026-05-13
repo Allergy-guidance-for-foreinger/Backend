@@ -44,3 +44,9 @@
 - Review/comment delete is soft-delete by `deleted_at`.
 - Review list API uses page/size and latest-first ordering by date and recency.
 - Comment list API uses page/size and oldest-first ordering.
+
+## 9. AI allergy analysis mapping (2026-05-13)
+- `allergy_ingredient` 매핑 테이블은 제거됐다.
+- `menu_ai_analysis_allergy`는 AI가 메뉴에서 감지한 알레르기 코드를 저장한다.
+- 알레르기 위험도는 `user_allergy.allergy_code`와 `menu_ai_analysis_allergy.allergy_code` 교집합으로 계산한다.
+- 종교 제한 위험도는 기존 `religious_food_restriction_ingredient` 재료 매핑을 유지한다.

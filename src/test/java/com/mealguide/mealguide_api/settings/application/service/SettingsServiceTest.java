@@ -1,7 +1,6 @@
 package com.mealguide.mealguide_api.settings.application.service;
 
 import com.mealguide.mealguide_api.settings.application.port.SettingsMasterQueryPort;
-import com.mealguide.mealguide_api.settings.domain.AllergyGroup;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
 import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
@@ -50,33 +49,19 @@ class SettingsServiceTest {
     }
 
     @Test
-    void getPrimaryAllergyOptionsUsesUserLanguageAndReturnsMappedResponse() {
+    void getAllergyOptionsUsesUserLanguageAndReturnsMappedResponse() {
         when(userPreferenceService.getLanguage(1L)).thenReturn("en");
-        when(settingsMasterQueryPort.findAllergyOptionsByGroup("en", AllergyGroup.PRIMARY)).thenReturn(List.of(
-                new AllergyOption("EGG", "Egg", 1)
+        when(settingsMasterQueryPort.findAllergyOptions("en")).thenReturn(List.of(
+                new AllergyOption("EGG", "Egg", 1),
+                new AllergyOption("CELERY", "Celery", 2)
         ));
 
-        AllergyOptionsResponse response = settingsService.getPrimaryAllergyOptions(1L);
+        AllergyOptionsResponse response = settingsService.getAllergyOptions(1L);
 
-        assertThat(response.allergies()).extracting(item -> item.code()).containsExactly("EGG");
-        assertThat(response.allergies()).extracting(item -> item.name()).containsExactly("Egg");
+        assertThat(response.allergies()).extracting(item -> item.code()).containsExactly("EGG", "CELERY");
+        assertThat(response.allergies()).extracting(item -> item.name()).containsExactly("Egg", "Celery");
         verify(userPreferenceService).getLanguage(1L);
-        verify(settingsMasterQueryPort).findAllergyOptionsByGroup("en", AllergyGroup.PRIMARY);
-    }
-
-    @Test
-    void getAdditionalAllergyOptionsUsesUserLanguageAndReturnsMappedResponse() {
-        when(userPreferenceService.getLanguage(1L)).thenReturn("en");
-        when(settingsMasterQueryPort.findAllergyOptionsByGroup("en", AllergyGroup.ADDITIONAL)).thenReturn(List.of(
-                new AllergyOption("CELERY", "Celery", 101)
-        ));
-
-        AllergyOptionsResponse response = settingsService.getAdditionalAllergyOptions(1L);
-
-        assertThat(response.allergies()).extracting(item -> item.code()).containsExactly("CELERY");
-        assertThat(response.allergies()).extracting(item -> item.name()).containsExactly("Celery");
-        verify(userPreferenceService).getLanguage(1L);
-        verify(settingsMasterQueryPort).findAllergyOptionsByGroup("en", AllergyGroup.ADDITIONAL);
+        verify(settingsMasterQueryPort).findAllergyOptions("en");
     }
 
     @Test
@@ -95,16 +80,32 @@ class SettingsServiceTest {
     }
 
     @Test
-    void getCountryOptionsReturnsMappedResponseWithoutUserLanguage() {
+    void getCountryOptionsUsesUserLanguageAndReturnsLocalizedResponse() {
+        when(userPreferenceService.getLanguage(1L)).thenReturn("ko");
         when(settingsMasterQueryPort.findCountries()).thenReturn(List.of(
                 new CountryOption("KR", "Korea"),
                 new CountryOption("US", "United States")
         ));
 
-        CountryOptionsResponse response = settingsService.getCountryOptions();
+        CountryOptionsResponse response = settingsService.getCountryOptions(1L);
 
         assertThat(response.countries()).extracting(item -> item.code()).containsExactly("KR", "US");
-        assertThat(response.countries()).extracting(item -> item.name()).containsExactly("Korea", "United States");
+        assertThat(response.countries()).extracting(item -> item.name()).containsExactly("대한민국", "미국");
+        verify(userPreferenceService).getLanguage(1L);
+    }
+
+    @Test
+    void getCountryOptionsFallsBackToStoredNameWhenCodeIsInvalid() {
+        when(userPreferenceService.getLanguage(1L)).thenReturn("en");
+        when(settingsMasterQueryPort.findCountries()).thenReturn(List.of(
+                new CountryOption("XXX", "Unknown Country")
+        ));
+
+        CountryOptionsResponse response = settingsService.getCountryOptions(1L);
+
+        assertThat(response.countries()).extracting(item -> item.code()).containsExactly("XXX");
+        assertThat(response.countries()).extracting(item -> item.name()).containsExactly("Unknown Country");
+        verify(userPreferenceService).getLanguage(1L);
     }
 
     @Test

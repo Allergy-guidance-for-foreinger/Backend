@@ -3,7 +3,7 @@ package com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.adapter
 import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientRow;
-import com.mealguide.mealguide_api.mealcrawl.application.dto.MatchedAllergyRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuMatchedAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.NamedIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
@@ -15,9 +15,12 @@ import com.mealguide.mealguide_api.mealcrawl.domain.MealSchedule;
 import com.mealguide.mealguide_api.mealcrawl.domain.MealScheduleCrawlHistory;
 import com.mealguide.mealguide_api.mealcrawl.domain.Menu;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiAnalysis;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiAnalysisAllergy;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiAnalysisIngredient;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuAllergyCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuSpicyLevel;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslation;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.repository.CafeteriaJpaRepository;
@@ -26,6 +29,7 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.reposito
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.repository.MealScheduleJpaRepository;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.repository.MenuAiAnalysisIngredientJpaRepository;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.repository.MenuAiAnalysisJpaRepository;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.repository.MenuAiAnalysisAllergyJpaRepository;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.repository.MenuJpaRepository;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.repository.MenuTranslationJpaRepository;
 import lombok.RequiredArgsConstructor;
@@ -40,10 +44,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -61,6 +67,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
     private final MealMenuJpaRepository mealMenuJpaRepository;
     private final MenuAiAnalysisJpaRepository menuAiAnalysisJpaRepository;
     private final MenuAiAnalysisIngredientJpaRepository menuAiAnalysisIngredientJpaRepository;
+    private final MenuAiAnalysisAllergyJpaRepository menuAiAnalysisAllergyJpaRepository;
     private final MenuTranslationJpaRepository menuTranslationJpaRepository;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
@@ -311,29 +318,6 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 sql,
                 params,
                 (rs, rowNum) -> rs.getLong("meal_menu_id")
-        ));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<RestrictionIngredientRow> findAllergyRestrictionIngredients(Set<String> allergyCodes) {
-        if (allergyCodes == null || allergyCodes.isEmpty()) {
-            return List.of();
-        }
-
-        String sql = """
-                select ai.allergy_code as restriction_code,
-                       ai.ingredient_code,
-                       i.name as ingredient_name
-                from allergy_ingredient ai
-                join ingredient i on i.code = ai.ingredient_code
-                where ai.allergy_code in (:allergyCodes)
-                """;
-        MapSqlParameterSource params = new MapSqlParameterSource("allergyCodes", allergyCodes);
-        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new RestrictionIngredientRow(
-                rs.getString("restriction_code"),
-                rs.getString("ingredient_code"),
-                rs.getString("ingredient_name")
         ));
     }
 
@@ -594,40 +578,92 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
 
     @Override
     @Transactional(readOnly = true)
-    public List<MatchedAllergyRow> findMatchedAllergies(Long userId, Set<String> ingredientCodes, String langCode) {
-        if (ingredientCodes == null || ingredientCodes.isEmpty()) {
+    public List<MealMenuMatchedAllergyRow> findMatchedAllergiesByMealMenuIds(Long userId, Set<Long> mealMenuIds, String langCode) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
             return List.of();
         }
 
         String sql = """
-                select ai.allergy_code,
+                with target_meal_menu as (
+                    select mm.id as meal_menu_id, mm.menu_id
+                    from meal_menu mm
+                    where mm.id in (:mealMenuIds)
+                ),
+                latest_analysis_id as (
+                    select id, menu_id
+                    from (
+                        select maa.id, maa.menu_id,
+                               row_number() over (partition by maa.menu_id order by coalesce(maa.analyzed_at, maa.created_at) desc, maa.id desc) as rn
+                        from menu_ai_analysis maa
+                        join target_meal_menu tmm on tmm.menu_id = maa.menu_id
+                        where maa.status = 'SUCCESS'
+                    ) ranked
+                    where ranked.rn = 1
+                )
+                select tmm.meal_menu_id,
+                       maaallergy.allergy_code,
                        coalesce(at.name, a.name) as allergy_name,
-                       ai.ingredient_code,
-                       coalesce(it.name, i.name) as ingredient_name
-                from user_allergy ua
-                join allergy_ingredient ai on ai.allergy_code = ua.allergy_code
-                join allergy a on a.code = ai.allergy_code
-                join ingredient i on i.code = ai.ingredient_code
+                       maaallergy.reason
+                from target_meal_menu tmm
+                join latest_analysis_id lai on lai.menu_id = tmm.menu_id
+                join menu_ai_analysis_allergy maaallergy on maaallergy.menu_ai_analysis_id = lai.id
+                join user_allergy ua
+                  on ua.user_id = :userId
+                 and ua.allergy_code = maaallergy.allergy_code
+                join allergy a on a.code = maaallergy.allergy_code
                 left join allergy_translation at
                   on at.allergy_code = a.code
-                 and at.lang_code = :langCode
-                left join ingredient_translation it
-                  on it.ingredient_code = i.code
-                 and it.lang_code = :langCode
-                where ua.user_id = :userId
-                  and ai.ingredient_code in (:ingredientCodes)
-                order by ai.allergy_code, ai.ingredient_code
+                  and at.lang_code = :langCode
+                order by tmm.meal_menu_id, maaallergy.allergy_code
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("userId", userId)
-                .addValue("ingredientCodes", ingredientCodes)
+                .addValue("mealMenuIds", mealMenuIds)
                 .addValue("langCode", normalizeLanguageCode(langCode));
-        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MatchedAllergyRow(
+        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MealMenuMatchedAllergyRow(
+                rs.getLong("meal_menu_id"),
                 rs.getString("allergy_code"),
                 rs.getString("allergy_name"),
-                rs.getString("ingredient_code"),
-                rs.getString("ingredient_name")
+                rs.getString("reason")
         ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<Long> findMealMenuIdsHavingMatchedAllergies(Long userId, Set<Long> mealMenuIds) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
+            return Set.of();
+        }
+
+        String sql = """
+                with target_meal_menu as (
+                    select mm.id as meal_menu_id, mm.menu_id
+                    from meal_menu mm
+                    where mm.id in (:mealMenuIds)
+                ),
+                latest_analysis_id as (
+                    select id, menu_id
+                    from (
+                        select maa.id, maa.menu_id,
+                               row_number() over (partition by maa.menu_id order by coalesce(maa.analyzed_at, maa.created_at) desc, maa.id desc) as rn
+                        from menu_ai_analysis maa
+                        join target_meal_menu tmm on tmm.menu_id = maa.menu_id
+                        where maa.status = 'SUCCESS'
+                    ) ranked
+                    where ranked.rn = 1
+                )
+                select distinct tmm.meal_menu_id
+                from target_meal_menu tmm
+                join latest_analysis_id lai on lai.menu_id = tmm.menu_id
+                join menu_ai_analysis_allergy maaallergy on maaallergy.menu_ai_analysis_id = lai.id
+                join user_allergy ua
+                  on ua.user_id = :userId
+                 and ua.allergy_code = maaallergy.allergy_code
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("userId", userId)
+                .addValue("mealMenuIds", mealMenuIds);
+        return new HashSet<>(namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> rs.getLong("meal_menu_id")));
     }
 
     @Override
@@ -676,19 +712,19 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
         Set<String> candidateCodes = ingredients.stream()
                 .filter(ingredient -> ingredient.ingredientCode() != null && !ingredient.ingredientCode().isBlank())
                 .map(ingredient -> ingredient.ingredientCode().trim())
-                .collect(java.util.stream.Collectors.toSet());
-        Set<String> validIngredientCodes = findExistingIngredientCodes(candidateCodes);
-        List<MenuAiAnalysisIngredient> entities = ingredients.stream()
-                .filter(ingredient -> ingredient.ingredientCode() != null && !ingredient.ingredientCode().isBlank())
-                .filter(ingredient -> {
-                    String ingredientCode = ingredient.ingredientCode().trim();
-                    if (validIngredientCodes.contains(ingredientCode)) {
-                        return true;
-                    }
-                    log.warn("Skipped unknown ingredient_code during AI analysis save: menuId={}, analysisId={}, ingredientCode={}",
-                            menuId, analysis.getId(), ingredientCode);
-                    return false;
-                })
+                .collect(Collectors.toSet());
+        Set<String> validIngredientCodes = ensureIngredientCodesExist(candidateCodes);
+        Map<String, MenuIngredientCandidate> deduplicated = new LinkedHashMap<>();
+        for (MenuIngredientCandidate ingredient : ingredients) {
+            if (ingredient.ingredientCode() == null || ingredient.ingredientCode().isBlank()) {
+                continue;
+            }
+            String ingredientCode = ingredient.ingredientCode().trim();
+            if (validIngredientCodes.contains(ingredientCode)) {
+                deduplicated.putIfAbsent(ingredientCode, ingredient);
+            }
+        }
+        List<MenuAiAnalysisIngredient> entities = deduplicated.values().stream()
                 .map(ingredient -> MenuAiAnalysisIngredient.create(
                         analysis.getId(),
                         ingredient.ingredientCode().trim(),
@@ -705,9 +741,15 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
     @Override
     @Transactional
     public void updateMenuAiStatus(Long menuId, MenuAiStatus aiStatus, LocalDateTime analyzedAt) {
+        updateMenuAiStatus(menuId, aiStatus, analyzedAt, null);
+    }
+
+    @Override
+    @Transactional
+    public void updateMenuAiStatus(Long menuId, MenuAiStatus aiStatus, LocalDateTime analyzedAt, MenuSpicyLevel spicyLevel) {
         Menu menu = menuJpaRepository.findById(menuId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.BINDING_ERROR));
-        menu.updateAiAnalysis(aiStatus, analyzedAt);
+        menu.updateAiAnalysis(aiStatus, analyzedAt, spicyLevel);
     }
 
     @Override
@@ -735,25 +777,61 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
             String reason,
             LocalDateTime analyzedAt,
             List<MenuIngredientCandidate> ingredients,
-            Set<String> validIngredientCodes
+            Set<String> validIngredientCodes,
+            MenuSpicyLevel spicyLevel
+    ) {
+        saveMenuAnalysisAndUpdateStatus(
+                menuId,
+                status,
+                modelName,
+                modelVersion,
+                reason,
+                analyzedAt,
+                ingredients,
+                validIngredientCodes,
+                List.of(),
+                Set.of(),
+                spicyLevel
+        );
+    }
+
+    @Override
+    @Transactional
+    public void saveMenuAnalysisAndUpdateStatus(
+            Long menuId,
+            MenuAiStatus status,
+            String modelName,
+            String modelVersion,
+            String reason,
+            LocalDateTime analyzedAt,
+            List<MenuIngredientCandidate> ingredients,
+            Set<String> validIngredientCodes,
+            List<MenuAllergyCandidate> allergies,
+            Set<String> validAllergyCodes,
+            MenuSpicyLevel spicyLevel
     ) {
         MenuAiAnalysis analysis = menuAiAnalysisJpaRepository.save(
                 MenuAiAnalysis.create(menuId, status, modelName, modelVersion, reason, analyzedAt)
         );
 
         if (ingredients != null && !ingredients.isEmpty()) {
-            Set<String> validCodes = validIngredientCodes == null ? Set.of() : validIngredientCodes;
-            List<MenuAiAnalysisIngredient> entities = ingredients.stream()
+            Set<String> prevalidatedCodes = validIngredientCodes == null ? Set.of() : validIngredientCodes;
+            Set<String> candidateCodes = ingredients.stream()
                     .filter(ingredient -> ingredient.ingredientCode() != null && !ingredient.ingredientCode().isBlank())
-                    .filter(ingredient -> {
-                        String ingredientCode = ingredient.ingredientCode().trim();
-                        if (validCodes.contains(ingredientCode)) {
-                            return true;
-                        }
-                        log.warn("Skipped unknown ingredient_code during AI analysis save: menuId={}, analysisId={}, ingredientCode={}",
-                                menuId, analysis.getId(), ingredientCode);
-                        return false;
-                    })
+                    .map(ingredient -> ingredient.ingredientCode().trim())
+                    .collect(Collectors.toSet());
+            Set<String> validCodes = ensureIngredientCodesExist(candidateCodes, prevalidatedCodes);
+            Map<String, MenuIngredientCandidate> deduplicated = new LinkedHashMap<>();
+            for (MenuIngredientCandidate ingredient : ingredients) {
+                if (ingredient.ingredientCode() == null || ingredient.ingredientCode().isBlank()) {
+                    continue;
+                }
+                String ingredientCode = ingredient.ingredientCode().trim();
+                if (validCodes.contains(ingredientCode)) {
+                    deduplicated.putIfAbsent(ingredientCode, ingredient);
+                }
+            }
+            List<MenuAiAnalysisIngredient> entities = deduplicated.values().stream()
                     .map(ingredient -> MenuAiAnalysisIngredient.create(
                             analysis.getId(),
                             ingredient.ingredientCode().trim(),
@@ -765,9 +843,37 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
             }
         }
 
+        if (allergies != null && !allergies.isEmpty()) {
+            Set<String> validCodes = validAllergyCodes == null ? Set.of() : validAllergyCodes;
+            Map<String, MenuAllergyCandidate> deduplicatedByCode = new HashMap<>();
+            for (MenuAllergyCandidate allergy : allergies) {
+                if (allergy.allergyCode() == null || allergy.allergyCode().isBlank()) {
+                    continue;
+                }
+                String allergyCode = allergy.allergyCode().trim();
+                if (!validCodes.contains(allergyCode)) {
+                    log.warn("Skipped unknown allergy_code during AI analysis save: menuId={}, analysisId={}, allergyCode={}",
+                            menuId, analysis.getId(), allergyCode);
+                    continue;
+                }
+                deduplicatedByCode.putIfAbsent(allergyCode, allergy);
+            }
+            List<MenuAiAnalysisAllergy> entities = deduplicatedByCode.values().stream()
+                    .map(allergy -> MenuAiAnalysisAllergy.create(
+                            analysis.getId(),
+                            allergy.allergyCode().trim(),
+                            allergy.confidence(),
+                            allergy.reason()
+                    ))
+                    .toList();
+            if (!entities.isEmpty()) {
+                menuAiAnalysisAllergyJpaRepository.saveAll(entities);
+            }
+        }
+
         Menu menu = menuJpaRepository.findById(menuId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.BINDING_ERROR));
-        menu.updateAiAnalysis(status, analyzedAt);
+        menu.updateAiAnalysis(status, analyzedAt, spicyLevel);
     }
 
     @Override
@@ -828,6 +934,57 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource("ingredientCodes", ingredientCodes);
         return new HashSet<>(namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> rs.getString("code")));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<String> findExistingAllergyCodes(Set<String> allergyCodes) {
+        if (allergyCodes == null || allergyCodes.isEmpty()) {
+            return Set.of();
+        }
+        String sql = """
+                select a.code
+                from allergy a
+                where a.code in (:allergyCodes)
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource("allergyCodes", allergyCodes);
+        return new HashSet<>(namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> rs.getString("code")));
+    }
+
+    private Set<String> ensureIngredientCodesExist(Set<String> candidateCodes) {
+        return ensureIngredientCodesExist(candidateCodes, Set.of());
+    }
+
+    private Set<String> ensureIngredientCodesExist(Set<String> candidateCodes, Set<String> prevalidatedCodes) {
+        if (candidateCodes == null || candidateCodes.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> existingCodes = new HashSet<>();
+        if (prevalidatedCodes != null && !prevalidatedCodes.isEmpty()) {
+            existingCodes.addAll(prevalidatedCodes);
+        }
+        existingCodes.addAll(findExistingIngredientCodes(candidateCodes));
+
+        Set<String> missingCodes = candidateCodes.stream()
+                .filter(code -> !existingCodes.contains(code))
+                .collect(Collectors.toSet());
+        if (!missingCodes.isEmpty()) {
+            String insertSql = """
+                    insert into ingredient (code, name, created_at)
+                    values (:code, :name, :createdAt)
+                    on conflict (code) do nothing
+                    """;
+            for (String missingCode : missingCodes) {
+                MapSqlParameterSource params = new MapSqlParameterSource()
+                        .addValue("code", missingCode)
+                        .addValue("name", missingCode)
+                        .addValue("createdAt", LocalDateTime.now());
+                namedParameterJdbcTemplate.update(insertSql, params);
+                log.debug("Inserted missing ingredient_code from AI analysis: ingredientCode={}", missingCode);
+            }
+            existingCodes.addAll(findExistingIngredientCodes(candidateCodes));
+        }
+        return existingCodes;
     }
 }
 
