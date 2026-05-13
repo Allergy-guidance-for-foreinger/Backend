@@ -86,7 +86,8 @@ class MenuAiAnalysisFollowUpServiceTest {
                         null,
                         "gpt",
                         "1",
-                        List.of(new PythonMenuIngredientResultDto("WHEAT", BigDecimal.valueOf(0.95)))
+                        List.of(new PythonMenuIngredientResultDto("WHEAT", BigDecimal.valueOf(0.95))),
+                        List.of()
                 )
         ));
 
@@ -114,7 +115,8 @@ class MenuAiAnalysisFollowUpServiceTest {
                         null,
                         "gpt",
                         "1",
-                        List.of(new PythonMenuIngredientResultDto("TOMATO", BigDecimal.valueOf(0.90)))
+                        List.of(new PythonMenuIngredientResultDto("TOMATO", BigDecimal.valueOf(0.90))),
+                        List.of()
                 )
         ));
 

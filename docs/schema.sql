@@ -93,7 +93,7 @@ CREATE TABLE ingredient (
 CREATE TABLE allergy (
     code VARCHAR(30) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    allergy_group VARCHAR(20) NOT NULL DEFAULT 'PRIMARY',
+    allergy_group VARCHAR(20) NOT NULL,
     display_order INT NOT NULL,
     created_at TIMESTAMP NOT NULL
 );
@@ -879,9 +879,6 @@ SET
     name = EXCLUDED.name,
     allergy_group = EXCLUDED.allergy_group,
     display_order = EXCLUDED.display_order;
-
-
-
 -- =========================================================
 -- 7. allergy_translation
 -- =========================================================
@@ -1029,16 +1026,26 @@ ON CONFLICT (allergy_code, lang_code) DO UPDATE
 SET
     name = EXCLUDED.name,
     is_auto_translated = EXCLUDED.is_auto_translated,
-    updated_at = CURRENT_TIMESTAMP;
+    updated_at = EXCLUDED.updated_at;
+
 
 INSERT INTO school (id, name, source_url, created_at)
-VALUES (1, '금오공과대학교', 'https://kumoh.ac.kr', CURRENT_TIMESTAMP);
+VALUES (1, '금오공과대학교', 'https://kumoh.ac.kr', CURRENT_TIMESTAMP)
+ON CONFLICT (id) DO UPDATE
+SET
+    name = EXCLUDED.name,
+    source_url = EXCLUDED.source_url;
 
 INSERT INTO school_translation (
     id, school_id, lang_code, name, is_auto_translated, created_at, updated_at
 ) VALUES
 (1, 1, 'ko', '금오공과대학교', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(2, 1, 'en', 'Kumoh National Institute of Technology', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+(2, 1, 'en', 'Kumoh National Institute of Technology', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT (school_id, lang_code) DO UPDATE
+SET
+    name = EXCLUDED.name,
+    is_auto_translated = EXCLUDED.is_auto_translated,
+    updated_at = EXCLUDED.updated_at;
 
 INSERT INTO cafeteria (
     school_id,
@@ -1049,9 +1056,7 @@ VALUES
     (1, '일품식당', CURRENT_TIMESTAMP),
     (1, '정찬식당', CURRENT_TIMESTAMP),
     (1, '분식당', CURRENT_TIMESTAMP)
-ON CONFLICT (school_id, name) DO UPDATE
-SET
-    name = EXCLUDED.name;
+ON CONFLICT (school_id, name) DO NOTHING;
 
 INSERT INTO country (code, name, created_at) VALUES
 ('KR', 'South Korea', CURRENT_TIMESTAMP),
