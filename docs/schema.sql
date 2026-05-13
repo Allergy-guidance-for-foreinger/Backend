@@ -93,7 +93,7 @@ CREATE TABLE ingredient (
 CREATE TABLE allergy (
     code VARCHAR(30) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    allergy_group VARCHAR(20) NOT NULL DEFAULT 'PRIMARY',
+    allergy_group VARCHAR(20) NOT NULL,
     display_order INT NOT NULL,
     created_at TIMESTAMP NOT NULL
 );
@@ -873,14 +873,7 @@ VALUES
     ('LUPIN', '루핀', 'ADDITIVES', 43, CURRENT_TIMESTAMP),
 
     -- other
-    ('LATEX_RELATED', '라텍스 관련 식품', 'OTHER', 44, CURRENT_TIMESTAMP)
-ON CONFLICT (code) DO UPDATE
-SET
-    name = EXCLUDED.name,
-    allergy_group = EXCLUDED.allergy_group,
-    display_order = EXCLUDED.display_order;
-
-
+    ('LATEX_RELATED', '라텍스 관련 식품', 'OTHER', 44, CURRENT_TIMESTAMP);
 
 -- =========================================================
 -- 7. allergy_translation
@@ -1024,12 +1017,8 @@ VALUES
     ('LUPIN', 'en', 'Lupin', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
     ('LATEX_RELATED', 'ko', '라텍스 관련 식품', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('LATEX_RELATED', 'en', 'Latex-related foods', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-ON CONFLICT (allergy_code, lang_code) DO UPDATE
-SET
-    name = EXCLUDED.name,
-    is_auto_translated = EXCLUDED.is_auto_translated,
-    updated_at = CURRENT_TIMESTAMP;
+    ('LATEX_RELATED', 'en', 'Latex-related foods', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
 
 INSERT INTO school (id, name, source_url, created_at)
 VALUES (1, '금오공과대학교', 'https://kumoh.ac.kr', CURRENT_TIMESTAMP);
@@ -1048,10 +1037,7 @@ INSERT INTO cafeteria (
 VALUES
     (1, '일품식당', CURRENT_TIMESTAMP),
     (1, '정찬식당', CURRENT_TIMESTAMP),
-    (1, '분식당', CURRENT_TIMESTAMP)
-ON CONFLICT (school_id, name) DO UPDATE
-SET
-    name = EXCLUDED.name;
+    (1, '분식당', CURRENT_TIMESTAMP);
 
 INSERT INTO country (code, name, created_at) VALUES
 ('KR', 'South Korea', CURRENT_TIMESTAMP),
