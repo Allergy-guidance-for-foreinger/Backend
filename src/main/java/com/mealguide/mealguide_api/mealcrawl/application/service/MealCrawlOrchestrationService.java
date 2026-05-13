@@ -43,6 +43,13 @@ public class MealCrawlOrchestrationService {
             ));
 
             importResult = mealImportService.importMeals(target, crawlResponse);
+            log.info(
+                    "Meal crawl import completed: cafeteriaId={}, importedMenuCount={}, menusNeedingAnalysisCount={}, menusNeedingTranslationCount={}",
+                    target.cafeteriaId(),
+                    importResult.importedMenuIds().size(),
+                    importResult.menusNeedingAnalysis().size(),
+                    importResult.menusNeedingTranslation().size()
+            );
             mealCrawlPersistencePort.markCrawlHistorySuccess(historyId, LocalDateTime.now());
         } catch (Exception exception) {
             mealCrawlPersistencePort.markCrawlHistoryFailure(historyId, shorten(exception.getMessage()), LocalDateTime.now());

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCacheRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.WeeklyMealCachePort;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -39,9 +40,9 @@ class WeeklyMealCacheRefreshServiceTest {
                 .thenReturn("meal:weekly:1:10:2026-04-20");
         when(persistencePort.findWeeklyMealsForCache(10L, weekStartDate, weekStartDate.plusDays(6)))
                 .thenReturn(List.of(
-                        new WeeklyMealCacheRow(LocalDate.of(2026, 4, 20), "LUNCH", 1, "A", 11L, "Kimchi Stew", 2L, "SUCCESS"),
-                        new WeeklyMealCacheRow(LocalDate.of(2026, 4, 20), "LUNCH", 2, "B", 12L, "Rice", 0L, "PENDING"),
-                        new WeeklyMealCacheRow(LocalDate.of(2026, 4, 20), "LUNCH", 3, "C", 13L, "Fish", 0L, "FAILURE")
+                        new WeeklyMealCacheRow(LocalDate.of(2026, 4, 20), "LUNCH", 1, "A", 11L, "Kimchi Stew", 2L, MenuAiStatus.SUCCESS),
+                        new WeeklyMealCacheRow(LocalDate.of(2026, 4, 20), "LUNCH", 2, "B", 12L, "Rice", 0L, MenuAiStatus.PENDING),
+                        new WeeklyMealCacheRow(LocalDate.of(2026, 4, 20), "LUNCH", 3, "C", 13L, "Fish", 0L, MenuAiStatus.FAILED)
                 ));
 
         WeeklyMealCacheRefreshService service = new WeeklyMealCacheRefreshService(

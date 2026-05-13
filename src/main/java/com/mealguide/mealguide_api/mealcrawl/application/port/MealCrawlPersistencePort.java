@@ -7,6 +7,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.NamedIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCacheRow;
 
@@ -89,7 +90,7 @@ public interface MealCrawlPersistencePort {
 
     void saveMenuAnalysis(
             Long menuId,
-            String status,
+            MenuAiStatus status,
             String modelName,
             String modelVersion,
             String reason,
@@ -97,7 +98,7 @@ public interface MealCrawlPersistencePort {
             List<MenuIngredientCandidate> ingredients
     );
 
-    void updateMenuAiStatus(Long menuId, String aiStatus, LocalDateTime analyzedAt);
+    void updateMenuAiStatus(Long menuId, MenuAiStatus aiStatus, LocalDateTime analyzedAt);
 
     Set<MenuTranslationKey> findExistingMenuTranslationKeys(Set<Long> menuIds, List<String> langCodes);
 

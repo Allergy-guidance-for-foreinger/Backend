@@ -13,6 +13,7 @@ public interface MenuAiAnalysisJpaRepository extends JpaRepository<MenuAiAnalysi
             select distinct analysis.menuId
             from MenuAiAnalysis analysis
             where analysis.menuId in :menuIds
+              and analysis.status = 'SUCCESS'
             """)
     Set<Long> findAnalyzedMenuIds(@Param("menuIds") Set<Long> menuIds);
 }

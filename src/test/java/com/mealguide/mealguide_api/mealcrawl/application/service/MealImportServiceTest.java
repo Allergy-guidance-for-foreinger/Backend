@@ -8,6 +8,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCacheRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonCrawledMenuDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonDailyMealDto;
@@ -158,11 +159,11 @@ class MealImportServiceTest {
         }
 
         @Override
-        public void saveMenuAnalysis(Long menuId, String status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, List<MenuIngredientCandidate> ingredients) {
+        public void saveMenuAnalysis(Long menuId, MenuAiStatus status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, List<MenuIngredientCandidate> ingredients) {
         }
 
         @Override
-        public void updateMenuAiStatus(Long menuId, String aiStatus, LocalDateTime analyzedAt) {
+        public void updateMenuAiStatus(Long menuId, MenuAiStatus aiStatus, LocalDateTime analyzedAt) {
         }
 
         @Override

@@ -16,6 +16,7 @@ import com.mealguide.mealguide_api.mealcrawl.domain.MealScheduleCrawlHistory;
 import com.mealguide.mealguide_api.mealcrawl.domain.Menu;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiAnalysis;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiAnalysisIngredient;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslation;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
@@ -28,6 +29,7 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.reposito
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.repository.MenuJpaRepository;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.repository.MenuTranslationJpaRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -43,11 +45,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
 
-    private static final String DEFAULT_MENU_AI_STATUS = "PENDING";
+    private static final MenuAiStatus DEFAULT_MENU_AI_STATUS = MenuAiStatus.PENDING;
     private static final String INGREDIENT_SOURCE_TYPE_CRAWL = "CRAWL";
     private static final String INGREDIENT_STATUS_PENDING = "PENDING";
 
@@ -655,7 +658,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
     @Transactional
     public void saveMenuAnalysis(
             Long menuId,
-            String status,
+            MenuAiStatus status,
             String modelName,
             String modelVersion,
             String reason,
@@ -670,8 +673,18 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
             return;
         }
 
+        Set<String> validIngredientCodes = findExistingIngredientCodes(ingredients);
         List<MenuAiAnalysisIngredient> entities = ingredients.stream()
                 .filter(ingredient -> ingredient.ingredientCode() != null && !ingredient.ingredientCode().isBlank())
+                .filter(ingredient -> {
+                    String ingredientCode = ingredient.ingredientCode().trim();
+                    if (validIngredientCodes.contains(ingredientCode)) {
+                        return true;
+                    }
+                    log.warn("Skipped unknown ingredient_code during AI analysis save: menuId={}, analysisId={}, ingredientCode={}",
+                            menuId, analysis.getId(), ingredientCode);
+                    return false;
+                })
                 .map(ingredient -> MenuAiAnalysisIngredient.create(
                         analysis.getId(),
                         ingredient.ingredientCode().trim(),
@@ -679,12 +692,15 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 ))
                 .toList();
 
+        if (entities.isEmpty()) {
+            return;
+        }
         menuAiAnalysisIngredientJpaRepository.saveAll(entities);
     }
 
     @Override
     @Transactional
-    public void updateMenuAiStatus(Long menuId, String aiStatus, LocalDateTime analyzedAt) {
+    public void updateMenuAiStatus(Long menuId, MenuAiStatus aiStatus, LocalDateTime analyzedAt) {
         Menu menu = menuJpaRepository.findById(menuId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.BINDING_ERROR));
         menu.updateAiAnalysis(aiStatus, analyzedAt);
@@ -716,6 +732,24 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
             return "ko";
         }
         return languageCode.trim().toLowerCase();
+    }
+
+    private Set<String> findExistingIngredientCodes(List<MenuIngredientCandidate> ingredients) {
+        Set<String> candidateCodes = ingredients.stream()
+                .filter(ingredient -> ingredient.ingredientCode() != null && !ingredient.ingredientCode().isBlank())
+                .map(ingredient -> ingredient.ingredientCode().trim())
+                .collect(java.util.stream.Collectors.toSet());
+        if (candidateCodes.isEmpty()) {
+            return Set.of();
+        }
+
+        String sql = """
+                select i.code
+                from ingredient i
+                where i.code in (:ingredientCodes)
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource("ingredientCodes", candidateCodes);
+        return new HashSet<>(namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> rs.getString("code")));
     }
 }
 

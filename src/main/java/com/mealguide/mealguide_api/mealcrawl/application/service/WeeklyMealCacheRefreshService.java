@@ -6,6 +6,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCachePayl
 import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCacheRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.WeeklyMealCachePort;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,8 +23,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class WeeklyMealCacheRefreshService {
-
-    private static final String MENU_AI_SUCCESS = "SUCCESS";
 
     private final MealCrawlPersistencePort mealCrawlPersistencePort;
     private final WeeklyMealCachePort weeklyMealCachePort;
@@ -119,11 +118,8 @@ public class WeeklyMealCacheRefreshService {
         );
     }
 
-    private boolean isAiAnalyzed(String aiAnalysisStatus) {
-        if (aiAnalysisStatus == null || aiAnalysisStatus.isBlank()) {
-            return false;
-        }
-        return MENU_AI_SUCCESS.equalsIgnoreCase(aiAnalysisStatus.trim());
+    private boolean isAiAnalyzed(MenuAiStatus aiAnalysisStatus) {
+        return aiAnalysisStatus == MenuAiStatus.SUCCESS;
     }
 
     private record MealScheduleKey(LocalDate mealDate, String mealType) {

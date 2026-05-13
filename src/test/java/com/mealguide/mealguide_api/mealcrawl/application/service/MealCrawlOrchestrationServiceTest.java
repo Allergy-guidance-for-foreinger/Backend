@@ -9,6 +9,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersisten
 import com.mealguide.mealguide_api.mealcrawl.application.port.PythonMealClientPort;
 import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMealCrawlRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMealCrawlResponse;
@@ -231,11 +232,11 @@ class MealCrawlOrchestrationServiceTest {
         }
 
         @Override
-        public void saveMenuAnalysis(Long menuId, String status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, List<MenuIngredientCandidate> ingredients) {
+        public void saveMenuAnalysis(Long menuId, MenuAiStatus status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, List<MenuIngredientCandidate> ingredients) {
         }
 
         @Override
-        public void updateMenuAiStatus(Long menuId, String aiStatus, LocalDateTime analyzedAt) {
+        public void updateMenuAiStatus(Long menuId, MenuAiStatus aiStatus, LocalDateTime analyzedAt) {
         }
 
         @Override

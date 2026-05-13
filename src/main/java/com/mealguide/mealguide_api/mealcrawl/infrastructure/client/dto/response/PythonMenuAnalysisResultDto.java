@@ -6,7 +6,7 @@ import java.util.List;
 public record PythonMenuAnalysisResultDto(
         Long menuId,
         String menuName,
-        String status,
+        PythonMenuAnalysisStatus status,
         String reason,
         String modelName,
         String modelVersion,

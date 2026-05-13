@@ -1,5 +1,7 @@
 package com.mealguide.mealguide_api.mealcrawl.application.dto;
 
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
+
 import java.time.LocalDate;
 
 public record WeeklyMealCacheRow(
@@ -10,6 +12,6 @@ public record WeeklyMealCacheRow(
         Long mealMenuId,
         String menuName,
         Long spicyLevel,
-        String aiAnalysisStatus
+        MenuAiStatus aiAnalysisStatus
 ) {
 }
