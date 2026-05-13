@@ -673,7 +673,11 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
             return;
         }
 
-        Set<String> validIngredientCodes = findExistingIngredientCodes(ingredients);
+        Set<String> candidateCodes = ingredients.stream()
+                .filter(ingredient -> ingredient.ingredientCode() != null && !ingredient.ingredientCode().isBlank())
+                .map(ingredient -> ingredient.ingredientCode().trim())
+                .collect(java.util.stream.Collectors.toSet());
+        Set<String> validIngredientCodes = findExistingIngredientCodes(candidateCodes);
         List<MenuAiAnalysisIngredient> entities = ingredients.stream()
                 .filter(ingredient -> ingredient.ingredientCode() != null && !ingredient.ingredientCode().isBlank())
                 .filter(ingredient -> {
@@ -707,6 +711,66 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
     }
 
     @Override
+    @Transactional
+    public void saveMenuAnalysisAndUpdateStatus(
+            Long menuId,
+            MenuAiStatus status,
+            String modelName,
+            String modelVersion,
+            String reason,
+            LocalDateTime analyzedAt,
+            List<MenuIngredientCandidate> ingredients
+    ) {
+        saveMenuAnalysis(menuId, status, modelName, modelVersion, reason, analyzedAt, ingredients);
+        updateMenuAiStatus(menuId, status, analyzedAt);
+    }
+
+    @Override
+    @Transactional
+    public void saveMenuAnalysisAndUpdateStatus(
+            Long menuId,
+            MenuAiStatus status,
+            String modelName,
+            String modelVersion,
+            String reason,
+            LocalDateTime analyzedAt,
+            List<MenuIngredientCandidate> ingredients,
+            Set<String> validIngredientCodes
+    ) {
+        MenuAiAnalysis analysis = menuAiAnalysisJpaRepository.save(
+                MenuAiAnalysis.create(menuId, status, modelName, modelVersion, reason, analyzedAt)
+        );
+
+        if (ingredients != null && !ingredients.isEmpty()) {
+            Set<String> validCodes = validIngredientCodes == null ? Set.of() : validIngredientCodes;
+            List<MenuAiAnalysisIngredient> entities = ingredients.stream()
+                    .filter(ingredient -> ingredient.ingredientCode() != null && !ingredient.ingredientCode().isBlank())
+                    .filter(ingredient -> {
+                        String ingredientCode = ingredient.ingredientCode().trim();
+                        if (validCodes.contains(ingredientCode)) {
+                            return true;
+                        }
+                        log.warn("Skipped unknown ingredient_code during AI analysis save: menuId={}, analysisId={}, ingredientCode={}",
+                                menuId, analysis.getId(), ingredientCode);
+                        return false;
+                    })
+                    .map(ingredient -> MenuAiAnalysisIngredient.create(
+                            analysis.getId(),
+                            ingredient.ingredientCode().trim(),
+                            ingredient.confidence()
+                    ))
+                    .toList();
+            if (!entities.isEmpty()) {
+                menuAiAnalysisIngredientJpaRepository.saveAll(entities);
+            }
+        }
+
+        Menu menu = menuJpaRepository.findById(menuId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.BINDING_ERROR));
+        menu.updateAiAnalysis(status, analyzedAt);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Set<MenuTranslationKey> findExistingMenuTranslationKeys(Set<Long> menuIds, List<String> langCodes) {
         if (menuIds.isEmpty() || langCodes == null || langCodes.isEmpty()) {
@@ -727,6 +791,22 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
         menuTranslationJpaRepository.save(MenuTranslation.create(menuId, langCode, translatedName));
     }
 
+    @Override
+    @Transactional
+    public void saveMenuTranslations(Map<MenuTranslationKey, String> translationsByKey) {
+        if (translationsByKey == null || translationsByKey.isEmpty()) {
+            return;
+        }
+        List<MenuTranslation> entities = translationsByKey.entrySet().stream()
+                .map(entry -> MenuTranslation.create(
+                        entry.getKey().menuId(),
+                        entry.getKey().langCode(),
+                        entry.getValue()
+                ))
+                .toList();
+        menuTranslationJpaRepository.saveAll(entities);
+    }
+
     private String normalizeLanguageCode(String languageCode) {
         if (languageCode == null || languageCode.isBlank()) {
             return "ko";
@@ -734,12 +814,10 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
         return languageCode.trim().toLowerCase();
     }
 
-    private Set<String> findExistingIngredientCodes(List<MenuIngredientCandidate> ingredients) {
-        Set<String> candidateCodes = ingredients.stream()
-                .filter(ingredient -> ingredient.ingredientCode() != null && !ingredient.ingredientCode().isBlank())
-                .map(ingredient -> ingredient.ingredientCode().trim())
-                .collect(java.util.stream.Collectors.toSet());
-        if (candidateCodes.isEmpty()) {
+    @Override
+    @Transactional(readOnly = true)
+    public Set<String> findExistingIngredientCodes(Set<String> ingredientCodes) {
+        if (ingredientCodes == null || ingredientCodes.isEmpty()) {
             return Set.of();
         }
 
@@ -748,7 +826,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 from ingredient i
                 where i.code in (:ingredientCodes)
                 """;
-        MapSqlParameterSource params = new MapSqlParameterSource("ingredientCodes", candidateCodes);
+        MapSqlParameterSource params = new MapSqlParameterSource("ingredientCodes", ingredientCodes);
         return new HashSet<>(namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> rs.getString("code")));
     }
 }

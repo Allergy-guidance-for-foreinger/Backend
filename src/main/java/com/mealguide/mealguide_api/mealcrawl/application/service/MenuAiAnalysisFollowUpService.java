@@ -61,6 +61,8 @@ public class MenuAiAnalysisFollowUpService {
             log.info("Menu AI analysis follow-up response received: resultCount={}", results.size());
 
             Set<Long> handledMenuIds = new HashSet<>();
+            Set<String> candidateIngredientCodes = extractCandidateIngredientCodes(results, targetMenuIds);
+            Set<String> validIngredientCodes = mealCrawlPersistencePort.findExistingIngredientCodes(candidateIngredientCodes);
             for (PythonMenuAnalysisResultDto result : results) {
                 if (result == null || result.menuId() == null || !targetMenuIds.contains(result.menuId())) {
                     continue;
@@ -70,16 +72,16 @@ public class MenuAiAnalysisFollowUpService {
                 MenuAiStatus status = normalizeStatus(result);
                 List<MenuIngredientCandidate> ingredients = toIngredients(result.ingredients());
 
-                mealCrawlPersistencePort.saveMenuAnalysis(
+                mealCrawlPersistencePort.saveMenuAnalysisAndUpdateStatus(
                         result.menuId(),
                         status,
                         result.modelName(),
                         result.modelVersion(),
                         result.reason(),
                         analyzedAt,
-                        ingredients
+                        ingredients,
+                        validIngredientCodes
                 );
-                mealCrawlPersistencePort.updateMenuAiStatus(result.menuId(), status, analyzedAt);
                 handledMenuIds.add(result.menuId());
             }
 
@@ -88,8 +90,15 @@ public class MenuAiAnalysisFollowUpService {
                     continue;
                 }
                 LocalDateTime now = LocalDateTime.now();
-                mealCrawlPersistencePort.saveMenuAnalysis(menuId, MenuAiStatus.FAILED, null, null, "No analysis response", now, List.of());
-                mealCrawlPersistencePort.updateMenuAiStatus(menuId, MenuAiStatus.FAILED, now);
+                mealCrawlPersistencePort.saveMenuAnalysisAndUpdateStatus(
+                        menuId,
+                        MenuAiStatus.FAILED,
+                        null,
+                        null,
+                        "No analysis response",
+                        now,
+                        List.of()
+                );
             }
             log.info(
                     "Menu AI analysis follow-up completed: handledCount={}, markedFailedCount={}",
@@ -106,8 +115,15 @@ public class MenuAiAnalysisFollowUpService {
         LocalDateTime failedAt = LocalDateTime.now();
         for (Long menuId : targetMenuIds) {
             try {
-                mealCrawlPersistencePort.saveMenuAnalysis(menuId, MenuAiStatus.FAILED, null, null, reason, failedAt, List.of());
-                mealCrawlPersistencePort.updateMenuAiStatus(menuId, MenuAiStatus.FAILED, failedAt);
+                mealCrawlPersistencePort.saveMenuAnalysisAndUpdateStatus(
+                        menuId,
+                        MenuAiStatus.FAILED,
+                        null,
+                        null,
+                        reason,
+                        failedAt,
+                        List.of()
+                );
             } catch (Exception updateException) {
                 log.warn("Failed to mark menu AI status as FAILED: menuId={}", menuId, updateException);
             }
@@ -144,6 +160,25 @@ public class MenuAiAnalysisFollowUpService {
                 .filter(ingredient -> ingredient != null && ingredient.ingredientCode() != null && !ingredient.ingredientCode().isBlank())
                 .map(ingredient -> new MenuIngredientCandidate(ingredient.ingredientCode().trim(), ingredient.confidence()))
                 .toList();
+    }
+
+    private Set<String> extractCandidateIngredientCodes(
+            List<PythonMenuAnalysisResultDto> results,
+            Set<Long> targetMenuIds
+    ) {
+        if (results == null || results.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> candidateCodes = new HashSet<>();
+        for (PythonMenuAnalysisResultDto result : results) {
+            if (result == null || result.menuId() == null || !targetMenuIds.contains(result.menuId())) {
+                continue;
+            }
+            for (MenuIngredientCandidate ingredient : toIngredients(result.ingredients())) {
+                candidateCodes.add(ingredient.ingredientCode());
+            }
+        }
+        return candidateCodes;
     }
 }
 

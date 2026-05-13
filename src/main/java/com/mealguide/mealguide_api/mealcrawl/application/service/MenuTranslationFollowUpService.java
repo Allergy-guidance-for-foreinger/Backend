@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -78,6 +79,7 @@ public class MenuTranslationFollowUpService {
         int skippedInvalidTranslation = 0;
         int skippedLangMismatch = 0;
         int skippedExistingKey = 0;
+        Map<MenuTranslationKey, String> translationsToSave = new LinkedHashMap<>();
 
         for (PythonMenuTranslationResultDto result : results) {
             if (result == null || result.menuId() == null || !targetMenuIds.contains(result.menuId())) {
@@ -109,11 +111,12 @@ public class MenuTranslationFollowUpService {
                     continue;
                 }
 
-                mealCrawlPersistencePort.saveMenuTranslation(result.menuId(), langCode, translation.translatedName().trim());
+                translationsToSave.put(key, translation.translatedName().trim());
                 existingKeys.add(key);
                 savedCount++;
             }
         }
+        mealCrawlPersistencePort.saveMenuTranslations(translationsToSave);
 
         log.info(
                 "Menu translation follow-up completed: responseResultCount={}, savedCount={}, skippedInvalidResultCount={}, skippedEmptyTranslationsCount={}, skippedInvalidTranslationCount={}, skippedLangMismatchCount={}, skippedExistingKeyCount={}",

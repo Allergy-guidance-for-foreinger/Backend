@@ -95,6 +95,87 @@ class MenuAiAnalysisFollowUpServiceTest {
         assertThat(persistencePort.updatedMenuStatus.get(21L)).isEqualTo(MenuAiStatus.SUCCESS);
     }
 
+    @Test
+    void processInfersSuccessWhenStatusIsNullAndIngredientsExist() {
+        FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
+        persistencePort.menuNames.put(31L, "Tempura");
+
+        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
+        pythonClientPort.analysisResponse = new PythonMenuAnalysisResponse(List.of(
+                new PythonMenuAnalysisResultDto(
+                        31L,
+                        "Tempura",
+                        null,
+                        null,
+                        "gpt",
+                        "1",
+                        LocalDateTime.now(),
+                        List.of(new PythonMenuIngredientResultDto("SHRIMP", BigDecimal.valueOf(0.88)))
+                )
+        ));
+
+        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonClientPort);
+        MealImportResult importResult = new MealImportResult(1L, 1L, List.of(31L), List.of(31L), List.of());
+
+        service.process(importResult);
+
+        assertThat(persistencePort.updatedMenuStatus.get(31L)).isEqualTo(MenuAiStatus.SUCCESS);
+    }
+
+    @Test
+    void processInfersFailedWhenStatusIsNullAndIngredientsAreEmpty() {
+        FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
+        persistencePort.menuNames.put(32L, "Soup");
+
+        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
+        pythonClientPort.analysisResponse = new PythonMenuAnalysisResponse(List.of(
+                new PythonMenuAnalysisResultDto(
+                        32L,
+                        "Soup",
+                        null,
+                        null,
+                        "gpt",
+                        "1",
+                        LocalDateTime.now(),
+                        List.of()
+                )
+        ));
+
+        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonClientPort);
+        MealImportResult importResult = new MealImportResult(1L, 1L, List.of(32L), List.of(32L), List.of());
+
+        service.process(importResult);
+
+        assertThat(persistencePort.updatedMenuStatus.get(32L)).isEqualTo(MenuAiStatus.FAILED);
+    }
+
+    @Test
+    void processInfersFailedWhenStatusIsNullAndFailureReasonExists() {
+        FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
+        persistencePort.menuNames.put(33L, "Rice");
+
+        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
+        pythonClientPort.analysisResponse = new PythonMenuAnalysisResponse(List.of(
+                new PythonMenuAnalysisResultDto(
+                        33L,
+                        "Rice",
+                        null,
+                        "analysis failed",
+                        "gpt",
+                        "1",
+                        LocalDateTime.now(),
+                        List.of()
+                )
+        ));
+
+        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonClientPort);
+        MealImportResult importResult = new MealImportResult(1L, 1L, List.of(33L), List.of(33L), List.of());
+
+        service.process(importResult);
+
+        assertThat(persistencePort.updatedMenuStatus.get(33L)).isEqualTo(MenuAiStatus.FAILED);
+    }
+
     private static class FakePythonMealClientPort implements PythonMealClientPort {
         private PythonMenuAnalysisRequest lastAnalysisRequest;
         private PythonMenuAnalysisResponse analysisResponse;

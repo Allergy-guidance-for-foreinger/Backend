@@ -98,10 +98,70 @@ public interface MealCrawlPersistencePort {
             List<MenuIngredientCandidate> ingredients
     );
 
+    default Set<String> findExistingIngredientCodes(Set<String> ingredientCodes) {
+        if (ingredientCodes == null || ingredientCodes.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(ingredientCodes);
+    }
+
     void updateMenuAiStatus(Long menuId, MenuAiStatus aiStatus, LocalDateTime analyzedAt);
+
+    default void saveMenuAnalysisAndUpdateStatus(
+            Long menuId,
+            MenuAiStatus status,
+            String modelName,
+            String modelVersion,
+            String reason,
+            LocalDateTime analyzedAt,
+            List<MenuIngredientCandidate> ingredients
+    ) {
+        saveMenuAnalysis(menuId, status, modelName, modelVersion, reason, analyzedAt, ingredients);
+        updateMenuAiStatus(menuId, status, analyzedAt);
+    }
+
+    default void saveMenuAnalysisAndUpdateStatus(
+            Long menuId,
+            MenuAiStatus status,
+            String modelName,
+            String modelVersion,
+            String reason,
+            LocalDateTime analyzedAt,
+            List<MenuIngredientCandidate> ingredients,
+            Set<String> validIngredientCodes
+    ) {
+        Set<String> allowedCodes = validIngredientCodes == null ? Set.of() : validIngredientCodes;
+        List<MenuIngredientCandidate> filteredIngredients = ingredients == null
+                ? List.of()
+                : ingredients.stream()
+                .filter(ingredient -> ingredient != null
+                        && ingredient.ingredientCode() != null
+                        && !ingredient.ingredientCode().isBlank()
+                        && allowedCodes.contains(ingredient.ingredientCode().trim()))
+                .toList();
+        saveMenuAnalysisAndUpdateStatus(
+                menuId,
+                status,
+                modelName,
+                modelVersion,
+                reason,
+                analyzedAt,
+                filteredIngredients
+        );
+    }
 
     Set<MenuTranslationKey> findExistingMenuTranslationKeys(Set<Long> menuIds, List<String> langCodes);
 
     void saveMenuTranslation(Long menuId, String langCode, String translatedName);
+
+    default void saveMenuTranslations(Map<MenuTranslationKey, String> translationsByKey) {
+        if (translationsByKey == null || translationsByKey.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<MenuTranslationKey, String> entry : translationsByKey.entrySet()) {
+            MenuTranslationKey key = entry.getKey();
+            saveMenuTranslation(key.menuId(), key.langCode(), entry.getValue());
+        }
+    }
 }
 

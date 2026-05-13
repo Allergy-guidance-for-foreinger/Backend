@@ -929,3 +929,82 @@
   - `docs/work-log/general-work-log.md`
 - Remaining follow-ups:
   - Validate one scheduler cycle runtime logs and persisted statuses after deployment.
+
+## 2026-05-13 (AI follow-up save/update transaction boundary consolidation)
+- What changed:
+  - Added saveMenuAnalysisAndUpdateStatus(...) default method to MealCrawlPersistencePort.
+  - Overrode saveMenuAnalysisAndUpdateStatus(...) in MealCrawlPersistenceAdapter with @Transactional to execute analysis save + menu status update in one transaction.
+  - Updated MenuAiAnalysisFollowUpService to call the consolidated method in normal handling, missing-response fallback, and exception fallback paths.
+- Why:
+  - Prevent per-menu split transaction between saveMenuAnalysis and updateMenuAiStatus and reduce inconsistency risk when one succeeds and the other fails.
+  - Keep minimal architecture change while improving transactional correctness and reducing transaction overhead in follow-up loop.
+- Affected files:
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java
+  - docs/work-log/general-work-log.md
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - docs/work-log/general-work-log.md
+- Remaining follow-ups:
+  - Run unit tests and one scheduler-cycle runtime verification in local environment.
+
+## 2026-05-13 (translation follow-up bulk save optimization)
+- What changed:
+  - Added saveMenuTranslations(Map<MenuTranslationKey, String>) default method to MealCrawlPersistencePort.
+  - Overrode the new method in MealCrawlPersistenceAdapter with @Transactional + saveAll(...) bulk persistence.
+  - Updated MenuTranslationFollowUpService to collect validated translations and save them in one batch call instead of per-item saveMenuTranslation(...) calls.
+  - Kept existing validation/skip counters and duplicate-prevention (existingKeys) behavior unchanged.
+- Why:
+  - Reduce DB round-trip overhead from nested-loop per-row inserts in translation follow-up.
+  - Keep minimal change while improving persistence efficiency.
+- Affected files:
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpService.java
+  - docs/work-log/general-work-log.md
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - docs/work-log/general-work-log.md
+- Remaining follow-ups:
+  - Run unit test and scheduler-cycle translation follow-up runtime check in local environment.
+
+## 2026-05-13 (AI ingredient code validation query reduction)
+- What changed:
+  - Added indExistingIngredientCodes(Set<String>) to MealCrawlPersistencePort and implemented it in MealCrawlPersistenceAdapter using one SQL lookup.
+  - Added overloaded saveMenuAnalysisAndUpdateStatus(..., Set<String> validIngredientCodes) and implemented adapter override to persist analysis + status update without per-call ingredient validation query.
+  - Updated MenuAiAnalysisFollowUpService to pre-collect candidate ingredient codes from Python results, fetch valid codes once, and reuse them across per-menu saves.
+- Why:
+  - Reduce repeated ingredient validation SELECT calls inside menu-by-menu analysis save loop.
+  - Keep existing unknown-ingredient skip behavior while lowering DB round-trips.
+- Affected files:
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java
+  - docs/work-log/general-work-log.md
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - docs/work-log/general-work-log.md
+- Remaining follow-ups:
+  - Run unit test for MenuAiAnalysisFollowUpService and verify one scheduler cycle runtime logs.
+
+## 2026-05-13 (AI null-status inference test coverage 강화)
+- What changed:
+  - Added explicit test cases in MenuAiAnalysisFollowUpServiceTest for inferStatusWithoutExplicitValue behavior when Python status is null:
+    - status=null + ingredients present -> SUCCESS
+    - status=null + empty ingredients -> FAILED
+    - status=null + failure reason present -> FAILED
+- Why:
+  - Make null-status inference intent explicit and prevent unintended regression in follow-up status normalization logic.
+- Affected files:
+  - src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpServiceTest.java
+  - docs/work-log/general-work-log.md
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - docs/work-log/general-work-log.md
+- Remaining follow-ups:
+  - Execute test run in local Maven/IDE environment.
