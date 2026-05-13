@@ -212,11 +212,6 @@ class MealCrawlOrchestrationServiceTest {
         }
 
         @Override
-        public List<RestrictionIngredientRow> findAllergyRestrictionIngredients(Set<String> allergyCodes) {
-            return List.of();
-        }
-
-        @Override
         public List<RestrictionIngredientRow> findReligiousRestrictionIngredients(String religiousCode) {
             return List.of();
         }

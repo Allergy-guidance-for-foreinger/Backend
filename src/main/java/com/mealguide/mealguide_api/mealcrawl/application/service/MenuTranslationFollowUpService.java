@@ -14,6 +14,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,15 +33,26 @@ public class MenuTranslationFollowUpService {
     private final MealCrawlProperties mealCrawlProperties;
 
     public void process(MealImportResult importResult) {
+        process("manual", null, null, null, importResult);
+    }
+
+    public void process(String runId, Long schoolId, Long cafeteriaId, LocalDate weekStartDate, MealImportResult importResult) {
+        Instant startedAt = Instant.now();
         Set<Long> targetMenuIds = new HashSet<>(importResult.menusNeedingTranslation());
         if (targetMenuIds.isEmpty()) {
-            log.info("Menu translation follow-up skipped: reason=no-target-menus");
+            log.info(
+                    "event=SKIP stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} reason=no-target-menus",
+                    runId, schoolId, cafeteriaId, weekStartDate
+            );
             return;
         }
 
         List<String> targetLanguages = normalizeTargetLanguages(mealCrawlProperties.getTranslationTargetLanguages());
         if (targetLanguages == null || targetLanguages.isEmpty()) {
-            log.info("Menu translation follow-up skipped: reason=no-target-languages");
+            log.info(
+                    "event=SKIP stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} reason=no-target-languages",
+                    runId, schoolId, cafeteriaId, weekStartDate
+            );
             return;
         }
 
@@ -53,7 +67,11 @@ public class MenuTranslationFollowUpService {
 
         if (translationTargets.isEmpty()) {
             log.info(
-                    "Menu translation follow-up skipped: reason=no-translation-targets, targetMenuCount={}, existingKeyCount={}, menuNameCount={}, targetLanguages={}",
+                    "event=SKIP stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} reason=no-translation-targets targetMenuCount={} existingKeyCount={} menuNameCount={} targetLanguages={}",
+                    runId,
+                    schoolId,
+                    cafeteriaId,
+                    weekStartDate,
                     targetMenuIds.size(),
                     existingKeys.size(),
                     menuNames.size(),
@@ -63,7 +81,11 @@ public class MenuTranslationFollowUpService {
         }
 
         log.info(
-                "Menu translation follow-up started: targetMenuCount={}, requestTargetCount={}, targetLanguages={}",
+                "event=START stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} targetMenuCount={} requestTargetCount={} targetLanguages={}",
+                runId,
+                schoolId,
+                cafeteriaId,
+                weekStartDate,
                 targetMenuIds.size(),
                 translationTargets.size(),
                 targetLanguages
@@ -117,16 +139,27 @@ public class MenuTranslationFollowUpService {
             }
         }
         mealCrawlPersistencePort.saveMenuTranslations(translationsToSave);
+        long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
+        int failCount = skippedInvalidResult + skippedEmptyTranslations + skippedInvalidTranslation + skippedLangMismatch + skippedExistingKey;
+        int successRate = savedCount + failCount == 0 ? 100 : (savedCount * 100) / (savedCount + failCount);
 
         log.info(
-                "Menu translation follow-up completed: responseResultCount={}, savedCount={}, skippedInvalidResultCount={}, skippedEmptyTranslationsCount={}, skippedInvalidTranslationCount={}, skippedLangMismatchCount={}, skippedExistingKeyCount={}",
+                "event=END stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} responseResultCount={} savedCount={} skippedInvalidResultCount={} skippedEmptyTranslationsCount={} skippedInvalidTranslationCount={} skippedLangMismatchCount={} skippedExistingKeyCount={} failCount={} successRate={} durationMs={} result={}",
+                runId,
+                schoolId,
+                cafeteriaId,
+                weekStartDate,
                 results.size(),
                 savedCount,
                 skippedInvalidResult,
                 skippedEmptyTranslations,
                 skippedInvalidTranslation,
                 skippedLangMismatch,
-                skippedExistingKey
+                skippedExistingKey,
+                failCount,
+                successRate,
+                durationMs,
+                failCount == 0 ? "SUCCESS" : "PARTIAL_SUCCESS"
         );
     }
 

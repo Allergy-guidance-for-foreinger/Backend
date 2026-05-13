@@ -1008,3 +1008,81 @@
   - docs/work-log/general-work-log.md
 - Remaining follow-ups:
   - Execute test run in local Maven/IDE environment.
+
+## 2026-05-13 (AI allergy storage migration: allergy_ingredient ì œê±° + menu_ai_analysis_allergy ë„ìž…)
+- What changed:
+  - Removed llergy_ingredient ê¸°ë°˜ ì¡°íšŒ/ë§¤ì¹­ ì˜ì¡´ì„ mealcrawl ì½”ë“œì—ì„œ ì œê±°í–ˆë‹¤.
+  - Added AI allergy response DTO PythonMenuAllergyResultDto and extended PythonMenuAnalysisResultDto with llergies field.
+  - Added persistence model for menu_ai_analysis_allergy:
+    - MenuAiAnalysisAllergy, MenuAiAnalysisAllergyId, MenuAiAnalysisAllergyJpaRepository
+  - Updated AI follow-up save flow (MenuAiAnalysisFollowUpService + MealCrawlPersistenceAdapter) to persist AI allergy codes in same transaction as analysis/status update.
+  - Added prefetch validation for allergy master codes (indExistingAllergyCodes) and skip+warn behavior for unknown codes.
+  - Added duplicate allergy-code deduplication per analysis before insert.
+  - Updated menu detail matching flow to use latest SUCCESS menu_ai_analysis_allergy + user_allergy direct intersection.
+  - Updated weekly risk flow to compute allergy danger by bulk matched meal-menu lookup (indMealMenuIdsHavingMatchedAllergies) instead of ingredient->allergy mapping.
+  - Kept religion risk logic on eligious_food_restriction_ingredient ingredient matching.
+  - Kept settings/onboarding allergy validation and user_allergy replacement flow unchanged.
+- Why:
+  - Align Java server with DB contract where llergy_ingredient is removed and AI-provided menu allergy codes are source-of-truth for allergy risk matching.
+- Affected files:
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryService.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealResponseAssembler.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonMenuAnalysisResultDto.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonMenuAllergyResultDto.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuAllergyCandidate.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuAiAnalysisAllergy.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuAiAnalysisAllergyId.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MenuAiAnalysisAllergyJpaRepository.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/MealMenuMatchedAllergyRow.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/MatchedAllergyRow.java (deleted)
+  - src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpServiceTest.java
+  - src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryServiceTest.java
+  - src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealResponseAssemblerTest.java
+  - docs/features/mealcrawl-context.md
+  - docs/database-context.md
+  - docs/work-log/general-work-log.md
+- DB schema changed: Reflected in docs/schema.sql baseline (menu_ai_analysis_allergy present, llergy_ingredient absent)
+- API behavior changed:
+  - MenuDetailResponse.matchedAllergies[].ingredientCode is now 
+ull (allergy match source changed to AI allergy code table).
+  - Weekly response schema unchanged (iskLevel only), allergy risk source changed internally.
+- Related docs updated:
+  - docs/features/mealcrawl-context.md
+  - docs/database-context.md
+  - docs/work-log/general-work-log.md
+- Remaining follow-ups:
+  - Run compile/tests in local Maven/IDE environment and validate one scheduler cycle with Python allergy payload.
+
+### 2026-05-13 (AI ºÐ¼® unknown ingredient ÀÚµ¿ µî·Ï)
+- Changed `MealCrawlPersistenceAdapter` to auto-insert missing `ingredient.code` values during AI analysis save.
+- Unknown `ingredient_code` is no longer skipped; it is inserted into `ingredient(code,name,created_at)` with `name=code` and then saved to `menu_ai_analysis_ingredient`.
+- `allergy_code` behavior remains unchanged: unknown allergy codes are still skipped with WARN logs.
+
+### 2026-05-13 (AI ¸Ê±â ´Ü°è enum °ü¸® ¹Ý¿µ)
+- Added `MenuSpicyLevel` enum (1~5 levels) in mealcrawl domain.
+- AI analysis response DTO now accepts `spicyLevel` (and `spicy_level` alias).
+- `MenuAiAnalysisFollowUpService` now reads spicy level from AI response and passes it to persistence update.
+- `Menu` domain now updates `spicy_level` via enum value when AI analysis result includes spicy level.
+
+### 2026-05-13 (spicy level range extension to 0~5)
+- What changed:
+  - Added `LEVEL_0(0)` to `MenuSpicyLevel` enum.
+  - Changed default menu spicy level on creation from `LEVEL_1` to `LEVEL_0`.
+  - Added `MenuAiAnalysisFollowUpServiceTest.processAcceptsSpicyLevelZero` to verify AI `spicyLevel=0` is persisted as `MenuSpicyLevel.LEVEL_0`.
+- Why:
+  - Requirement changed to allow spicy level range `0~5`.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuSpicyLevel.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/Menu.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - `spicyLevel` response values may now include `0`.
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Run test suite in local IDE/Maven environment.

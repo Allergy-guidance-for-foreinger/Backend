@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Slf4j
@@ -25,6 +27,20 @@ public class MealCrawlOrchestrationService {
     private final MenuTranslationFollowUpService menuTranslationFollowUpService;
 
     public void crawlAndImport(MealCrawlTarget target) {
+        crawlAndImport("manual", target);
+    }
+
+    public void crawlAndImport(String runId, MealCrawlTarget target) {
+        Instant startedAt = Instant.now();
+        log.info(
+                "event=START stage=crawl_orchestration runId={} schoolId={} cafeteriaId={} weekStartDate={} weekEndDate={}",
+                runId,
+                target.schoolId(),
+                target.cafeteriaId(),
+                target.startDate(),
+                target.endDate()
+        );
+
         Long historyId = mealCrawlPersistencePort.startCrawlHistory(
                 target.cafeteriaId(),
                 target.startDate(),
@@ -44,8 +60,11 @@ public class MealCrawlOrchestrationService {
 
             importResult = mealImportService.importMeals(target, crawlResponse);
             log.info(
-                    "Meal crawl import completed: cafeteriaId={}, importedMenuCount={}, menusNeedingAnalysisCount={}, menusNeedingTranslationCount={}",
+                    "event=END stage=crawl_import runId={} schoolId={} cafeteriaId={} weekStartDate={} importedMenuCount={} menusNeedingAnalysisCount={} menusNeedingTranslationCount={} result=SUCCESS",
+                    runId,
+                    target.schoolId(),
                     target.cafeteriaId(),
+                    target.startDate(),
                     importResult.importedMenuIds().size(),
                     importResult.menusNeedingAnalysis().size(),
                     importResult.menusNeedingTranslation().size()
@@ -53,32 +72,75 @@ public class MealCrawlOrchestrationService {
             mealCrawlPersistencePort.markCrawlHistorySuccess(historyId, LocalDateTime.now());
         } catch (Exception exception) {
             mealCrawlPersistencePort.markCrawlHistoryFailure(historyId, shorten(exception.getMessage()), LocalDateTime.now());
+            long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
+            log.error(
+                    "event=FAIL stage=crawl_orchestration runId={} schoolId={} cafeteriaId={} weekStartDate={} durationMs={} errorType={} message={}",
+                    runId,
+                    target.schoolId(),
+                    target.cafeteriaId(),
+                    target.startDate(),
+                    durationMs,
+                    exception.getClass().getSimpleName(),
+                    shorten(exception.getMessage()),
+                    exception
+            );
             throw exception;
         }
 
         try {
-            weeklyMealCacheRefreshService.refreshWeeklyMealCache(target.schoolId(), target.cafeteriaId(), target.startDate());
+            weeklyMealCacheRefreshService.refreshWeeklyMealCache(runId, target.schoolId(), target.cafeteriaId(), target.startDate());
         } catch (Exception exception) {
             log.warn(
-                    "Weekly meal cache refresh failed for schoolId={}, cafeteriaId={}, weekStartDate={}",
+                    "event=FAIL stage=cache_refresh runId={} schoolId={} cafeteriaId={} weekStartDate={} errorType={} message={}",
+                    runId,
                     target.schoolId(),
                     target.cafeteriaId(),
                     target.startDate(),
+                    exception.getClass().getSimpleName(),
+                    shorten(exception.getMessage()),
                     exception
             );
         }
 
         try {
-            menuAiAnalysisFollowUpService.process(importResult);
+            menuAiAnalysisFollowUpService.process(runId, target.schoolId(), target.cafeteriaId(), target.startDate(), importResult);
         } catch (Exception exception) {
-            log.warn("Menu AI analysis follow-up failed for cafeteriaId={}", target.cafeteriaId(), exception);
+            log.warn(
+                    "event=FAIL stage=ai_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} errorType={} message={}",
+                    runId,
+                    target.schoolId(),
+                    target.cafeteriaId(),
+                    target.startDate(),
+                    exception.getClass().getSimpleName(),
+                    shorten(exception.getMessage()),
+                    exception
+            );
         }
 
         try {
-            menuTranslationFollowUpService.process(importResult);
+            menuTranslationFollowUpService.process(runId, target.schoolId(), target.cafeteriaId(), target.startDate(), importResult);
         } catch (Exception exception) {
-            log.warn("Menu translation follow-up failed for cafeteriaId={}", target.cafeteriaId(), exception);
+            log.warn(
+                    "event=FAIL stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} errorType={} message={}",
+                    runId,
+                    target.schoolId(),
+                    target.cafeteriaId(),
+                    target.startDate(),
+                    exception.getClass().getSimpleName(),
+                    shorten(exception.getMessage()),
+                    exception
+            );
         }
+
+        long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
+        log.info(
+                "event=END stage=crawl_orchestration runId={} schoolId={} cafeteriaId={} weekStartDate={} durationMs={} result=SUCCESS",
+                runId,
+                target.schoolId(),
+                target.cafeteriaId(),
+                target.startDate(),
+                durationMs
+        );
     }
 
     private String shorten(String message) {

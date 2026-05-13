@@ -40,7 +40,7 @@
   - `users.country_code`
   - `users.religious_code`
   - `user_allergy` 매핑 컬럼들
-  - `allergy.allergy_group` (`PRIMARY`, `ADDITIONAL`)
+  - `allergy.display_order`
 - 조회/저장 규칙
   - 개인 설정 조회/수정은 `users` + `user_allergy` 기준으로 처리한다.
   - 알레르기 수정은 full replacement 방식으로 처리한다.
@@ -62,8 +62,7 @@
     - `PATCH /api/v1/settings/school`
   - 옵션 목록
     - `GET /api/v1/settings/options/languages`
-    - `GET /api/v1/settings/options/allergies/primary`
-    - `GET /api/v1/settings/options/allergies/additional`
+    - `GET /api/v1/settings/options/allergies`
     - `GET /api/v1/settings/options/religions`
     - `GET /api/v1/settings/options/countries`
     - `GET /api/v1/settings/options/schools`
@@ -92,13 +91,8 @@
 - 각 항목은 언어 코드와 표시 이름을 포함한다.
 - 인증된 사용자 기준으로 호출되는 설정 옵션 API로 관리한다.
 
-### 7.2 `GET /api/v1/settings/options/allergies/primary`
-- 대표 알레르기 목록만 반환한다.
-- 표시 이름은 인증 사용자의 현재 언어 설정을 기준으로 현지화한다.
-- 번역이 없으면 기본 이름으로 fallback한다.
-
-### 7.3 `GET /api/v1/settings/options/allergies/additional`
-- 부가 알레르기 목록만 반환한다.
+### 7.2 `GET /api/v1/settings/options/allergies`
+- 선택 가능한 전체 알레르기 목록을 반환한다.
 - 표시 이름은 인증 사용자의 현재 언어 설정을 기준으로 현지화한다.
 - 번역이 없으면 기본 이름으로 fallback한다.
 
@@ -125,7 +119,7 @@
 ### 7.8 `PUT /api/v1/settings/allergies`
 - 인증 사용자의 알레르기 설정을 전체 교체한다.
 - 요청 allergy code들이 모두 유효한지 검증한다.
-- `PRIMARY`/`ADDITIONAL` 구분 없이 유효 code면 저장 가능하다.
+- 알레르기 그룹 구분 없이 유효 code면 저장 가능하다.
 - 중복 code가 들어오면 현재 정책에 따라 중복을 제거하거나 오류 처리한다.
 - 기존 `user_allergy`를 삭제하고 새 목록을 저장한다.
 

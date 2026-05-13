@@ -3,7 +3,6 @@ package com.mealguide.mealguide_api.settings.application.service;
 import com.mealguide.mealguide_api.settings.application.port.SettingsMasterQueryPort;
 import com.mealguide.mealguide_api.settings.application.port.UserPreferencePort;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
-import com.mealguide.mealguide_api.settings.domain.AllergyGroup;
 import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
 import com.mealguide.mealguide_api.settings.domain.ReligiousRestrictionOption;
@@ -216,7 +215,7 @@ class UserPreferenceServiceTest {
         }
 
         @Override
-        public List<AllergyOption> findAllergyOptionsByGroup(String langCode, AllergyGroup group) {
+        public List<AllergyOption> findAllergyOptions(String langCode) {
             return List.of();
         }
 

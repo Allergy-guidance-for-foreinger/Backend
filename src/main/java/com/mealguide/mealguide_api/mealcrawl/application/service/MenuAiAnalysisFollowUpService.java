@@ -3,9 +3,12 @@ package com.mealguide.mealguide_api.mealcrawl.application.service;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealImportResult;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.PythonMealClientPort;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuAllergyCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuSpicyLevel;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisRequest;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAllergyResultDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResultDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisStatus;
@@ -15,6 +18,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -30,9 +36,17 @@ public class MenuAiAnalysisFollowUpService {
     private final PythonMealClientPort pythonMealClientPort;
 
     public void process(MealImportResult importResult) {
+        process("manual", null, null, null, importResult);
+    }
+
+    public void process(String runId, Long schoolId, Long cafeteriaId, LocalDate weekStartDate, MealImportResult importResult) {
+        Instant startedAt = Instant.now();
         Set<Long> targetMenuIds = new HashSet<>(importResult.menusNeedingAnalysis());
         if (targetMenuIds.isEmpty()) {
-            log.info("Menu AI analysis follow-up skipped: reason=no-target-menus");
+            log.info(
+                    "event=SKIP stage=ai_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} reason=no-target-menus",
+                    runId, schoolId, cafeteriaId, weekStartDate
+            );
             return;
         }
 
@@ -43,7 +57,11 @@ public class MenuAiAnalysisFollowUpService {
 
         if (targets.isEmpty()) {
             log.info(
-                    "Menu AI analysis follow-up skipped: reason=no-analysis-targets, targetMenuCount={}, menuNameCount={}",
+                    "event=SKIP stage=ai_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} reason=no-analysis-targets targetMenuCount={} menuNameCount={}",
+                    runId,
+                    schoolId,
+                    cafeteriaId,
+                    weekStartDate,
                     targetMenuIds.size(),
                     menuNames.size()
             );
@@ -52,25 +70,40 @@ public class MenuAiAnalysisFollowUpService {
 
         try {
             log.info(
-                    "Menu AI analysis follow-up started: targetMenuCount={}, requestTargetCount={}",
+                    "event=START stage=ai_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} targetMenuCount={} requestTargetCount={}",
+                    runId,
+                    schoolId,
+                    cafeteriaId,
+                    weekStartDate,
                     targetMenuIds.size(),
                     targets.size()
             );
-            PythonMenuAnalysisResponse response = pythonMealClientPort.analyzeMenus(new PythonMenuAnalysisRequest(targets));
+            PythonMenuAnalysisResponse response = pythonMealClientPort.analyzeMenus(
+                    new PythonMenuAnalysisRequest(targets, true, true)
+            );
             List<PythonMenuAnalysisResultDto> results = response.results() == null ? List.of() : response.results();
-            log.info("Menu AI analysis follow-up response received: resultCount={}", results.size());
+            log.info(
+                    "event=INFO stage=ai_followup_response runId={} schoolId={} cafeteriaId={} weekStartDate={} resultCount={}",
+                    runId, schoolId, cafeteriaId, weekStartDate, results.size()
+            );
 
             Set<Long> handledMenuIds = new HashSet<>();
             Set<String> candidateIngredientCodes = extractCandidateIngredientCodes(results, targetMenuIds);
             Set<String> validIngredientCodes = mealCrawlPersistencePort.findExistingIngredientCodes(candidateIngredientCodes);
+            Set<String> candidateAllergyCodes = extractCandidateAllergyCodes(results, targetMenuIds);
+            Set<String> validAllergyCodes = mealCrawlPersistencePort.findExistingAllergyCodes(candidateAllergyCodes);
+            int successCount = 0;
+            int failedCount = 0;
             for (PythonMenuAnalysisResultDto result : results) {
                 if (result == null || result.menuId() == null || !targetMenuIds.contains(result.menuId())) {
                     continue;
                 }
 
-                LocalDateTime analyzedAt = result.analyzedAt() == null ? LocalDateTime.now() : result.analyzedAt();
+                LocalDateTime analyzedAt = LocalDateTime.now();
                 MenuAiStatus status = normalizeStatus(result);
+                MenuSpicyLevel spicyLevel = normalizeSpicyLevel(result.spicyLevel());
                 List<MenuIngredientCandidate> ingredients = toIngredients(result.ingredients());
+                List<MenuAllergyCandidate> allergies = toAllergies(result.allergies());
 
                 mealCrawlPersistencePort.saveMenuAnalysisAndUpdateStatus(
                         result.menuId(),
@@ -80,8 +113,16 @@ public class MenuAiAnalysisFollowUpService {
                         result.reason(),
                         analyzedAt,
                         ingredients,
-                        validIngredientCodes
+                        validIngredientCodes,
+                        allergies,
+                        validAllergyCodes,
+                        spicyLevel
                 );
+                if (status == MenuAiStatus.SUCCESS) {
+                    successCount++;
+                } else {
+                    failedCount++;
+                }
                 handledMenuIds.add(result.menuId());
             }
 
@@ -97,16 +138,43 @@ public class MenuAiAnalysisFollowUpService {
                         null,
                         "No analysis response",
                         now,
-                        List.of()
+                        List.of(),
+                        Set.of(),
+                        List.of(),
+                        Set.of(),
+                        null
                 );
+                failedCount++;
             }
+            long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
             log.info(
-                    "Menu AI analysis follow-up completed: handledCount={}, markedFailedCount={}",
+                    "event=END stage=ai_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} handledCount={} markedFailedCount={} successCount={} failedCount={} durationMs={} result={}",
+                    runId,
+                    schoolId,
+                    cafeteriaId,
+                    weekStartDate,
                     handledMenuIds.size(),
-                    targetMenuIds.size() - handledMenuIds.size()
+                    targetMenuIds.size() - handledMenuIds.size(),
+                    successCount,
+                    failedCount,
+                    durationMs,
+                    failedCount == 0 ? "SUCCESS" : "PARTIAL_SUCCESS"
             );
         } catch (Exception exception) {
             markMenusAsFailed(targetMenuIds, "AI follow-up failed");
+            long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
+            log.warn(
+                    "event=FAIL stage=ai_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} targetMenuCount={} durationMs={} errorType={} message={}",
+                    runId,
+                    schoolId,
+                    cafeteriaId,
+                    weekStartDate,
+                    targetMenuIds.size(),
+                    durationMs,
+                    exception.getClass().getSimpleName(),
+                    exception.getMessage(),
+                    exception
+            );
             throw exception;
         }
     }
@@ -122,7 +190,11 @@ public class MenuAiAnalysisFollowUpService {
                         null,
                         reason,
                         failedAt,
-                        List.of()
+                        List.of(),
+                        Set.of(),
+                        List.of(),
+                        Set.of(),
+                        null
                 );
             } catch (Exception updateException) {
                 log.warn("Failed to mark menu AI status as FAILED: menuId={}", menuId, updateException);
@@ -162,6 +234,24 @@ public class MenuAiAnalysisFollowUpService {
                 .toList();
     }
 
+    private MenuSpicyLevel normalizeSpicyLevel(Long spicyLevel) {
+        return MenuSpicyLevel.fromValue(spicyLevel);
+    }
+
+    private List<MenuAllergyCandidate> toAllergies(List<PythonMenuAllergyResultDto> allergies) {
+        if (allergies == null || allergies.isEmpty()) {
+            return List.of();
+        }
+        return allergies.stream()
+                .filter(allergy -> allergy != null && allergy.allergyCode() != null && !allergy.allergyCode().isBlank())
+                .map(allergy -> new MenuAllergyCandidate(
+                        allergy.allergyCode().trim(),
+                        allergy.confidence(),
+                        null
+                ))
+                .toList();
+    }
+
     private Set<String> extractCandidateIngredientCodes(
             List<PythonMenuAnalysisResultDto> results,
             Set<Long> targetMenuIds
@@ -176,6 +266,25 @@ public class MenuAiAnalysisFollowUpService {
             }
             for (MenuIngredientCandidate ingredient : toIngredients(result.ingredients())) {
                 candidateCodes.add(ingredient.ingredientCode());
+            }
+        }
+        return candidateCodes;
+    }
+
+    private Set<String> extractCandidateAllergyCodes(
+            List<PythonMenuAnalysisResultDto> results,
+            Set<Long> targetMenuIds
+    ) {
+        if (results == null || results.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> candidateCodes = new HashSet<>();
+        for (PythonMenuAnalysisResultDto result : results) {
+            if (result == null || result.menuId() == null || !targetMenuIds.contains(result.menuId())) {
+                continue;
+            }
+            for (MenuAllergyCandidate allergy : toAllergies(result.allergies())) {
+                candidateCodes.add(allergy.allergyCode());
             }
         }
         return candidateCodes;

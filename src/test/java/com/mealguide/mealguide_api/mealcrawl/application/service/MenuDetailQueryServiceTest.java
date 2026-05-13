@@ -4,7 +4,7 @@ import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.CurrentUserMealPreference;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientRow;
-import com.mealguide.mealguide_api.mealcrawl.application.dto.MatchedAllergyRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuMatchedAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealUserPreferencePort;
@@ -79,8 +79,8 @@ class MenuDetailQueryServiceTest {
                         new MealMenuIngredientRow(20L, "RICE", "Rice")
                 ));
         when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("en"))).thenReturn(List.of());
-        when(persistencePort.findMatchedAllergies(1L, Set.of("PORK", "RICE"), "en"))
-                .thenReturn(List.of(new MatchedAllergyRow("PORK", "Pork", "PORK", "Pork")));
+        when(persistencePort.findMatchedAllergiesByMealMenuIds(1L, Set.of(20L, 10L), "en"))
+                .thenReturn(List.of(new MealMenuMatchedAllergyRow(10L, "PORK", "Pork", null)));
         when(persistencePort.findReligiousRestrictionIngredients("HALAL")).thenReturn(List.of());
         when(menuLikePort.countLikesByTargets(Set.of(
                 new MenuLikeTarget(1L, 1L),
@@ -142,8 +142,8 @@ class MenuDetailQueryServiceTest {
                         new MealMenuIngredientRow(20L, "RICE", "Rice")
                 ));
         when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("en"))).thenReturn(List.of());
-        when(persistencePort.findMatchedAllergies(1L, Set.of("PORK", "RICE"), "en"))
-                .thenReturn(List.of(new MatchedAllergyRow("PORK", "Pork", "PORK", "Pork")));
+        when(persistencePort.findMatchedAllergiesByMealMenuIds(1L, Set.of(10L, 20L), "en"))
+                .thenReturn(List.of(new MealMenuMatchedAllergyRow(10L, "PORK", "Pork", null)));
         when(persistencePort.findReligiousRestrictionIngredients("HALAL")).thenReturn(List.of());
         when(menuLikePort.countLikesByTargets(Set.of(
                 new MenuLikeTarget(1L, 1L),
@@ -163,6 +163,7 @@ class MenuDetailQueryServiceTest {
         MenuDetailResponse first = response.menus().get(0);
         MenuDetailResponse second = response.menus().get(1);
         assertThat(first.matchedAllergies()).hasSize(1);
+        assertThat(first.matchedAllergies().get(0).ingredientCode()).isNull();
         assertThat(first.risk().riskLevel()).isEqualTo("DANGER");
         assertThat(second.matchedAllergies()).isEmpty();
         assertThat(second.risk().riskLevel()).isEqualTo("SAFE");
@@ -185,7 +186,7 @@ class MenuDetailQueryServiceTest {
         when(persistencePort.findConfirmedIngredientsForMenuDetails(Set.of(10L), "en"))
                 .thenReturn(List.of(new MealMenuIngredientRow(10L, "RICE", "Rice")));
         when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("en"))).thenReturn(List.of());
-        when(persistencePort.findMatchedAllergies(1L, Set.of("RICE"), "en")).thenReturn(List.of());
+        when(persistencePort.findMatchedAllergiesByMealMenuIds(1L, Set.of(10L), "en")).thenReturn(List.of());
         when(persistencePort.findReligiousRestrictionIngredients("HALAL")).thenReturn(List.of());
         when(menuLikePort.countLikesByTargets(Set.of(new MenuLikeTarget(1L, 1L))))
                 .thenReturn(java.util.Map.of(new MenuLikeTarget(1L, 1L), 5L));

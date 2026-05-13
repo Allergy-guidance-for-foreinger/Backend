@@ -1,6 +1,5 @@
 package com.mealguide.mealguide_api.settings.infrastructure.persistence.repository;
 
-import com.mealguide.mealguide_api.settings.domain.AllergyGroup;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,9 +27,9 @@ class AllergyJpaRepositoryTest {
 
         entityManager.createNativeQuery("""
                 insert into allergy(code, name, allergy_group, display_order, created_at) values
-                ('EGG', '난류', 'PRIMARY', 2, CURRENT_TIMESTAMP),
-                ('MILK', '우유', 'PRIMARY', 1, CURRENT_TIMESTAMP),
-                ('CELERY', '셀러리', 'ADDITIONAL', 101, CURRENT_TIMESTAMP)
+                ('EGG', '난류', 'DAIRY_EGGS', 2, CURRENT_TIMESTAMP),
+                ('MILK', '우유', 'DAIRY_EGGS', 1, CURRENT_TIMESTAMP),
+                ('CELERY', '셀러리', 'VEGETABLES', 3, CURRENT_TIMESTAMP)
                 """).executeUpdate();
 
         entityManager.createNativeQuery("""
@@ -41,18 +40,10 @@ class AllergyJpaRepositoryTest {
     }
 
     @Test
-    void findAllergyOptionsByGroupReturnsPrimaryOnlySortedAndTranslated() {
-        List<AllergyOption> options = allergyJpaRepository.findAllergyOptionsByGroup("en", AllergyGroup.PRIMARY);
+    void findAllergyOptionsReturnsAllSortedAndTranslated() {
+        List<AllergyOption> options = allergyJpaRepository.findAllergyOptions("en");
 
-        assertThat(options).extracting(AllergyOption::code).containsExactly("MILK", "EGG");
-        assertThat(options).extracting(AllergyOption::name).containsExactly("우유", "Egg");
-    }
-
-    @Test
-    void findAllergyOptionsByGroupReturnsAdditionalOnly() {
-        List<AllergyOption> options = allergyJpaRepository.findAllergyOptionsByGroup("en", AllergyGroup.ADDITIONAL);
-
-        assertThat(options).extracting(AllergyOption::code).containsExactly("CELERY");
-        assertThat(options).extracting(AllergyOption::name).containsExactly("Celery");
+        assertThat(options).extracting(AllergyOption::code).containsExactly("MILK", "EGG", "CELERY");
+        assertThat(options).extracting(AllergyOption::name).containsExactly("우유", "Egg", "Celery");
     }
 }

@@ -198,3 +198,65 @@
   - `docs/work-log/settings-work-log.md`
 - Remaining follow-ups:
   - í˜„ì¬ í™˜ê²½ì—ì„œëŠ” Maven wrapper ì‹¤í–‰ ì˜¤ë¥˜ë¡œ ìë™ í…ŒìŠ¤íŠ¸ ì‹¤í–‰ ê²€ì¦ì´ í•„ìš”í•¨.
+
+### 2026-05-13 (ì•Œë ˆë¥´ê¸° ì˜µì…˜ API ë‹¨ì¼ ëª©ë¡ ì¡°íšŒë¡œ ë³µêµ¬)
+- What changed:
+  - ì•Œë ˆë¥´ê¸° ì˜µì…˜ APIë¥¼ ëŒ€í‘œ/ë¶€ê°€ ë¶„ë¦¬ ë°©ì‹ì—ì„œ ë‹¨ì¼ ì „ì²´ ëª©ë¡ ì¡°íšŒ ë°©ì‹ìœ¼ë¡œ ë³€ê²½í–ˆë‹¤.
+    - ì¶”ê°€/ë³µêµ¬: GET /api/v1/settings/options/allergies
+    - ì œê±°: GET /api/v1/settings/options/allergies/primary, GET /api/v1/settings/options/allergies/additional
+  - SettingsOptionsController/SettingsOptionsApiì—ì„œ primary/additional í•¸ë“¤ëŸ¬/Swagger ë©”ì„œë“œë¥¼ ì œê±°í•˜ê³  ë‹¨ì¼ í•¸ë“¤ëŸ¬ë¥¼ ì¶”ê°€í–ˆë‹¤.
+  - SettingsServiceë¥¼ ì „ì²´ ì•Œë ˆë¥´ê¸° ì˜µì…˜ ì¡°íšŒ ìœ ìŠ¤ì¼€ì´ìŠ¤ë¡œ ë‹¨ìˆœí™”í–ˆë‹¤.
+  - SettingsMasterQueryPort/SettingsMasterPersistenceAdapter/AllergyJpaRepositoryë¥¼ group ì¡°ê±´ ì—†ëŠ” ì „ì²´ ì¡°íšŒ ë©”ì„œë“œë¡œ ë³€ê²½í–ˆë‹¤.
+  - AllergyJpaRepository ì •ë ¬ì„ display_order ASC, code ASCë¡œ ë³€ê²½í–ˆë‹¤.
+  - settings.domain.AllergyGroup enumì„ ì‚­ì œí•˜ê³  Allergy entityì˜ llergyGroup ë§¤í•‘ì„ ì œê±°í–ˆë‹¤.
+  - ê´€ë ¨ í…ŒìŠ¤íŠ¸(SettingsOptionsControllerTest, SettingsOptionsControllerSecurityTest, SettingsServiceTest, AllergyJpaRepositoryTest, UserPreferenceServiceTest)ë¥¼ ë‹¨ì¼ API/ì „ì²´ ì¡°íšŒ ê¸°ì¤€ìœ¼ë¡œ ìˆ˜ì •í–ˆë‹¤.
+- Why:
+  - ëŒ€í‘œ/ë¶€ê°€ êµ¬ë¶„ ì—†ì´ ì „ì²´ ì•Œë ˆë¥´ê¸° ëª©ë¡ì„ í•œ ë²ˆì— ì¡°íšŒí•˜ëŠ” ìš”êµ¬ì‚¬í•­ê³¼ í˜„ì¬ ìŠ¤í‚¤ë§ˆ/ë°ì´í„°(llergy_groupì˜ ë‹¤ì¤‘ ì¹´í…Œê³ ë¦¬ ê°’) êµ¬ì¡°ë¥¼ ì¼ì¹˜ì‹œí‚¤ê¸° ìœ„í•´.
+- Affected files:
+  - src/main/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsController.java
+  - src/main/java/com/mealguide/mealguide_api/settings/presentation/swagger/SettingsOptionsApi.java
+  - src/main/java/com/mealguide/mealguide_api/settings/application/service/SettingsService.java
+  - src/main/java/com/mealguide/mealguide_api/settings/application/port/SettingsMasterQueryPort.java
+  - src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/adapter/SettingsMasterPersistenceAdapter.java
+  - src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/repository/AllergyJpaRepository.java
+  - src/main/java/com/mealguide/mealguide_api/settings/domain/Allergy.java
+  - src/main/java/com/mealguide/mealguide_api/settings/domain/AllergyGroup.java (deleted)
+  - src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerTest.java
+  - src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerSecurityTest.java
+  - src/test/java/com/mealguide/mealguide_api/settings/application/service/SettingsServiceTest.java
+  - src/test/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/repository/AllergyJpaRepositoryTest.java
+  - src/test/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceServiceTest.java
+  - docs/features/settings-context.md
+  - docs/features/onboarding-context.md
+  - docs/work-log/settings-work-log.md
+- DB schema changed: No (source-of-truth docs/schema.sql ì‚¬ìš©)
+- API behavior changed:
+  - GET /api/v1/settings/options/allergies ì œê³µ
+  - GET /api/v1/settings/options/allergies/primary ì œê±°
+  - GET /api/v1/settings/options/allergies/additional ì œê±°
+- Related docs updated:
+  - docs/features/settings-context.md
+  - docs/features/onboarding-context.md
+  - docs/work-log/settings-work-log.md
+- Remaining follow-ups:
+  - Maven wrapper ì‹¤í–‰ ë¶ˆê°€ í™˜ê²½ì—ì„œ í…ŒìŠ¤íŠ¸ ìë™ ì‹¤í–‰ ê²€ì¦ í•„ìš”.
+
+### 2026-05-13 (country options »ç¿ëÀÚ ¾ğ¾î ±âÁØ ·ÎÄÃ¶óÀÌÂ¡)
+- What changed:
+  - `GET /api/v1/settings/options/countries`°¡ `@CurrentUserId`¸¦ »ç¿ëÇØ »ç¿ëÀÚ ¾ğ¾î ¼³Á¤À» ±âÁØÀ¸·Î ±¹°¡¸íÀ» ¹İÈ¯ÇÏµµ·Ï ¹İ¿µÇß´Ù.
+  - `SettingsService.getCountryOptions(Long userId)` ½Ã±×´ÏÃ³ ±âÁØÀ¸·Î »ç¿ëÀÚ ¾ğ¾î¸¦ Á¶È¸ÇØ `Locale` ±â¹İ ±¹°¡¸í ·ÎÄÃ¶óÀÌÂ¡À» Àû¿ëÇß´Ù.
+  - ±¹°¡ ÄÚµå°¡ À¯È¿ÇÏÁö ¾ÊÀº °æ¿ì DB ±âº» ÀÌ¸§À¸·Î fallback ÇÏµµ·Ï À¯ÁöÇß´Ù.
+  - controller/service Å×½ºÆ®¸¦ »õ ½Ã±×´ÏÃ³¿Í ·ÎÄÃ¶óÀÌÂ¡/fallback °ËÁõ ±âÁØÀ¸·Î ¼öÁ¤Çß´Ù.
+- Why:
+  - ±¹°¡ ¼±ÅÃÁö Ç¥½Ã ¾ğ¾î¸¦ »ç¿ëÀÚ ¼³Á¤°ú ÀÏÄ¡½ÃÄÑ UI »ç¿ë¼ºÀ» ³ôÀÌ±â À§ÇØ.
+- Affected files:
+  - `src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/settings/application/service/SettingsServiceTest.java`
+  - `docs/work-log/settings-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - `GET /api/v1/settings/options/countries`°¡ »ç¿ëÀÚ ¾ğ¾î ±âÁØ ·ÎÄÃ¶óÀÌÁîµÈ ±¹°¡¸íÀ» ¹İÈ¯ÇÑ´Ù.
+- Related docs updated:
+  - `docs/work-log/settings-work-log.md`
+- Remaining follow-ups:
+  - Maven wrapper ½ÇÇà ÀÌ½´ ÇØ°á ÈÄ ÀüÃ¼ Å×½ºÆ® °ËÁõ ÇÊ¿ä.

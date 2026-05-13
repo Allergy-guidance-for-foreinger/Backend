@@ -1,7 +1,6 @@
 package com.mealguide.mealguide_api.settings.application.service;
 
 import com.mealguide.mealguide_api.settings.application.port.SettingsMasterQueryPort;
-import com.mealguide.mealguide_api.settings.domain.AllergyGroup;
 import com.mealguide.mealguide_api.settings.domain.AllergyOption;
 import com.mealguide.mealguide_api.settings.domain.CountryOption;
 import com.mealguide.mealguide_api.settings.domain.LanguageOption;
@@ -22,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -39,15 +39,6 @@ public class SettingsService {
     }
 
     @Transactional(readOnly = true)
-    public AllergyOptionsResponse getPrimaryAllergyOptions(Long userId) {
-        String languageCode = userPreferenceService.getLanguage(userId);
-        List<AllergyOptionItemResponse> allergies = getAllergiesByGroup(languageCode, AllergyGroup.PRIMARY).stream()
-                .map(AllergyOptionItemResponse::from)
-                .toList();
-        return new AllergyOptionsResponse(allergies);
-    }
-
-    @Transactional(readOnly = true)
     public ReligionOptionsResponse getReligionOptions(Long userId) {
         String languageCode = userPreferenceService.getLanguage(userId);
         List<ReligionOptionItemResponse> religions = getReligions(languageCode).stream()
@@ -57,9 +48,14 @@ public class SettingsService {
     }
 
     @Transactional(readOnly = true)
-    public CountryOptionsResponse getCountryOptions() {
+    public CountryOptionsResponse getCountryOptions(Long userId) {
+        String languageCode = userPreferenceService.getLanguage(userId);
+        Locale locale = toLocale(languageCode);
         List<CountryOptionItemResponse> countries = getCountries().stream()
-                .map(CountryOptionItemResponse::from)
+                .map(option -> new CountryOptionItemResponse(
+                        option.code(),
+                        resolveLocalizedCountryName(option.code(), option.name(), locale)
+                ))
                 .toList();
         return new CountryOptionsResponse(countries);
     }
@@ -79,17 +75,17 @@ public class SettingsService {
     }
 
     @Transactional(readOnly = true)
-    public AllergyOptionsResponse getAdditionalAllergyOptions(Long userId) {
+    public AllergyOptionsResponse getAllergyOptions(Long userId) {
         String languageCode = userPreferenceService.getLanguage(userId);
-        List<AllergyOptionItemResponse> allergies = getAllergiesByGroup(languageCode, AllergyGroup.ADDITIONAL).stream()
+        List<AllergyOptionItemResponse> allergies = getAllergies(languageCode).stream()
                 .map(AllergyOptionItemResponse::from)
                 .toList();
         return new AllergyOptionsResponse(allergies);
     }
 
     @Transactional(readOnly = true)
-    private List<AllergyOption> getAllergiesByGroup(String langCode, AllergyGroup group) {
-        return settingsMasterQueryPort.findAllergyOptionsByGroup(normalize(langCode), group);
+    private List<AllergyOption> getAllergies(String langCode) {
+        return settingsMasterQueryPort.findAllergyOptions(normalize(langCode));
     }
 
     @Transactional(readOnly = true)
@@ -112,6 +108,27 @@ public class SettingsService {
             return null;
         }
         return value.trim();
+    }
+
+    private Locale toLocale(String languageCode) {
+        String normalized = normalize(languageCode);
+        if (normalized == null) {
+            return Locale.ENGLISH;
+        }
+        Locale locale = Locale.forLanguageTag(normalized);
+        return locale.getLanguage().isBlank() ? Locale.ENGLISH : locale;
+    }
+
+    private String resolveLocalizedCountryName(String countryCode, String fallbackName, Locale locale) {
+        if (countryCode == null || countryCode.isBlank()) {
+            return fallbackName;
+        }
+        Locale countryLocale = new Locale("", countryCode.trim().toUpperCase(Locale.ROOT));
+        String localizedName = countryLocale.getDisplayCountry(locale);
+        if (localizedName == null || localizedName.isBlank()) {
+            return fallbackName;
+        }
+        return localizedName;
     }
 }
 

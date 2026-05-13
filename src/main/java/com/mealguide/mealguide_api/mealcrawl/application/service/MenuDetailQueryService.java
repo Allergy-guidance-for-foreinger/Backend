@@ -4,7 +4,7 @@ import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.CurrentUserMealPreference;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientRow;
-import com.mealguide.mealguide_api.mealcrawl.application.dto.MatchedAllergyRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuMatchedAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
@@ -75,14 +75,10 @@ public class MenuDetailQueryService {
         Map<Long, String> translatedMenuNames = mealCrawlPersistencePort.findTranslatedMenuNamesByMealMenuIds(targetIds, languageCode);
         Map<Long, IngredientSelection> ingredientSelections = resolveIngredients(targetIds, languageCode);
 
-        Set<String> allIngredientCodes = ingredientSelections.values().stream()
-                .flatMap(selection -> selection.ingredients().stream())
-                .map(MenuDetailResponse.IngredientResponse::code)
-                .collect(Collectors.toSet());
-
-        List<MatchedAllergyRow> matchedAllergyRows = mealCrawlPersistencePort.findMatchedAllergies(userId, allIngredientCodes, languageCode);
-        Map<String, List<MatchedAllergyRow>> matchedRowsByIngredientCode = matchedAllergyRows.stream()
-                .collect(Collectors.groupingBy(MatchedAllergyRow::ingredientCode));
+        Map<Long, List<MealMenuMatchedAllergyRow>> matchedRowsByMealMenuId = mealCrawlPersistencePort
+                .findMatchedAllergiesByMealMenuIds(userId, targetIds, languageCode)
+                .stream()
+                .collect(Collectors.groupingBy(MealMenuMatchedAllergyRow::mealMenuId));
 
         List<RestrictionIngredientRow> religiousRestrictions =
                 mealCrawlPersistencePort.findReligiousRestrictionIngredients(preference.religiousCode());
@@ -107,14 +103,13 @@ public class MenuDetailQueryService {
             IngredientSelection ingredientSelection =
                     ingredientSelections.getOrDefault(mealMenuId, new IngredientSelection(null, List.of()));
 
-            List<MenuDetailResponse.MatchedAllergyResponse> matchedAllergies = ingredientSelection.ingredients().stream()
-                    .flatMap(ingredient -> matchedRowsByIngredientCode
-                            .getOrDefault(ingredient.code(), List.of())
-                            .stream()
-                            .map(row -> new MenuDetailResponse.MatchedAllergyResponse(
-                                    row.allergyCode(),
-                                    row.ingredientCode()
-                            )))
+            List<MenuDetailResponse.MatchedAllergyResponse> matchedAllergies = matchedRowsByMealMenuId
+                    .getOrDefault(mealMenuId, List.of())
+                    .stream()
+                    .map(row -> new MenuDetailResponse.MatchedAllergyResponse(
+                            row.allergyCode(),
+                            null
+                    ))
                     .toList();
 
             MenuRiskLevel riskLevel = evaluateRiskLevel(ingredientSelection, matchedAllergies, religiousRestrictedCodes);
@@ -205,11 +200,11 @@ public class MenuDetailQueryService {
             List<MenuDetailResponse.MatchedAllergyResponse> matchedAllergies,
             Set<String> religiousRestrictedCodes
     ) {
-        if (ingredientSelection.ingredients().isEmpty()) {
-            return MenuRiskLevel.UNKNOWN;
-        }
         if (!matchedAllergies.isEmpty()) {
             return MenuRiskLevel.DANGER;
+        }
+        if (ingredientSelection.ingredients().isEmpty()) {
+            return MenuRiskLevel.UNKNOWN;
         }
         boolean hasReligionRisk = ingredientSelection.ingredients().stream()
                 .anyMatch(ingredient -> religiousRestrictedCodes.contains(ingredient.code()));

@@ -36,7 +36,6 @@ onboarding 완료 저장을 제공한다.
   - `users.religious_code`
   - `users.onboarding_completed`
   - `user_allergy` (사용자 알레르기 매핑)
-  - `allergy.allergy_group`은 검증 기준 컬럼이며 `PRIMARY`/`ADDITIONAL` 모두 허용
 - 조회/저장 규칙
   - onboarding 완료 시 `languageCode`, `schoolId`, `allergyCodes`, `religiousCode`를 원자적으로 반영한다.
   - `user_allergy`는 full replacement 방식으로 갱신한다.
@@ -68,7 +67,7 @@ onboarding 완료 저장을 제공한다.
 - 인증된 사용자만 호출할 수 있다.
 - 요청에는 `languageCode`, `schoolId`, `allergyCodes`, `religiousCode`, `countryCode`가 포함된다.
 - `languageCode`, `schoolId`, `allergyCodes`, `religiousCode`, `countryCode`가 유효한 master data인지 검증한다.
-- `allergyCodes`는 `PRIMARY`/`ADDITIONAL` 구분 없이 `allergy.code` 존재 기준으로 검증한다.
+- `allergyCodes`는 알레르기 그룹 구분 없이 `allergy.code` 존재 기준으로 검증한다.
 - `religiousCode`가 null이면 종교 제한 없음으로 저장한다.
 - 기존 `user_allergy`를 삭제하고 요청 allergy 목록으로 전체 교체한다.
 - 사용자 설정 저장이 모두 성공하면 `users.onboarding_completed = true`로 변경한다.

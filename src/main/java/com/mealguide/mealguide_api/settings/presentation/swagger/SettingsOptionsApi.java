@@ -27,25 +27,18 @@ public interface SettingsOptionsApi {
     )
     ResponseEntity<ResponseBody<LanguageOptionsResponse>> getLanguageOptions();
 
-    @Operation(summary = "대표 알레르기 선택지 조회", description = "대표 알레르기 옵션 목록을 조회합니다.")
+    @Operation(
+            summary = "전체 알레르기 선택지 조회",
+            description = "선택 가능한 전체 알레르기 목록을 조회합니다. 표시 이름은 현재 사용자의 언어 설정을 기준으로 번역명을 우선 사용하고, 번역이 없으면 기본 이름을 반환합니다."
+    )
     @SwaggerApiResponses(
-            success = @SwaggerApiSuccessResponse(response = AllergyOptionsResponse.class, description = "대표 알레르기 선택지 조회 성공"),
+            success = @SwaggerApiSuccessResponse(response = AllergyOptionsResponse.class, description = "전체 알레르기 선택지 조회 성공"),
             errors = {
                     @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED),
                     @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND)
             }
     )
-    ResponseEntity<ResponseBody<AllergyOptionsResponse>> getPrimaryAllergyOptions(@CurrentUserId Long currentUserId);
-
-    @Operation(summary = "부가 알레르기 선택지 조회", description = "대표 알레르기 외에 사용자가 추가로 선택할 수 있는 부가 알레르기 옵션 목록을 조회합니다.")
-    @SwaggerApiResponses(
-            success = @SwaggerApiSuccessResponse(response = AllergyOptionsResponse.class, description = "부가 알레르기 선택지 조회 성공"),
-            errors = {
-                    @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED),
-                    @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND)
-            }
-    )
-    ResponseEntity<ResponseBody<AllergyOptionsResponse>> getAdditionalAllergyOptions(@CurrentUserId Long currentUserId);
+    ResponseEntity<ResponseBody<AllergyOptionsResponse>> getAllergyOptions(@CurrentUserId Long currentUserId);
 
     @Operation(summary = "종교별 음식 제한 전체 선택지 조회", description = "인증된 사용자의 언어 설정 기준으로 번역된 종교별 음식 제한 선택지 목록을 조회합니다.")
     @SwaggerApiResponses(
@@ -57,14 +50,14 @@ public interface SettingsOptionsApi {
     )
     ResponseEntity<ResponseBody<ReligionOptionsResponse>> getReligionOptions(@CurrentUserId Long currentUserId);
 
-    @Operation(summary = "국가 전체 선택지 조회", description = "설정 화면에서 사용하는 전체 국가 선택지 목록을 조회합니다.")
+    @Operation(summary = "국가 전체 선택지 조회", description = "설정 화면에서 사용하는 전체 국가 선택지 목록을 조회합니다. 국가명은 현재 사용자의 언어 설정 기준으로 현지화합니다.")
     @SwaggerApiResponses(
             success = @SwaggerApiSuccessResponse(response = CountryOptionsResponse.class, description = "국가 선택지 조회 성공"),
             errors = {
                     @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED)
             }
     )
-    ResponseEntity<ResponseBody<CountryOptionsResponse>> getCountryOptions();
+    ResponseEntity<ResponseBody<CountryOptionsResponse>> getCountryOptions(@CurrentUserId Long currentUserId);
 
     @Operation(summary = "학교 전체 선택지 조회", description = "인증 사용자 언어 설정을 기준으로 학교 선택지 목록을 조회합니다.")
     @SwaggerApiResponses(
