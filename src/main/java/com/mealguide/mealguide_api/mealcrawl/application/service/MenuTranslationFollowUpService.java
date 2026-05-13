@@ -11,13 +11,16 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.P
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonTranslatedMenuNameDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MenuTranslationFollowUpService {
@@ -29,11 +32,13 @@ public class MenuTranslationFollowUpService {
     public void process(MealImportResult importResult) {
         Set<Long> targetMenuIds = new HashSet<>(importResult.menusNeedingTranslation());
         if (targetMenuIds.isEmpty()) {
+            log.info("Menu translation follow-up skipped: reason=no-target-menus");
             return;
         }
 
-        List<String> targetLanguages = mealCrawlProperties.getTranslationTargetLanguages();
+        List<String> targetLanguages = normalizeTargetLanguages(mealCrawlProperties.getTranslationTargetLanguages());
         if (targetLanguages == null || targetLanguages.isEmpty()) {
+            log.info("Menu translation follow-up skipped: reason=no-target-languages");
             return;
         }
 
@@ -41,48 +46,88 @@ public class MenuTranslationFollowUpService {
         Map<Long, String> menuNames = mealCrawlPersistencePort.findMenuNamesByIds(targetMenuIds);
 
         List<PythonMenuTranslationTargetDto> translationTargets = menuNames.entrySet().stream()
+                .filter(entry -> !isBlank(entry.getValue()))
                 .filter(entry -> hasMissingTranslation(entry.getKey(), existingKeys, targetLanguages))
-                .map(entry -> new PythonMenuTranslationTargetDto(entry.getKey(), entry.getValue()))
+                .map(entry -> new PythonMenuTranslationTargetDto(entry.getKey(), entry.getValue().trim()))
                 .toList();
 
         if (translationTargets.isEmpty()) {
+            log.info(
+                    "Menu translation follow-up skipped: reason=no-translation-targets, targetMenuCount={}, existingKeyCount={}, menuNameCount={}, targetLanguages={}",
+                    targetMenuIds.size(),
+                    existingKeys.size(),
+                    menuNames.size(),
+                    targetLanguages
+            );
             return;
         }
 
+        log.info(
+                "Menu translation follow-up started: targetMenuCount={}, requestTargetCount={}, targetLanguages={}",
+                targetMenuIds.size(),
+                translationTargets.size(),
+                targetLanguages
+        );
         PythonMenuTranslationResponse response = pythonMealClientPort.translateMenus(
                 new PythonMenuTranslationRequest(translationTargets, targetLanguages)
         );
 
         List<PythonMenuTranslationResultDto> results = response.results() == null ? List.of() : response.results();
+        int savedCount = 0;
+        int skippedInvalidResult = 0;
+        int skippedEmptyTranslations = 0;
+        int skippedInvalidTranslation = 0;
+        int skippedLangMismatch = 0;
+        int skippedExistingKey = 0;
+        Map<MenuTranslationKey, String> translationsToSave = new LinkedHashMap<>();
+
         for (PythonMenuTranslationResultDto result : results) {
             if (result == null || result.menuId() == null || !targetMenuIds.contains(result.menuId())) {
+                skippedInvalidResult++;
                 continue;
             }
 
             List<PythonTranslatedMenuNameDto> translations = result.translations();
             if (translations == null || translations.isEmpty()) {
+                skippedEmptyTranslations++;
                 continue;
             }
 
             for (PythonTranslatedMenuNameDto translation : translations) {
                 if (translation == null || isBlank(translation.langCode()) || isBlank(translation.translatedName())) {
+                    skippedInvalidTranslation++;
                     continue;
                 }
 
                 String langCode = translation.langCode().trim();
                 if (!targetLanguages.contains(langCode)) {
+                    skippedLangMismatch++;
                     continue;
                 }
 
                 MenuTranslationKey key = new MenuTranslationKey(result.menuId(), langCode);
                 if (existingKeys.contains(key)) {
+                    skippedExistingKey++;
                     continue;
                 }
 
-                mealCrawlPersistencePort.saveMenuTranslation(result.menuId(), langCode, translation.translatedName().trim());
+                translationsToSave.put(key, translation.translatedName().trim());
                 existingKeys.add(key);
+                savedCount++;
             }
         }
+        mealCrawlPersistencePort.saveMenuTranslations(translationsToSave);
+
+        log.info(
+                "Menu translation follow-up completed: responseResultCount={}, savedCount={}, skippedInvalidResultCount={}, skippedEmptyTranslationsCount={}, skippedInvalidTranslationCount={}, skippedLangMismatchCount={}, skippedExistingKeyCount={}",
+                results.size(),
+                savedCount,
+                skippedInvalidResult,
+                skippedEmptyTranslations,
+                skippedInvalidTranslation,
+                skippedLangMismatch,
+                skippedExistingKey
+        );
     }
 
     private boolean hasMissingTranslation(Long menuId, Set<MenuTranslationKey> existingKeys, List<String> targetLanguages) {
@@ -96,6 +141,18 @@ public class MenuTranslationFollowUpService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private List<String> normalizeTargetLanguages(List<String> targetLanguages) {
+        if (targetLanguages == null || targetLanguages.isEmpty()) {
+            return List.of();
+        }
+
+        return targetLanguages.stream()
+                .filter(langCode -> !isBlank(langCode))
+                .map(String::trim)
+                .distinct()
+                .toList();
     }
 }
 

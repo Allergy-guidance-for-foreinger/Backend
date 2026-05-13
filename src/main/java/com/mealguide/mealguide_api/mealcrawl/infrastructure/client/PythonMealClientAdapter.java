@@ -8,12 +8,18 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResultDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.util.List;
+
+@Slf4j
 @Component
 public class PythonMealClientAdapter implements PythonMealClientPort {
 
@@ -64,19 +70,46 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
     @Override
     public PythonMenuTranslationResponse translateMenus(PythonMenuTranslationRequest request) {
         try {
-            PythonMenuTranslationResponse response = restClient.post()
+            PythonMenuTranslationEnvelope response = restClient.post()
                     .uri(mealCrawlProperties.getTranslationPath())
                     .body(request)
                     .retrieve()
-                    .body(PythonMenuTranslationResponse.class);
+                    .body(PythonMenuTranslationEnvelope.class);
 
             if (response == null) {
                 throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR);
             }
-            return response;
+            List<PythonMenuTranslationResultDto> results = response.results();
+            if (results == null && response.data() != null) {
+                results = response.data().results();
+            }
+
+            if (results == null) {
+                log.warn("Python menu translation response has no results field");
+                return new PythonMenuTranslationResponse(List.of());
+            }
+            return new PythonMenuTranslationResponse(results);
+        } catch (HttpClientErrorException exception) {
+            log.warn(
+                    "Python menu translation request failed: status={}, responseBody={}",
+                    exception.getStatusCode(),
+                    exception.getResponseBodyAsString()
+            );
+            throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR, exception);
         } catch (RestClientException exception) {
             throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR, exception);
         }
+    }
+
+    private record PythonMenuTranslationEnvelope(
+            List<PythonMenuTranslationResultDto> results,
+            PythonMenuTranslationEnvelopeData data
+    ) {
+    }
+
+    private record PythonMenuTranslationEnvelopeData(
+            List<PythonMenuTranslationResultDto> results
+    ) {
     }
 }
 

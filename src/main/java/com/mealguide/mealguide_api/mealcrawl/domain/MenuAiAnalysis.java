@@ -2,6 +2,8 @@ package com.mealguide.mealguide_api.mealcrawl.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -26,7 +28,8 @@ public class MenuAiAnalysis {
     private Long menuId;
 
     @Column(nullable = false, length = 20)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private MenuAiStatus status;
 
     @Column(name = "model_name", length = 100)
     private String modelName;
@@ -45,7 +48,7 @@ public class MenuAiAnalysis {
 
     public static MenuAiAnalysis create(
             Long menuId,
-            String status,
+            MenuAiStatus status,
             String modelName,
             String modelVersion,
             String reason,

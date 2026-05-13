@@ -2,6 +2,8 @@ package com.mealguide.mealguide_api.mealcrawl.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -29,7 +31,8 @@ public class Menu {
     private Long spicyLevel;
 
     @Column(name = "ai_analysis_status", nullable = false, length = 20)
-    private String aiAnalysisStatus;
+    @Enumerated(EnumType.STRING)
+    private MenuAiStatus aiAnalysisStatus;
 
     @Column(name = "latest_ai_analyzed_at")
     private LocalDateTime latestAiAnalyzedAt;
@@ -37,7 +40,7 @@ public class Menu {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    public static Menu create(String name, String aiAnalysisStatus) {
+    public static Menu create(String name, MenuAiStatus aiAnalysisStatus) {
         Menu menu = new Menu();
         menu.name = name;
         menu.spicyLevel = 0L;
@@ -47,7 +50,7 @@ public class Menu {
         return menu;
     }
 
-    public void updateAiAnalysis(String aiAnalysisStatus, LocalDateTime analyzedAt) {
+    public void updateAiAnalysis(MenuAiStatus aiAnalysisStatus, LocalDateTime analyzedAt) {
         this.aiAnalysisStatus = aiAnalysisStatus;
         this.latestAiAnalyzedAt = analyzedAt;
     }

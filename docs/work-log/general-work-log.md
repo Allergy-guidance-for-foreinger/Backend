@@ -733,3 +733,278 @@
   - docs/work-log/general-work-log.md
 - Remaining follow-ups:
   - None
+
+## 2026-05-12 (AI 후속 저장 안정화: 미등록 ingredient 코드 스킵 + 실패 상태 보장)
+- What changed:
+  - `MealCrawlPersistenceAdapter.saveMenuAnalysis`에서 AI 분석 재료 저장 전에 `ingredient` 테이블에 존재하는 코드만 선별하도록 변경했다.
+  - DB에 없는 `ingredient_code`는 저장하지 않고 `WARN` 로그를 남기도록 추가했다.
+  - `MenuAiAnalysisFollowUpService.process`에 예외 경계를 추가해 AI 후속 처리 중 예외가 발생하면 대상 메뉴들의 `menu.ai_analysis_status`를 `FAILED`로 반영하도록 보강했다.
+  - 상태 반영 중 개별 실패가 있어도 전체 루프가 중단되지 않도록 보호 로그를 추가했다.
+- Why:
+  - Python 분석 결과에 DB 미등록 재료 코드가 포함될 때 FK 위반으로 전체 AI 후속 처리가 실패하는 문제를 방지하기 위해.
+  - AI 후속 단계 실패 시 `PENDING` 상태가 장시간 남지 않도록 실패 상태를 명시적으로 보장하기 위해.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No (내부 후속 처리 안정성 변경)
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Python 분석 서비스의 ingredient code 사전과 `ingredient.code` 기준 데이터를 동기화해 스킵 로그 발생 자체를 줄일 필요가 있다.
+
+## 2026-05-12 (menu translation follow-up request sanitization and error visibility)
+- What changed:
+  - Added translation follow-up request sanitization in `MenuTranslationFollowUpService`:
+    - skip blank/null menu names before calling Python translation API
+    - trim menu names in outgoing translation targets
+    - normalize target languages by removing blank entries, trimming, and de-duplicating
+  - Added dedicated `HttpClientErrorException` handling in `PythonMealClientAdapter.translateMenus` to log HTTP status and Python response body for 4xx failures.
+  - Added unit test coverage for blank menu name / blank target language filtering.
+- Why:
+  - Prevent malformed translation payload values from causing Python-side request conversion failures (400).
+  - Improve observability so Python validation errors are directly visible in application logs.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Verify runtime logs after next scheduler run; if 400 persists, align Java/Python translation request JSON field naming contract explicitly.
+
+## 2026-05-12 (translation response envelope compatibility fix)
+- What changed:
+  - Updated `PythonMealClientAdapter.translateMenus` to support both response shapes:
+    - direct: `{ "results": [...] }`
+    - envelope: `{ "success": true, "data": { "results": [...] } }`
+  - Added warning log when translation response has neither `results` nor `data.results`.
+- Why:
+  - Python server returned 200 OK with envelope response, but Java expected top-level `results`, resulting in zero saved `menu_translation` rows.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No (internal integration parsing fix)
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Re-run scheduler and verify `menu_translation` rows are inserted for returned `menuId/langCode` pairs.
+
+## 2026-05-12 (AI/translation follow-up diagnostics logging)
+- What changed:
+  - Added orchestration-level summary log after meal import to expose:
+    - imported menu count
+    - menus needing AI analysis count
+    - menus needing translation count
+  - Added AI follow-up diagnostic logs for:
+    - skip reasons (no target menus / no analysis targets)
+    - start/response/completion counts (handled/marked-failed)
+  - Added translation follow-up diagnostic logs for:
+    - skip reasons (no target menus / no target languages / no translation targets)
+    - start/completion counters (saved count and detailed skip counters by reason)
+- Why:
+  - Crawl succeeds but AI/translation follow-up outcomes were not observable enough to identify where processing stops.
+  - These logs make failure location and data-filtering causes directly visible in one scheduler cycle.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlOrchestrationService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpService.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Run one crawl scheduler cycle and compare diagnostic counters to expected menu/translation targets.
+
+## 2026-05-12 (AI follow-up retry target fix for FAILED analyses)
+- What changed:
+  - Updated `MenuAiAnalysisJpaRepository.findAnalyzedMenuIds` query to treat only `status = 'SUCCESS'` as analyzed.
+  - `FAILED` analysis history no longer excludes the menu from `menusNeedingAnalysis` during import follow-up target calculation.
+- Why:
+  - Menus with only `FAILED` history were being treated as already analyzed, causing `menusNeedingAnalysisCount=0` and skipping AI follow-up unexpectedly.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MenuAiAnalysisJpaRepository.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No (follow-up targeting logic only)
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Re-run one scheduler cycle and verify `menusNeedingAnalysisCount` is greater than 0 when menus only have `FAILED` analysis history.
+
+## 2026-05-12 (menu AI status enum conversion)
+- What changed:
+  - Added `MenuAiStatus` enum (`PENDING`, `SUCCESS`, `FAILED`) in `mealcrawl.domain`.
+  - Converted `menu.ai_analysis_status` and `menu_ai_analysis.status` entity fields from `String` to `MenuAiStatus` with `@Enumerated(EnumType.STRING)`.
+  - Updated `MealCrawlPersistencePort` and `MealCrawlPersistenceAdapter` method signatures to use `MenuAiStatus` for AI status save/update.
+  - Updated `MenuAiAnalysisFollowUpService` to normalize Python response status into `MenuAiStatus` and persist enum values.
+  - Updated affected mealcrawl service tests’ fake port signatures and assertions to use `MenuAiStatus`.
+- Why:
+  - Remove string-literal status handling to prevent typo/invalid-value bugs and centralize allowed menu AI states.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuAiStatus.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/Menu.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuAiAnalysis.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealImportServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlOrchestrationServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealResponseAssemblerTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Run test compile in local IDE/Maven environment and execute one scheduler cycle runtime check.
+
+## 2026-05-12 (enum conversion follow-up: WeeklyMealCacheRow constructor type alignment)
+- What changed:
+  - Updated `WeeklyMealCacheRow.aiAnalysisStatus` type from `String` to `MenuAiStatus`.
+  - Updated `WeeklyMealCacheRefreshService.isAiAnalyzed` to compare enum value directly (`MenuAiStatus.SUCCESS`).
+  - Updated `WeeklyMealCacheRefreshServiceTest` fixture rows to pass `MenuAiStatus` enum constants.
+- Why:
+  - After enum conversion, JPQL projection (`new WeeklyMealCacheRow(..., menu.aiAnalysisStatus)`) failed at startup because constructor expected `String` while entity field type became `MenuAiStatus`.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/WeeklyMealCacheRow.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealCacheRefreshService.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealCacheRefreshServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Re-run application startup and verify `MealMenuJpaRepository` query validation passes.
+
+## 2026-05-12 (AI analysis status normalization compatibility hardening)
+- What changed:
+  - Updated `MenuAiAnalysisFollowUpService` status normalization to treat additional success labels as `SUCCESS`:
+    - `SUCCEEDED`, `COMPLETED`, `DONE`, `OK` (case-insensitive)
+  - Added fallback inference when Python status is missing/unknown:
+    - `ingredients` present and no failure `reason` -> `SUCCESS`
+    - otherwise -> `FAILED`
+  - Added unit test case to verify lowercase `completed` is persisted as `MenuAiStatus.SUCCESS`.
+- Why:
+  - Runtime logs showed AI follow-up result rows were returned, but DB `menu_ai_analysis.status` was persisted as `FAILED`.
+  - The previous logic accepted only `SUCCESS`/`FAILED`, so contract variations from Python could be downgraded to `FAILED`.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No (internal integration status normalization only)
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Re-run one scheduler cycle and confirm `menu_ai_analysis.status` values are `SUCCESS` for successful Python responses.
+
+## 2026-05-12 (Python analysis response status enumization)
+- What changed:
+  - Added `PythonMenuAnalysisStatus` enum (`SUCCESS`, `FAILED`) for Python analysis response parsing.
+  - Changed `PythonMenuAnalysisResultDto.status` type from `String` to `PythonMenuAnalysisStatus`.
+  - Kept alias compatibility in enum parser (`SUCCEEDED/COMPLETED/DONE/OK -> SUCCESS`, `FAIL/ERROR -> FAILED`).
+  - Updated `MenuAiAnalysisFollowUpService` to map Python status enum directly to `MenuAiStatus`.
+  - Updated `MenuAiAnalysisFollowUpServiceTest` fixtures to use enum status values.
+- Why:
+  - Enforce status handling through enum instead of free-form strings and reduce accidental string mismatch handling.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonMenuAnalysisStatus.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonMenuAnalysisResultDto.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No (internal integration type-safety change)
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Validate one scheduler cycle runtime logs and persisted statuses after deployment.
+
+## 2026-05-13 (AI follow-up save/update transaction boundary consolidation)
+- What changed:
+  - Added saveMenuAnalysisAndUpdateStatus(...) default method to MealCrawlPersistencePort.
+  - Overrode saveMenuAnalysisAndUpdateStatus(...) in MealCrawlPersistenceAdapter with @Transactional to execute analysis save + menu status update in one transaction.
+  - Updated MenuAiAnalysisFollowUpService to call the consolidated method in normal handling, missing-response fallback, and exception fallback paths.
+- Why:
+  - Prevent per-menu split transaction between saveMenuAnalysis and updateMenuAiStatus and reduce inconsistency risk when one succeeds and the other fails.
+  - Keep minimal architecture change while improving transactional correctness and reducing transaction overhead in follow-up loop.
+- Affected files:
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java
+  - docs/work-log/general-work-log.md
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - docs/work-log/general-work-log.md
+- Remaining follow-ups:
+  - Run unit tests and one scheduler-cycle runtime verification in local environment.
+
+## 2026-05-13 (translation follow-up bulk save optimization)
+- What changed:
+  - Added saveMenuTranslations(Map<MenuTranslationKey, String>) default method to MealCrawlPersistencePort.
+  - Overrode the new method in MealCrawlPersistenceAdapter with @Transactional + saveAll(...) bulk persistence.
+  - Updated MenuTranslationFollowUpService to collect validated translations and save them in one batch call instead of per-item saveMenuTranslation(...) calls.
+  - Kept existing validation/skip counters and duplicate-prevention (existingKeys) behavior unchanged.
+- Why:
+  - Reduce DB round-trip overhead from nested-loop per-row inserts in translation follow-up.
+  - Keep minimal change while improving persistence efficiency.
+- Affected files:
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpService.java
+  - docs/work-log/general-work-log.md
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - docs/work-log/general-work-log.md
+- Remaining follow-ups:
+  - Run unit test and scheduler-cycle translation follow-up runtime check in local environment.
+
+## 2026-05-13 (AI ingredient code validation query reduction)
+- What changed:
+  - Added indExistingIngredientCodes(Set<String>) to MealCrawlPersistencePort and implemented it in MealCrawlPersistenceAdapter using one SQL lookup.
+  - Added overloaded saveMenuAnalysisAndUpdateStatus(..., Set<String> validIngredientCodes) and implemented adapter override to persist analysis + status update without per-call ingredient validation query.
+  - Updated MenuAiAnalysisFollowUpService to pre-collect candidate ingredient codes from Python results, fetch valid codes once, and reuse them across per-menu saves.
+- Why:
+  - Reduce repeated ingredient validation SELECT calls inside menu-by-menu analysis save loop.
+  - Keep existing unknown-ingredient skip behavior while lowering DB round-trips.
+- Affected files:
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java
+  - docs/work-log/general-work-log.md
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - docs/work-log/general-work-log.md
+- Remaining follow-ups:
+  - Run unit test for MenuAiAnalysisFollowUpService and verify one scheduler cycle runtime logs.
+
+## 2026-05-13 (AI null-status inference test coverage 강화)
+- What changed:
+  - Added explicit test cases in MenuAiAnalysisFollowUpServiceTest for inferStatusWithoutExplicitValue behavior when Python status is null:
+    - status=null + ingredients present -> SUCCESS
+    - status=null + empty ingredients -> FAILED
+    - status=null + failure reason present -> FAILED
+- Why:
+  - Make null-status inference intent explicit and prevent unintended regression in follow-up status normalization logic.
+- Affected files:
+  - src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpServiceTest.java
+  - docs/work-log/general-work-log.md
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - docs/work-log/general-work-log.md
+- Remaining follow-ups:
+  - Execute test run in local Maven/IDE environment.

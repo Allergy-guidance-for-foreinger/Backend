@@ -8,6 +8,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersisten
 import com.mealguide.mealguide_api.mealcrawl.application.port.PythonMealClientPort;
 import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMealCrawlRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMealCrawlResponse;
@@ -61,6 +62,36 @@ class MenuTranslationFollowUpServiceTest {
                 .containsExactly(12L);
         assertThat(persistencePort.savedTranslationKeys)
                 .containsExactlyInAnyOrder(new MenuTranslationKey(12L, "en"), new MenuTranslationKey(12L, "ja"));
+    }
+
+    @Test
+    void processSkipsBlankMenuNamesAndBlankTargetLanguages() {
+        MealCrawlProperties properties = new MealCrawlProperties();
+        properties.setTranslationTargetLanguages(List.of("en", " ", "ja", "en"));
+
+        FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
+        persistencePort.menuNames.put(11L, " ");
+        persistencePort.menuNames.put(12L, " Kimchi ");
+
+        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
+        pythonClientPort.translationResponse = new PythonMenuTranslationResponse(List.of(
+                new PythonMenuTranslationResultDto(
+                        12L,
+                        "Kimchi",
+                        List.of(new PythonTranslatedMenuNameDto("en", "Kimchi"), new PythonTranslatedMenuNameDto("ja", "Kimuchee"))
+                )
+        ));
+
+        MenuTranslationFollowUpService service = new MenuTranslationFollowUpService(persistencePort, pythonClientPort, properties);
+        service.process(new MealImportResult(1L, 2L, List.of(11L, 12L), List.of(), List.of(11L, 12L)));
+
+        assertThat(pythonClientPort.lastTranslationRequest.targetLanguages()).containsExactly("en", "ja");
+        assertThat(pythonClientPort.lastTranslationRequest.menus())
+                .extracting(PythonMenuTranslationTargetDto::menuId)
+                .containsExactly(12L);
+        assertThat(pythonClientPort.lastTranslationRequest.menus())
+                .extracting(PythonMenuTranslationTargetDto::menuName)
+                .containsExactly("Kimchi");
     }
 
     private static class FakePythonMealClientPort implements PythonMealClientPort {
@@ -177,11 +208,11 @@ class MenuTranslationFollowUpServiceTest {
         }
 
         @Override
-        public void saveMenuAnalysis(Long menuId, String status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, List<MenuIngredientCandidate> ingredients) {
+        public void saveMenuAnalysis(Long menuId, MenuAiStatus status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, List<MenuIngredientCandidate> ingredients) {
         }
 
         @Override
-        public void updateMenuAiStatus(Long menuId, String aiStatus, LocalDateTime analyzedAt) {
+        public void updateMenuAiStatus(Long menuId, MenuAiStatus aiStatus, LocalDateTime analyzedAt) {
         }
 
         @Override

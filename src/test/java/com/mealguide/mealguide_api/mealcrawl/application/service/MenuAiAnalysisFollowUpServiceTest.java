@@ -8,12 +8,14 @@ import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersisten
 import com.mealguide.mealguide_api.mealcrawl.application.port.PythonMealClientPort;
 import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMealCrawlRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMealCrawlResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResultDto;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisStatus;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisTargetDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuIngredientResultDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
@@ -44,7 +46,7 @@ class MenuAiAnalysisFollowUpServiceTest {
                 new PythonMenuAnalysisResultDto(
                         11L,
                         "Bibimbap",
-                        "SUCCESS",
+                        PythonMenuAnalysisStatus.SUCCESS,
                         null,
                         "gpt",
                         "1",
@@ -62,8 +64,116 @@ class MenuAiAnalysisFollowUpServiceTest {
                 .extracting(PythonMenuAnalysisTargetDto::menuId)
                 .containsExactlyInAnyOrder(11L, 12L);
         assertThat(persistencePort.savedAnalysisMenuIds).containsExactlyInAnyOrder(11L, 12L);
-        assertThat(persistencePort.updatedMenuStatus.get(11L)).isEqualTo("SUCCESS");
-        assertThat(persistencePort.updatedMenuStatus.get(12L)).isEqualTo("FAILED");
+        assertThat(persistencePort.updatedMenuStatus.get(11L)).isEqualTo(MenuAiStatus.SUCCESS);
+        assertThat(persistencePort.updatedMenuStatus.get(12L)).isEqualTo(MenuAiStatus.FAILED);
+    }
+
+    @Test
+    void processTreatsCompletedLikeStatusAsSuccess() {
+        FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
+        persistencePort.menuNames.put(21L, "Udon");
+
+        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
+        pythonClientPort.analysisResponse = new PythonMenuAnalysisResponse(List.of(
+                new PythonMenuAnalysisResultDto(
+                        21L,
+                        "Udon",
+                        PythonMenuAnalysisStatus.SUCCESS,
+                        null,
+                        "gpt",
+                        "1",
+                        LocalDateTime.now(),
+                        List.of(new PythonMenuIngredientResultDto("WHEAT", BigDecimal.valueOf(0.95)))
+                )
+        ));
+
+        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonClientPort);
+        MealImportResult importResult = new MealImportResult(1L, 1L, List.of(21L), List.of(21L), List.of());
+
+        service.process(importResult);
+
+        assertThat(persistencePort.updatedMenuStatus.get(21L)).isEqualTo(MenuAiStatus.SUCCESS);
+    }
+
+    @Test
+    void processInfersSuccessWhenStatusIsNullAndIngredientsExist() {
+        FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
+        persistencePort.menuNames.put(31L, "Tempura");
+
+        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
+        pythonClientPort.analysisResponse = new PythonMenuAnalysisResponse(List.of(
+                new PythonMenuAnalysisResultDto(
+                        31L,
+                        "Tempura",
+                        null,
+                        null,
+                        "gpt",
+                        "1",
+                        LocalDateTime.now(),
+                        List.of(new PythonMenuIngredientResultDto("SHRIMP", BigDecimal.valueOf(0.88)))
+                )
+        ));
+
+        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonClientPort);
+        MealImportResult importResult = new MealImportResult(1L, 1L, List.of(31L), List.of(31L), List.of());
+
+        service.process(importResult);
+
+        assertThat(persistencePort.updatedMenuStatus.get(31L)).isEqualTo(MenuAiStatus.SUCCESS);
+    }
+
+    @Test
+    void processInfersFailedWhenStatusIsNullAndIngredientsAreEmpty() {
+        FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
+        persistencePort.menuNames.put(32L, "Soup");
+
+        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
+        pythonClientPort.analysisResponse = new PythonMenuAnalysisResponse(List.of(
+                new PythonMenuAnalysisResultDto(
+                        32L,
+                        "Soup",
+                        null,
+                        null,
+                        "gpt",
+                        "1",
+                        LocalDateTime.now(),
+                        List.of()
+                )
+        ));
+
+        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonClientPort);
+        MealImportResult importResult = new MealImportResult(1L, 1L, List.of(32L), List.of(32L), List.of());
+
+        service.process(importResult);
+
+        assertThat(persistencePort.updatedMenuStatus.get(32L)).isEqualTo(MenuAiStatus.FAILED);
+    }
+
+    @Test
+    void processInfersFailedWhenStatusIsNullAndFailureReasonExists() {
+        FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
+        persistencePort.menuNames.put(33L, "Rice");
+
+        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
+        pythonClientPort.analysisResponse = new PythonMenuAnalysisResponse(List.of(
+                new PythonMenuAnalysisResultDto(
+                        33L,
+                        "Rice",
+                        null,
+                        "analysis failed",
+                        "gpt",
+                        "1",
+                        LocalDateTime.now(),
+                        List.of()
+                )
+        ));
+
+        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonClientPort);
+        MealImportResult importResult = new MealImportResult(1L, 1L, List.of(33L), List.of(33L), List.of());
+
+        service.process(importResult);
+
+        assertThat(persistencePort.updatedMenuStatus.get(33L)).isEqualTo(MenuAiStatus.FAILED);
     }
 
     private static class FakePythonMealClientPort implements PythonMealClientPort {
@@ -90,7 +200,7 @@ class MenuAiAnalysisFollowUpServiceTest {
     private static class FakeMealCrawlPersistencePort implements MealCrawlPersistencePort {
         private final Map<Long, String> menuNames = new HashMap<>();
         private final List<Long> savedAnalysisMenuIds = new ArrayList<>();
-        private final Map<Long, String> updatedMenuStatus = new HashMap<>();
+        private final Map<Long, MenuAiStatus> updatedMenuStatus = new HashMap<>();
 
         @Override
         public List<CrawlTargetSource> findCrawlTargets() {
@@ -180,12 +290,12 @@ class MenuAiAnalysisFollowUpServiceTest {
         }
 
         @Override
-        public void saveMenuAnalysis(Long menuId, String status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, List<MenuIngredientCandidate> ingredients) {
+        public void saveMenuAnalysis(Long menuId, MenuAiStatus status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, List<MenuIngredientCandidate> ingredients) {
             savedAnalysisMenuIds.add(menuId);
         }
 
         @Override
-        public void updateMenuAiStatus(Long menuId, String aiStatus, LocalDateTime analyzedAt) {
+        public void updateMenuAiStatus(Long menuId, MenuAiStatus aiStatus, LocalDateTime analyzedAt) {
             updatedMenuStatus.put(menuId, aiStatus);
         }
 
