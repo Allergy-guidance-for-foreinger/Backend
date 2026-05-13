@@ -201,7 +201,9 @@ public interface MealCrawlPersistencePort {
             Set<String> validAllergyCodes,
             MenuSpicyLevel spicyLevel
     ) {
-        saveMenuAnalysisAndUpdateStatus(menuId, status, modelName, modelVersion, reason, analyzedAt, ingredients, validIngredientCodes, spicyLevel);
+        throw new UnsupportedOperationException(
+                "saveMenuAnalysisAndUpdateStatus with allergies must be implemented by persistence adapter"
+        );
     }
 
     Set<MenuTranslationKey> findExistingMenuTranslationKeys(Set<Long> menuIds, List<String> langCodes);

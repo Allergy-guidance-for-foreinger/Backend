@@ -241,22 +241,22 @@
 - Remaining follow-ups:
   - Maven wrapper ì‹¤í–‰ ë¶ˆê°€ í™˜ê²½ì—ì„œ í…ŒìŠ¤íŠ¸ ìë™ ì‹¤í–‰ ê²€ì¦ í•„ìš”.
 
-### 2026-05-13 (country options »ç¿ëÀÚ ¾ğ¾î ±âÁØ ·ÎÄÃ¶óÀÌÂ¡)
+### 2026-05-13 (country options ì‚¬ìš©ì ì–¸ì–´ ê¸°ì¤€ ë¡œì»¬ë¼ì´ì§•)
 - What changed:
-  - `GET /api/v1/settings/options/countries`°¡ `@CurrentUserId`¸¦ »ç¿ëÇØ »ç¿ëÀÚ ¾ğ¾î ¼³Á¤À» ±âÁØÀ¸·Î ±¹°¡¸íÀ» ¹İÈ¯ÇÏµµ·Ï ¹İ¿µÇß´Ù.
-  - `SettingsService.getCountryOptions(Long userId)` ½Ã±×´ÏÃ³ ±âÁØÀ¸·Î »ç¿ëÀÚ ¾ğ¾î¸¦ Á¶È¸ÇØ `Locale` ±â¹İ ±¹°¡¸í ·ÎÄÃ¶óÀÌÂ¡À» Àû¿ëÇß´Ù.
-  - ±¹°¡ ÄÚµå°¡ À¯È¿ÇÏÁö ¾ÊÀº °æ¿ì DB ±âº» ÀÌ¸§À¸·Î fallback ÇÏµµ·Ï À¯ÁöÇß´Ù.
-  - controller/service Å×½ºÆ®¸¦ »õ ½Ã±×´ÏÃ³¿Í ·ÎÄÃ¶óÀÌÂ¡/fallback °ËÁõ ±âÁØÀ¸·Î ¼öÁ¤Çß´Ù.
+  - `GET /api/v1/settings/options/countries`ê°€ `@CurrentUserId`ë¥¼ ì‚¬ìš©í•´ ì‚¬ìš©ì ì–¸ì–´ ì„¤ì •ì„ ê¸°ì¤€ìœ¼ë¡œ êµ­ê°€ëª…ì„ ë°˜í™˜í•˜ë„ë¡ ë°˜ì˜í–ˆë‹¤.
+  - `SettingsService.getCountryOptions(Long userId)` ì‹œê·¸ë‹ˆì²˜ ê¸°ì¤€ìœ¼ë¡œ ì‚¬ìš©ì ì–¸ì–´ë¥¼ ì¡°íšŒí•´ `Locale` ê¸°ë°˜ êµ­ê°€ëª… ë¡œì»¬ë¼ì´ì§•ì„ ì ìš©í–ˆë‹¤.
+  - êµ­ê°€ ì½”ë“œê°€ ìœ íš¨í•˜ì§€ ì•Šì€ ê²½ìš° DB ê¸°ë³¸ ì´ë¦„ìœ¼ë¡œ fallback í•˜ë„ë¡ ìœ ì§€í–ˆë‹¤.
+  - controller/service í…ŒìŠ¤íŠ¸ë¥¼ ìƒˆ ì‹œê·¸ë‹ˆì²˜ì™€ ë¡œì»¬ë¼ì´ì§•/fallback ê²€ì¦ ê¸°ì¤€ìœ¼ë¡œ ìˆ˜ì •í–ˆë‹¤.
 - Why:
-  - ±¹°¡ ¼±ÅÃÁö Ç¥½Ã ¾ğ¾î¸¦ »ç¿ëÀÚ ¼³Á¤°ú ÀÏÄ¡½ÃÄÑ UI »ç¿ë¼ºÀ» ³ôÀÌ±â À§ÇØ.
+  - êµ­ê°€ ì„ íƒì§€ í‘œì‹œ ì–¸ì–´ë¥¼ ì‚¬ìš©ì ì„¤ì •ê³¼ ì¼ì¹˜ì‹œì¼œ UI ì‚¬ìš©ì„±ì„ ë†’ì´ê¸° ìœ„í•´.
 - Affected files:
   - `src/test/java/com/mealguide/mealguide_api/settings/presentation/controller/SettingsOptionsControllerTest.java`
   - `src/test/java/com/mealguide/mealguide_api/settings/application/service/SettingsServiceTest.java`
   - `docs/work-log/settings-work-log.md`
 - DB schema changed: No
 - API behavior changed:
-  - `GET /api/v1/settings/options/countries`°¡ »ç¿ëÀÚ ¾ğ¾î ±âÁØ ·ÎÄÃ¶óÀÌÁîµÈ ±¹°¡¸íÀ» ¹İÈ¯ÇÑ´Ù.
+  - `GET /api/v1/settings/options/countries`ê°€ ì‚¬ìš©ì ì–¸ì–´ ê¸°ì¤€ ë¡œì»¬ë¼ì´ì¦ˆëœ êµ­ê°€ëª…ì„ ë°˜í™˜í•œë‹¤.
 - Related docs updated:
   - `docs/work-log/settings-work-log.md`
 - Remaining follow-ups:
-  - Maven wrapper ½ÇÇà ÀÌ½´ ÇØ°á ÈÄ ÀüÃ¼ Å×½ºÆ® °ËÁõ ÇÊ¿ä.
+  - Maven wrapper ì‹¤í–‰ ì´ìŠˆ í•´ê²° í›„ ì „ì²´ í…ŒìŠ¤íŠ¸ ê²€ì¦ í•„ìš”.
