@@ -220,6 +220,7 @@ class MenuAiAnalysisFollowUpServiceTest {
                         "Noodles",
                         PythonMenuAnalysisStatus.SUCCESS,
                         null,
+                        null,
                         "gpt",
                         "1",
                         List.of(),
