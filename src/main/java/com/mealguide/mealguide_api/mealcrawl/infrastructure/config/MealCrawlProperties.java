@@ -15,6 +15,7 @@ public class MealCrawlProperties {
 
     private boolean schedulerEnabled = false;
     private String schedulerCron = "0 0 4 * * *";
+    private String analysisRetryCron = "0 0 1 * * *";
     private long schedulerLockKey = 20260416L;
 
     private String pythonBaseUrl = "http://localhost:8000";
@@ -22,7 +23,20 @@ public class MealCrawlProperties {
     private String analysisPath = "/api/v1/menus/analyze";
     private String translationPath = "/api/v1/menus/translate";
     private long weeklyMealCacheTtlSeconds = 86400L;
+    private int aiAnalysisBatchSize = 5;
+    private Integer aiAnalysisRetryBatchSize;
 
     private List<String> translationTargetLanguages = List.of("en");
+
+    public int getAiAnalysisBatchSize() {
+        return aiAnalysisBatchSize > 0 ? aiAnalysisBatchSize : 5;
+    }
+
+    public int getAiAnalysisRetryBatchSize() {
+        if (aiAnalysisRetryBatchSize == null || aiAnalysisRetryBatchSize <= 0) {
+            return getAiAnalysisBatchSize();
+        }
+        return aiAnalysisRetryBatchSize;
+    }
 }
 

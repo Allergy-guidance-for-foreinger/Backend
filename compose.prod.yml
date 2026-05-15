@@ -102,3 +102,7 @@ volumes:
   redis-prod-data:
   prometheus-prod-data:
   grafana-prod-data:
+
+networks:
+  meal-guide-network:
+    external: true

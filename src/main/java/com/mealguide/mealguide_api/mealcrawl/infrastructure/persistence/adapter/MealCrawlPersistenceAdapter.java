@@ -58,7 +58,6 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
 
     private static final MenuAiStatus DEFAULT_MENU_AI_STATUS = MenuAiStatus.PENDING;
     private static final String INGREDIENT_SOURCE_TYPE_CRAWL = "CRAWL";
-    private static final String INGREDIENT_STATUS_PENDING = "PENDING";
 
     private final CafeteriaJpaRepository cafeteriaJpaRepository;
     private final MealScheduleCrawlHistoryJpaRepository crawlHistoryJpaRepository;
@@ -134,18 +133,17 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                         menuId,
                         cornerName,
                         displayOrder,
-                        INGREDIENT_SOURCE_TYPE_CRAWL,
-                        INGREDIENT_STATUS_PENDING
+                        INGREDIENT_SOURCE_TYPE_CRAWL
                 ));
             } catch (DataIntegrityViolationException exception) {
                 MealMenu existingMealMenu = mealMenuJpaRepository.findByMealScheduleIdAndDisplayOrder(mealScheduleId, displayOrder)
                         .orElseThrow(() -> new ServiceException(ErrorCode.BINDING_ERROR, exception));
-                existingMealMenu.updateMenu(menuId, cornerName, INGREDIENT_SOURCE_TYPE_CRAWL, INGREDIENT_STATUS_PENDING);
+                existingMealMenu.updateMenu(menuId, cornerName, INGREDIENT_SOURCE_TYPE_CRAWL);
             }
             return;
         }
 
-        mealMenu.updateMenu(menuId, cornerName, INGREDIENT_SOURCE_TYPE_CRAWL, INGREDIENT_STATUS_PENDING);
+        mealMenu.updateMenu(menuId, cornerName, INGREDIENT_SOURCE_TYPE_CRAWL);
     }
 
     @Override
@@ -677,6 +675,19 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Long> findRetryPendingMenuIds(int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        return menuAiAnalysisJpaRepository.findLatestMenuIdsByStatusWithAttemptBelow(
+                MenuAiStatus.RETRY_PENDING.name(),
+                2,
+                limit
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Map<Long, String> findMenuNamesByIds(Set<Long> menuIds) {
         if (menuIds.isEmpty()) {
             return Map.of();
@@ -699,10 +710,11 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
             String modelVersion,
             String reason,
             LocalDateTime analyzedAt,
+            int attemptCount,
             List<MenuIngredientCandidate> ingredients
     ) {
         MenuAiAnalysis analysis = menuAiAnalysisJpaRepository.save(
-                MenuAiAnalysis.create(menuId, status, modelName, modelVersion, reason, analyzedAt)
+                MenuAiAnalysis.create(menuId, status, modelName, modelVersion, reason, analyzedAt, attemptCount)
         );
 
         if (ingredients == null || ingredients.isEmpty()) {
@@ -761,9 +773,10 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
             String modelVersion,
             String reason,
             LocalDateTime analyzedAt,
+            int attemptCount,
             List<MenuIngredientCandidate> ingredients
     ) {
-        saveMenuAnalysis(menuId, status, modelName, modelVersion, reason, analyzedAt, ingredients);
+        saveMenuAnalysis(menuId, status, modelName, modelVersion, reason, analyzedAt, attemptCount, ingredients);
         updateMenuAiStatus(menuId, status, analyzedAt);
     }
 
@@ -776,6 +789,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
             String modelVersion,
             String reason,
             LocalDateTime analyzedAt,
+            int attemptCount,
             List<MenuIngredientCandidate> ingredients,
             Set<String> validIngredientCodes,
             MenuSpicyLevel spicyLevel
@@ -787,6 +801,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 modelVersion,
                 reason,
                 analyzedAt,
+                attemptCount,
                 ingredients,
                 validIngredientCodes,
                 List.of(),
@@ -804,6 +819,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
             String modelVersion,
             String reason,
             LocalDateTime analyzedAt,
+            int attemptCount,
             List<MenuIngredientCandidate> ingredients,
             Set<String> validIngredientCodes,
             List<MenuAllergyCandidate> allergies,
@@ -811,7 +827,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
             MenuSpicyLevel spicyLevel
     ) {
         MenuAiAnalysis analysis = menuAiAnalysisJpaRepository.save(
-                MenuAiAnalysis.create(menuId, status, modelName, modelVersion, reason, analyzedAt)
+                MenuAiAnalysis.create(menuId, status, modelName, modelVersion, reason, analyzedAt, attemptCount)
         );
 
         if (ingredients != null && !ingredients.isEmpty()) {

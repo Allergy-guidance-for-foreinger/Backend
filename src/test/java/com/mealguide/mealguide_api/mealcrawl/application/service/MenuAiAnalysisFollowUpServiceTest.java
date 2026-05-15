@@ -7,21 +7,23 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCacheRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.PythonMealClientPort;
 import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
-import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuAllergyCandidate;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuSpicyLevel;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.PythonMealClientException;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMealCrawlRequest;
-import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMealCrawlResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisRequest;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMealCrawlResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAllergyResultDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResultDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisStatus;
-import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisTargetDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuIngredientResultDto;
-import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -38,213 +40,93 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MenuAiAnalysisFollowUpServiceTest {
 
     @Test
-    void processRequestsOnlyMenusNeedingAnalysis() {
+    void processSplitsTargetsByBatchSize() {
         FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
-        persistencePort.menuNames.put(11L, "Bibimbap");
-        persistencePort.menuNames.put(12L, "Kimchi");
+        persistencePort.menuNames.put(1L, "A");
+        persistencePort.menuNames.put(2L, "B");
+        persistencePort.menuNames.put(3L, "C");
 
-        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
-        pythonClientPort.analysisResponse = new PythonMenuAnalysisResponse(List.of(
-                new PythonMenuAnalysisResultDto(
-                        11L,
-                        "Bibimbap",
-                        PythonMenuAnalysisStatus.SUCCESS,
-                        null,
-                        "gpt",
-                        "1",
-                        List.of(new PythonMenuIngredientResultDto("ING_A", BigDecimal.valueOf(0.91)))
-                )
-        ));
+        FakePythonMealClientPort pythonPort = new FakePythonMealClientPort();
+        pythonPort.response = new PythonMenuAnalysisResponse(List.of());
 
-        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonClientPort);
-        MealImportResult importResult = new MealImportResult(1L, 2L, List.of(11L, 12L), List.of(11L, 12L), List.of());
+        MealCrawlProperties properties = new MealCrawlProperties();
+        properties.setAiAnalysisBatchSize(2);
+        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonPort, properties);
+        service.process(new MealImportResult(1L, 1L, List.of(1L, 2L, 3L), List.of(1L, 2L, 3L), List.of()));
 
-        service.process(importResult);
-
-        assertThat(pythonClientPort.lastAnalysisRequest.menus())
-                .extracting(PythonMenuAnalysisTargetDto::menuId)
-                .containsExactlyInAnyOrder(11L, 12L);
-        assertThat(pythonClientPort.lastAnalysisRequest.includeIngredients()).isTrue();
-        assertThat(pythonClientPort.lastAnalysisRequest.includeAllergies()).isTrue();
-        assertThat(persistencePort.savedAnalysisMenuIds).containsExactlyInAnyOrder(11L, 12L);
-        assertThat(persistencePort.updatedMenuStatus.get(11L)).isEqualTo(MenuAiStatus.SUCCESS);
-        assertThat(persistencePort.updatedMenuStatus.get(12L)).isEqualTo(MenuAiStatus.FAILED);
+        assertThat(pythonPort.requests).hasSize(2);
+        assertThat(pythonPort.requests.get(0).menus()).hasSize(2);
+        assertThat(pythonPort.requests.get(1).menus()).hasSize(1);
     }
 
     @Test
-    void processTreatsCompletedLikeStatusAsSuccess() {
+    void processMapsStatusesAndAttemptCountForMidnightFlow() {
         FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
-        persistencePort.menuNames.put(21L, "Udon");
+        persistencePort.menuNames.put(11L, "Menu1");
+        persistencePort.menuNames.put(12L, "Menu2");
+        persistencePort.menuNames.put(13L, "Menu3");
 
-        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
-        pythonClientPort.analysisResponse = new PythonMenuAnalysisResponse(List.of(
-                new PythonMenuAnalysisResultDto(
-                        21L,
-                        "Udon",
-                        PythonMenuAnalysisStatus.SUCCESS,
-                        4L,
-                        null,
-                        "gpt",
-                        "1",
-                        List.of(new PythonMenuIngredientResultDto("WHEAT", BigDecimal.valueOf(0.95))),
-                        List.of()
-                )
+        FakePythonMealClientPort pythonPort = new FakePythonMealClientPort();
+        pythonPort.response = new PythonMenuAnalysisResponse(List.of(
+                new PythonMenuAnalysisResultDto(11L, "Menu1", PythonMenuAnalysisStatus.SUCCESS, 1L, null, "m", "v", List.of(
+                        new PythonMenuIngredientResultDto("EGG", BigDecimal.ONE)
+                ), List.of(new PythonMenuAllergyResultDto("EGG", BigDecimal.ONE))),
+                new PythonMenuAnalysisResultDto(12L, "Menu2", PythonMenuAnalysisStatus.RETRYABLE_FAILED, null, "retry", "m", "v", List.of(), List.of()),
+                new PythonMenuAnalysisResultDto(13L, "Menu3", PythonMenuAnalysisStatus.PERMANENT_FAILED, null, "bad", "m", "v", List.of(), List.of())
         ));
 
-        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonClientPort);
-        MealImportResult importResult = new MealImportResult(1L, 1L, List.of(21L), List.of(21L), List.of());
+        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonPort, new MealCrawlProperties());
+        service.process(new MealImportResult(1L, 1L, List.of(11L, 12L, 13L), List.of(11L, 12L, 13L), List.of()));
 
-        service.process(importResult);
-
-        assertThat(persistencePort.updatedMenuStatus.get(21L)).isEqualTo(MenuAiStatus.SUCCESS);
-        assertThat(persistencePort.updatedSpicyLevel.get(21L)).isEqualTo(MenuSpicyLevel.LEVEL_4);
+        assertThat(persistencePort.statusByMenuId.get(11L)).isEqualTo(MenuAiStatus.SUCCESS);
+        assertThat(persistencePort.statusByMenuId.get(12L)).isEqualTo(MenuAiStatus.RETRY_PENDING);
+        assertThat(persistencePort.statusByMenuId.get(13L)).isEqualTo(MenuAiStatus.FAILED_PERMANENT);
+        assertThat(persistencePort.attemptByMenuId.get(11L)).isEqualTo(1);
+        assertThat(persistencePort.attemptByMenuId.get(12L)).isEqualTo(1);
+        assertThat(persistencePort.attemptByMenuId.get(13L)).isEqualTo(1);
     }
 
     @Test
-    void processAcceptsSpicyLevelZero() {
+    void retryFlowOnlyUsesRetryPendingTargetsAndMarksExhaustedOnRetryFailure() {
         FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
-        persistencePort.menuNames.put(22L, "Salad");
+        persistencePort.retryPendingMenuIds = List.of(21L);
+        persistencePort.menuNames.put(21L, "RetryMenu");
 
-        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
-        pythonClientPort.analysisResponse = new PythonMenuAnalysisResponse(List.of(
-                new PythonMenuAnalysisResultDto(
-                        22L,
-                        "Salad",
-                        PythonMenuAnalysisStatus.SUCCESS,
-                        0L,
-                        null,
-                        "gpt",
-                        "1",
-                        List.of(new PythonMenuIngredientResultDto("TOMATO", BigDecimal.valueOf(0.90))),
-                        List.of()
-                )
+        FakePythonMealClientPort pythonPort = new FakePythonMealClientPort();
+        pythonPort.response = new PythonMenuAnalysisResponse(List.of(
+                new PythonMenuAnalysisResultDto(21L, "RetryMenu", PythonMenuAnalysisStatus.RETRYABLE_FAILED, null, "still down", "m", "v", List.of(), List.of())
         ));
 
-        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonClientPort);
-        MealImportResult importResult = new MealImportResult(1L, 1L, List.of(22L), List.of(22L), List.of());
+        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonPort, new MealCrawlProperties());
+        service.processRetryPending("run-1");
 
-        service.process(importResult);
-
-        assertThat(persistencePort.updatedMenuStatus.get(22L)).isEqualTo(MenuAiStatus.SUCCESS);
-        assertThat(persistencePort.updatedSpicyLevel.get(22L)).isEqualTo(MenuSpicyLevel.LEVEL_0);
+        assertThat(persistencePort.lastRetryQueryLimit).isGreaterThan(0);
+        assertThat(persistencePort.statusByMenuId.get(21L)).isEqualTo(MenuAiStatus.FAILED_RETRY_EXHAUSTED);
+        assertThat(persistencePort.attemptByMenuId.get(21L)).isEqualTo(2);
     }
 
     @Test
-    void processInfersSuccessWhenStatusIsNullAndIngredientsExist() {
+    void batchClientFailureMarksWholeBatchRetryPending() {
         FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
-        persistencePort.menuNames.put(31L, "Tempura");
+        persistencePort.menuNames.put(31L, "A");
+        persistencePort.menuNames.put(32L, "B");
 
-        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
-        pythonClientPort.analysisResponse = new PythonMenuAnalysisResponse(List.of(
-                new PythonMenuAnalysisResultDto(
-                        31L,
-                        "Tempura",
-                        null,
-                        null,
-                        "gpt",
-                        "1",
-                        List.of(new PythonMenuIngredientResultDto("SHRIMP", BigDecimal.valueOf(0.88)))
-                )
-        ));
+        FakePythonMealClientPort pythonPort = new FakePythonMealClientPort();
+        pythonPort.exception = new PythonMealClientException("down", 503, "busy", true, null);
 
-        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonClientPort);
-        MealImportResult importResult = new MealImportResult(1L, 1L, List.of(31L), List.of(31L), List.of());
+        MealCrawlProperties properties = new MealCrawlProperties();
+        properties.setAiAnalysisBatchSize(10);
+        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonPort, properties);
+        service.process(new MealImportResult(1L, 1L, List.of(31L, 32L), List.of(31L, 32L), List.of()));
 
-        service.process(importResult);
-
-        assertThat(persistencePort.updatedMenuStatus.get(31L)).isEqualTo(MenuAiStatus.SUCCESS);
-    }
-
-    @Test
-    void processInfersFailedWhenStatusIsNullAndIngredientsAreEmpty() {
-        FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
-        persistencePort.menuNames.put(32L, "Soup");
-
-        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
-        pythonClientPort.analysisResponse = new PythonMenuAnalysisResponse(List.of(
-                new PythonMenuAnalysisResultDto(
-                        32L,
-                        "Soup",
-                        null,
-                        null,
-                        "gpt",
-                        "1",
-                        List.of()
-                )
-        ));
-
-        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonClientPort);
-        MealImportResult importResult = new MealImportResult(1L, 1L, List.of(32L), List.of(32L), List.of());
-
-        service.process(importResult);
-
-        assertThat(persistencePort.updatedMenuStatus.get(32L)).isEqualTo(MenuAiStatus.FAILED);
-    }
-
-    @Test
-    void processInfersFailedWhenStatusIsNullAndFailureReasonExists() {
-        FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
-        persistencePort.menuNames.put(33L, "Rice");
-
-        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
-        pythonClientPort.analysisResponse = new PythonMenuAnalysisResponse(List.of(
-                new PythonMenuAnalysisResultDto(
-                        33L,
-                        "Rice",
-                        null,
-                        "analysis failed",
-                        "gpt",
-                        "1",
-                        List.of()
-                )
-        ));
-
-        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonClientPort);
-        MealImportResult importResult = new MealImportResult(1L, 1L, List.of(33L), List.of(33L), List.of());
-
-        service.process(importResult);
-
-        assertThat(persistencePort.updatedMenuStatus.get(33L)).isEqualTo(MenuAiStatus.FAILED);
-    }
-
-    @Test
-    void processPassesOnlyValidDeduplicatedAllergiesToPersistence() {
-        FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
-        persistencePort.menuNames.put(41L, "Noodles");
-        persistencePort.existingAllergyCodes = Set.of("EGG", "MILK");
-
-        FakePythonMealClientPort pythonClientPort = new FakePythonMealClientPort();
-        pythonClientPort.analysisResponse = new PythonMenuAnalysisResponse(List.of(
-                new PythonMenuAnalysisResultDto(
-                        41L,
-                        "Noodles",
-                        PythonMenuAnalysisStatus.SUCCESS,
-                        null,
-                        null,
-                        "gpt",
-                        "1",
-                        List.of(),
-                        List.of(
-                                new PythonMenuAllergyResultDto("EGG", BigDecimal.valueOf(0.91)),
-                                new PythonMenuAllergyResultDto("EGG", BigDecimal.valueOf(0.93)),
-                                new PythonMenuAllergyResultDto("UNKNOWN", BigDecimal.valueOf(0.22)),
-                                new PythonMenuAllergyResultDto("MILK", null)
-                        )
-                )
-        ));
-
-        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonClientPort);
-        MealImportResult importResult = new MealImportResult(1L, 1L, List.of(41L), List.of(41L), List.of());
-
-        service.process(importResult);
-
-        assertThat(persistencePort.savedAllergyCodesByMenuId.get(41L)).containsExactlyInAnyOrder("EGG", "MILK");
-        assertThat(persistencePort.updatedMenuStatus.get(41L)).isEqualTo(MenuAiStatus.SUCCESS);
+        assertThat(persistencePort.statusByMenuId.get(31L)).isEqualTo(MenuAiStatus.RETRY_PENDING);
+        assertThat(persistencePort.statusByMenuId.get(32L)).isEqualTo(MenuAiStatus.RETRY_PENDING);
     }
 
     private static class FakePythonMealClientPort implements PythonMealClientPort {
-        private PythonMenuAnalysisRequest lastAnalysisRequest;
-        private PythonMenuAnalysisResponse analysisResponse;
+        private final List<PythonMenuAnalysisRequest> requests = new ArrayList<>();
+        private PythonMenuAnalysisResponse response;
+        private RuntimeException exception;
 
         @Override
         public PythonMealCrawlResponse crawlMeals(PythonMealCrawlRequest request) {
@@ -253,8 +135,11 @@ class MenuAiAnalysisFollowUpServiceTest {
 
         @Override
         public PythonMenuAnalysisResponse analyzeMenus(PythonMenuAnalysisRequest request) {
-            this.lastAnalysisRequest = request;
-            return analysisResponse;
+            requests.add(request);
+            if (exception != null) {
+                throw exception;
+            }
+            return response;
         }
 
         @Override
@@ -265,11 +150,10 @@ class MenuAiAnalysisFollowUpServiceTest {
 
     private static class FakeMealCrawlPersistencePort implements MealCrawlPersistencePort {
         private final Map<Long, String> menuNames = new HashMap<>();
-        private final List<Long> savedAnalysisMenuIds = new ArrayList<>();
-        private final Map<Long, MenuAiStatus> updatedMenuStatus = new HashMap<>();
-        private final Map<Long, MenuSpicyLevel> updatedSpicyLevel = new HashMap<>();
-        private final Map<Long, Set<String>> savedAllergyCodesByMenuId = new HashMap<>();
-        private Set<String> existingAllergyCodes = Set.of();
+        private final Map<Long, MenuAiStatus> statusByMenuId = new HashMap<>();
+        private final Map<Long, Integer> attemptByMenuId = new HashMap<>();
+        private List<Long> retryPendingMenuIds = List.of();
+        private int lastRetryQueryLimit;
 
         @Override
         public List<CrawlTargetSource> findCrawlTargets() {
@@ -349,59 +233,29 @@ class MenuAiAnalysisFollowUpServiceTest {
         }
 
         @Override
+        public List<Long> findRetryPendingMenuIds(int limit) {
+            lastRetryQueryLimit = limit;
+            return retryPendingMenuIds;
+        }
+
+        @Override
         public Map<Long, String> findMenuNamesByIds(Set<Long> menuIds) {
             return menuNames;
         }
 
         @Override
-        public void saveMenuAnalysis(Long menuId, MenuAiStatus status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, List<MenuIngredientCandidate> ingredients) {
-            savedAnalysisMenuIds.add(menuId);
-        }
-
-        @Override
-        public Set<String> findExistingAllergyCodes(Set<String> allergyCodes) {
-            if (allergyCodes == null || allergyCodes.isEmpty()) {
-                return Set.of();
-            }
-            return allergyCodes.stream().filter(existingAllergyCodes::contains).collect(java.util.stream.Collectors.toSet());
+        public void saveMenuAnalysis(Long menuId, MenuAiStatus status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, int attemptCount, List<MenuIngredientCandidate> ingredients) {
         }
 
         @Override
         public void updateMenuAiStatus(Long menuId, MenuAiStatus aiStatus, LocalDateTime analyzedAt) {
-            updatedMenuStatus.put(menuId, aiStatus);
+            statusByMenuId.put(menuId, aiStatus);
         }
 
         @Override
-        public void updateMenuAiStatus(Long menuId, MenuAiStatus aiStatus, LocalDateTime analyzedAt, MenuSpicyLevel spicyLevel) {
-            updatedMenuStatus.put(menuId, aiStatus);
-            updatedSpicyLevel.put(menuId, spicyLevel);
-        }
-
-        @Override
-        public void saveMenuAnalysisAndUpdateStatus(
-                Long menuId,
-                MenuAiStatus status,
-                String modelName,
-                String modelVersion,
-                String reason,
-                LocalDateTime analyzedAt,
-                List<MenuIngredientCandidate> ingredients,
-                Set<String> validIngredientCodes,
-                List<com.mealguide.mealguide_api.mealcrawl.domain.MenuAllergyCandidate> allergies,
-                Set<String> validAllergyCodes,
-                MenuSpicyLevel spicyLevel
-        ) {
-            savedAnalysisMenuIds.add(menuId);
-            updatedMenuStatus.put(menuId, status);
-            updatedSpicyLevel.put(menuId, spicyLevel);
-            Set<String> validCodes = validAllergyCodes == null ? Set.of() : validAllergyCodes;
-            Set<String> deduplicated = allergies == null
-                    ? Set.of()
-                    : allergies.stream()
-                    .map(allergy -> allergy.allergyCode() == null ? null : allergy.allergyCode().trim())
-                    .filter(code -> code != null && !code.isBlank() && validCodes.contains(code))
-                    .collect(java.util.stream.Collectors.toSet());
-            savedAllergyCodesByMenuId.put(menuId, deduplicated);
+        public void saveMenuAnalysisAndUpdateStatus(Long menuId, MenuAiStatus status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, int attemptCount, List<MenuIngredientCandidate> ingredients, Set<String> validIngredientCodes, List<MenuAllergyCandidate> allergies, Set<String> validAllergyCodes, MenuSpicyLevel spicyLevel) {
+            statusByMenuId.put(menuId, status);
+            attemptByMenuId.put(menuId, attemptCount);
         }
 
         @Override
@@ -414,4 +268,3 @@ class MenuAiAnalysisFollowUpServiceTest {
         }
     }
 }
-

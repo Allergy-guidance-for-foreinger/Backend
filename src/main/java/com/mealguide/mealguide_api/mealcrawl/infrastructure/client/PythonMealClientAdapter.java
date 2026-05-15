@@ -14,8 +14,10 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProp
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.List;
 
@@ -62,8 +64,32 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
                 throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR);
             }
             return response;
+        } catch (RestClientResponseException exception) {
+            int status = exception.getStatusCode().value();
+            boolean retryable = isRetryableStatus(status);
+            throw new PythonMealClientException(
+                    "Python menu analysis request failed: status=" + status,
+                    status,
+                    exception.getResponseBodyAsString(),
+                    retryable,
+                    exception
+            );
+        } catch (ResourceAccessException exception) {
+            throw new PythonMealClientException(
+                    "Python menu analysis request failed: resource access error",
+                    null,
+                    null,
+                    true,
+                    exception
+            );
         } catch (RestClientException exception) {
-            throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR, exception);
+            throw new PythonMealClientException(
+                    "Python menu analysis request failed",
+                    null,
+                    null,
+                    true,
+                    exception
+            );
         }
     }
 
@@ -110,6 +136,15 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
     private record PythonMenuTranslationEnvelopeData(
             List<PythonMenuTranslationResultDto> results
     ) {
+    }
+
+    private boolean isRetryableStatus(int status) {
+        return status == 408
+                || status == 429
+                || status == 500
+                || status == 502
+                || status == 503
+                || status == 504;
     }
 }
 

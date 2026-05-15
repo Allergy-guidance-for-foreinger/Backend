@@ -1086,3 +1086,75 @@ ull (allergy match source changed to AI allergy code table).
   - `docs/work-log/general-work-log.md`
 - Remaining follow-ups:
   - Run test suite in local IDE/Maven environment.
+
+## 2026-05-15 (meal_menu ingredient_info_status column removal alignment)
+- What changed:
+  - Removed ingredient_info_status mapping from MealMenu entity.
+  - Simplified MealMenu.create(...) and MealMenu.updateMenu(...) signatures by removing ingredientInfoStatus argument.
+  - Removed INGREDIENT_STATUS_PENDING usage in MealCrawlPersistenceAdapter and updated upsert calls accordingly.
+  - Updated docs/schema.sql to remove meal_menu.ingredient_info_status.
+  - Updated idx_meal_menu_source_status index definition to single-column index on ingredient_info_source_type.
+- Why:
+  - ingredient_info_status was always persisted as PENDING and no runtime read-path depended on it.
+  - Source of analysis progress is already managed by menu_ai_analysis / menu.ai_analysis_status.
+- Affected files:
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MealMenu.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java
+  - docs/schema.sql
+  - docs/work-log/general-work-log.md
+- DB schema changed: Yes (meal_menu.ingredient_info_status removed; related index updated)
+- API behavior changed: No
+- Related docs updated:
+  - docs/schema.sql
+  - docs/work-log/general-work-log.md
+- Remaining follow-ups:
+  - Apply corresponding DB migration in PostgreSQL (ALTER TABLE meal_menu DROP COLUMN ingredient_info_status and index recreation if needed).
+  - Run compile/tests in local IDE/Maven environment.
+## 2026-05-15 (AI analysis batch + 01:00 retry with RETRY_PENDING)
+- What changed:
+  - Expanded menu AI status domain to PENDING, SUCCESS, RETRY_PENDING, FAILED_PERMANENT, FAILED_RETRY_EXHAUSTED.
+  - Added AI analysis batching properties:
+    - mealguide.mealcrawl.ai-analysis-batch-size (default 5)
+    - mealguide.mealcrawl.ai-analysis-retry-batch-size (default 5)
+  - Added retry scheduler cron property mealguide.mealcrawl.analysis-retry-cron (default   0 1 * * *).
+  - Added 01:00 retry scheduled method in MealCrawlScheduler using existing advisory lock flow.
+  - Reworked MenuAiAnalysisFollowUpService to:
+    - process analysis targets in batches,
+    - map Python status (SUCCESS, RETRYABLE_FAILED, PERMANENT_FAILED) to Java statuses,
+    - mark batch-level client failures as RETRY_PENDING (00:00) or FAILED_RETRY_EXHAUSTED (01:00),
+    - keep meal import success isolated from AI follow-up failures.
+  - Added PythonMealClientException and updated PythonMealClientAdapter.analyzeMenus to preserve HTTP status/body/cause and retryable classification.
+  - Added ttempt_count to MenuAiAnalysis entity and persistence save path.
+  - Added retry target query support (indRetryPendingMenuIds) via MenuAiAnalysisJpaRepository latest-row query.
+  - Updated docs schema to include menu_ai_analysis.attempt_count INT NOT NULL DEFAULT 0.
+- Why:
+  - Ensure transient Gemini/Python overload failures are retried once at 01:00 without reanalyzing SUCCESS menus.
+  - Keep import pipeline resilient by separating import success from follow-up partial failures.
+- Affected files:
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuAiStatus.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuAiAnalysis.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/config/MealCrawlProperties.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlScheduler.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MenuAiAnalysisJpaRepository.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientException.java
+  - src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonMenuAnalysisStatus.java
+  - src/main/resources/application.properties
+  - docs/schema.sql
+  - docs/features/mealcrawl-context.md
+  - docs/work-log/general-work-log.md
+  - related tests under src/test/java/com/mealguide/mealguide_api/mealcrawl/*
+- DB schema changed: Yes (menu_ai_analysis.attempt_count added in schema docs)
+- API behavior changed: No public API contract change (scheduler/follow-up internal behavior changed)
+- Related docs updated:
+  - docs/schema.sql
+  - docs/features/mealcrawl-context.md
+  - docs/work-log/general-work-log.md
+- Test execution result:
+  - ./mvnw ... test attempted but failed in current environment with wrapper error: Cannot start maven from wrapper.
+- Remaining follow-ups:
+  - Apply DB migration for menu_ai_analysis.attempt_count in actual PostgreSQL.
+  - Run full test suite in local IDE or fixed Maven wrapper environment.

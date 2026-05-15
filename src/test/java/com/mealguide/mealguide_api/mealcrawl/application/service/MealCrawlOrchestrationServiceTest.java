@@ -17,6 +17,7 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.P
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -39,7 +40,7 @@ class MealCrawlOrchestrationServiceTest {
         FakePersistencePort persistencePort = new FakePersistencePort();
 
         MealImportService mealImportService = new MealImportService(persistencePort, new com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties());
-        MenuAiAnalysisFollowUpService analysisFollowUpService = new MenuAiAnalysisFollowUpService(persistencePort, pythonClient) {
+        MenuAiAnalysisFollowUpService analysisFollowUpService = new MenuAiAnalysisFollowUpService(persistencePort, pythonClient, new MealCrawlProperties()) {
             @Override
             public void process(MealImportResult importResult) {
                 throw new RuntimeException("analysis failure");
@@ -78,7 +79,7 @@ class MealCrawlOrchestrationServiceTest {
         FakePersistencePort persistencePort = new FakePersistencePort();
 
         MealImportService mealImportService = new MealImportService(persistencePort, new com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties());
-        MenuAiAnalysisFollowUpService analysisFollowUpService = new MenuAiAnalysisFollowUpService(persistencePort, pythonClient);
+        MenuAiAnalysisFollowUpService analysisFollowUpService = new MenuAiAnalysisFollowUpService(persistencePort, pythonClient, new MealCrawlProperties());
         MenuTranslationFollowUpService translationFollowUpService = new MenuTranslationFollowUpService(
                 persistencePort,
                 pythonClient,
@@ -87,7 +88,7 @@ class MealCrawlOrchestrationServiceTest {
         WeeklyMealCacheRefreshService cacheRefreshService = mock(WeeklyMealCacheRefreshService.class);
         doThrow(new RuntimeException("redis failure"))
                 .when(cacheRefreshService)
-                .refreshWeeklyMealCache(1L, 10L, LocalDate.of(2026, 4, 20));
+                .refreshWeeklyMealCache("manual", 1L, 10L, LocalDate.of(2026, 4, 20));
 
         MealCrawlOrchestrationService orchestrationService = new MealCrawlOrchestrationService(
                 pythonClient,
@@ -111,7 +112,7 @@ class MealCrawlOrchestrationServiceTest {
         assertThatCode(() -> orchestrationService.crawlAndImport(target)).doesNotThrowAnyException();
         assertThat(persistencePort.successMarked).isTrue();
         assertThat(persistencePort.failureMarked).isFalse();
-        verify(cacheRefreshService).refreshWeeklyMealCache(1L, 10L, LocalDate.of(2026, 4, 20));
+        verify(cacheRefreshService).refreshWeeklyMealCache("manual", 1L, 10L, LocalDate.of(2026, 4, 20));
     }
 
     private static class FakePythonClient implements PythonMealClientPort {
@@ -222,12 +223,17 @@ class MealCrawlOrchestrationServiceTest {
         }
 
         @Override
+        public List<Long> findRetryPendingMenuIds(int limit) {
+            return List.of();
+        }
+
+        @Override
         public Map<Long, String> findMenuNamesByIds(Set<Long> menuIds) {
             return Map.of();
         }
 
         @Override
-        public void saveMenuAnalysis(Long menuId, MenuAiStatus status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, List<MenuIngredientCandidate> ingredients) {
+        public void saveMenuAnalysis(Long menuId, MenuAiStatus status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, int attemptCount, List<MenuIngredientCandidate> ingredients) {
         }
 
         @Override

@@ -23,6 +23,7 @@ public class MealCrawlScheduler {
     private final MealCrawlSchedulerLockPort mealCrawlSchedulerLockPort;
     private final MealCrawlTargetService mealCrawlTargetService;
     private final MealCrawlOrchestrationService mealCrawlOrchestrationService;
+    private final MenuAiAnalysisFollowUpService menuAiAnalysisFollowUpService;
 
     @Scheduled(cron = "${mealguide.mealcrawl.scheduler-cron:0 0 0 * * *}")
     public void runWeeklyCrawl() {
@@ -80,6 +81,40 @@ public class MealCrawlScheduler {
                     targetCount,
                     successCafeteriaCount,
                     failCafeteriaCount,
+                    durationMs,
+                    exception.getClass().getSimpleName(),
+                    exception.getMessage(),
+                    exception
+            );
+            throw exception;
+        } finally {
+            mealCrawlSchedulerLockPort.releaseLock();
+        }
+    }
+
+    @Scheduled(cron = "${mealguide.mealcrawl.analysis-retry-cron:0 0 1 * * *}")
+    public void runAiRetry() {
+        if (!mealCrawlProperties.isSchedulerEnabled()) {
+            return;
+        }
+
+        if (!mealCrawlSchedulerLockPort.tryAcquireLock()) {
+            log.info("Skipped ai retry scheduling because another instance holds the lock");
+            return;
+        }
+
+        String runId = UUID.randomUUID().toString();
+        Instant startedAt = Instant.now();
+        log.info("event=START stage=ai_retry_scheduler runId={} trigger=scheduler baseDate={}", runId, LocalDate.now());
+        try {
+            menuAiAnalysisFollowUpService.processRetryPending(runId);
+            long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
+            log.info("event=END stage=ai_retry_scheduler runId={} durationMs={} result=SUCCESS", runId, durationMs);
+        } catch (Exception exception) {
+            long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
+            log.error(
+                    "event=FAIL stage=ai_retry_scheduler runId={} durationMs={} errorType={} message={}",
+                    runId,
                     durationMs,
                     exception.getClass().getSimpleName(),
                     exception.getMessage(),

@@ -94,6 +94,8 @@ public interface MealCrawlPersistencePort {
 
     Set<Long> findAnalyzedMenuIds(Set<Long> menuIds);
 
+    List<Long> findRetryPendingMenuIds(int limit);
+
     Map<Long, String> findMenuNamesByIds(Set<Long> menuIds);
 
     void saveMenuAnalysis(
@@ -103,6 +105,7 @@ public interface MealCrawlPersistencePort {
             String modelVersion,
             String reason,
             LocalDateTime analyzedAt,
+            int attemptCount,
             List<MenuIngredientCandidate> ingredients
     );
 
@@ -136,9 +139,10 @@ public interface MealCrawlPersistencePort {
             String modelVersion,
             String reason,
             LocalDateTime analyzedAt,
+            int attemptCount,
             List<MenuIngredientCandidate> ingredients
     ) {
-        saveMenuAnalysis(menuId, status, modelName, modelVersion, reason, analyzedAt, ingredients);
+        saveMenuAnalysis(menuId, status, modelName, modelVersion, reason, analyzedAt, attemptCount, ingredients);
         updateMenuAiStatus(menuId, status, analyzedAt);
     }
 
@@ -149,10 +153,11 @@ public interface MealCrawlPersistencePort {
             String modelVersion,
             String reason,
             LocalDateTime analyzedAt,
+            int attemptCount,
             List<MenuIngredientCandidate> ingredients,
             MenuSpicyLevel spicyLevel
     ) {
-        saveMenuAnalysis(menuId, status, modelName, modelVersion, reason, analyzedAt, ingredients);
+        saveMenuAnalysis(menuId, status, modelName, modelVersion, reason, analyzedAt, attemptCount, ingredients);
         updateMenuAiStatus(menuId, status, analyzedAt, spicyLevel);
     }
 
@@ -163,6 +168,7 @@ public interface MealCrawlPersistencePort {
             String modelVersion,
             String reason,
             LocalDateTime analyzedAt,
+            int attemptCount,
             List<MenuIngredientCandidate> ingredients,
             Set<String> validIngredientCodes,
             MenuSpicyLevel spicyLevel
@@ -183,6 +189,7 @@ public interface MealCrawlPersistencePort {
                 modelVersion,
                 reason,
                 analyzedAt,
+                attemptCount,
                 filteredIngredients,
                 spicyLevel
         );
@@ -195,6 +202,7 @@ public interface MealCrawlPersistencePort {
             String modelVersion,
             String reason,
             LocalDateTime analyzedAt,
+            int attemptCount,
             List<MenuIngredientCandidate> ingredients,
             Set<String> validIngredientCodes,
             List<MenuAllergyCandidate> allergies,
