@@ -37,9 +37,6 @@ public class MealMenu {
     @Column(name = "ingredient_info_source_type", nullable = false, length = 20)
     private String ingredientInfoSourceType;
 
-    @Column(name = "ingredient_info_status", nullable = false, length = 20)
-    private String ingredientInfoStatus;
-
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -51,8 +48,7 @@ public class MealMenu {
             Long menuId,
             String cornerName,
             Integer displayOrder,
-            String ingredientInfoSourceType,
-            String ingredientInfoStatus
+            String ingredientInfoSourceType
     ) {
         MealMenu mealMenu = new MealMenu();
         mealMenu.mealScheduleId = mealScheduleId;
@@ -60,17 +56,15 @@ public class MealMenu {
         mealMenu.cornerName = cornerName;
         mealMenu.displayOrder = displayOrder;
         mealMenu.ingredientInfoSourceType = ingredientInfoSourceType;
-        mealMenu.ingredientInfoStatus = ingredientInfoStatus;
         mealMenu.createdAt = LocalDateTime.now();
         mealMenu.updatedAt = mealMenu.createdAt;
         return mealMenu;
     }
 
-    public void updateMenu(Long menuId, String cornerName, String ingredientInfoSourceType, String ingredientInfoStatus) {
+    public void updateMenu(Long menuId, String cornerName, String ingredientInfoSourceType) {
         this.menuId = menuId;
         this.cornerName = cornerName;
         this.ingredientInfoSourceType = ingredientInfoSourceType;
-        this.ingredientInfoStatus = ingredientInfoStatus;
         this.updatedAt = LocalDateTime.now();
     }
 }

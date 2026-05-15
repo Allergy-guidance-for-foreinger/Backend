@@ -25,6 +25,9 @@ services:
       REDIS_PORT: 6379
       ACTUATOR_EXPOSE: ${ACTUATOR_EXPOSE:-health,info,prometheus}
       TZ: Asia/Seoul
+    networks:
+      - default
+      - meal-guide-network
     restart: unless-stopped
 
   postgres:
@@ -99,3 +102,8 @@ volumes:
   redis-dev-data:
   prometheus-dev-data:
   grafana-dev-data:
+
+networks:
+  default:
+    name: meal-guide-network
+    external: true

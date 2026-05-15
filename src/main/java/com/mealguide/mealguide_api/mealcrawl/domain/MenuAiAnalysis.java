@@ -43,6 +43,9 @@ public class MenuAiAnalysis {
     @Column(name = "analyzed_at")
     private LocalDateTime analyzedAt;
 
+    @Column(name = "attempt_count", nullable = false)
+    private Integer attemptCount;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -52,7 +55,8 @@ public class MenuAiAnalysis {
             String modelName,
             String modelVersion,
             String reason,
-            LocalDateTime analyzedAt
+            LocalDateTime analyzedAt,
+            int attemptCount
     ) {
         MenuAiAnalysis analysis = new MenuAiAnalysis();
         analysis.menuId = menuId;
@@ -61,6 +65,7 @@ public class MenuAiAnalysis {
         analysis.modelVersion = modelVersion;
         analysis.reason = reason;
         analysis.analyzedAt = analyzedAt;
+        analysis.attemptCount = attemptCount;
         analysis.createdAt = LocalDateTime.now();
         return analysis;
     }

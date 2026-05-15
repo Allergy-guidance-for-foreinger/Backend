@@ -198,12 +198,17 @@ class MenuTranslationFollowUpServiceTest {
         }
 
         @Override
+        public List<Long> findRetryPendingMenuIds(int limit) {
+            return List.of();
+        }
+
+        @Override
         public Map<Long, String> findMenuNamesByIds(Set<Long> menuIds) {
             return menuNames;
         }
 
         @Override
-        public void saveMenuAnalysis(Long menuId, MenuAiStatus status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, List<MenuIngredientCandidate> ingredients) {
+        public void saveMenuAnalysis(Long menuId, MenuAiStatus status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, int attemptCount, List<MenuIngredientCandidate> ingredients) {
         }
 
         @Override
