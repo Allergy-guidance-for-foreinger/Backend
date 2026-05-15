@@ -1199,3 +1199,19 @@ iskLevel only), allergy risk source changed internally.
   - docs/work-log/general-work-log.md
 - Remaining follow-ups:
   - docker compose -f compose.dev.yml up -d 후 Prometheus /targets에서 exporter UP 확인.
+## 2026-05-15 (postgres-exporter DSN hardening)
+- What changed:
+  - Replaced `DATA_SOURCE_NAME` DSN in both `compose.dev.yml` and `compose.prod.yml` with split fields:
+    - `DATA_SOURCE_URI`
+    - `DATA_SOURCE_USER`
+    - `DATA_SOURCE_PASS`
+- Why:
+  - Prevent URI parsing issues when DB password contains reserved characters (`@`, `:`, `/`, `?`).
+- Affected files:
+  - `compose.dev.yml`
+  - `compose.prod.yml`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`

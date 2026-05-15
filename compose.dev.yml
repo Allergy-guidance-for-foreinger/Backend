@@ -71,7 +71,9 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATA_SOURCE_NAME: "postgresql://${DB_USERNAME}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable"
+      DATA_SOURCE_URI: "postgres:5432/${DB_NAME}?sslmode=disable"
+      DATA_SOURCE_USER: "${DB_USERNAME}"
+      DATA_SOURCE_PASS: "${DB_PASSWORD}"
     restart: unless-stopped
 
   redis-exporter:
