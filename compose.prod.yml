@@ -64,12 +64,38 @@ services:
             timeout: 5s
             retries: 5
 
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: mealguide-postgres-exporter
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATA_SOURCE_URI: "postgres:5432/${DB_NAME}?sslmode=disable"
+      DATA_SOURCE_USER: "${DB_USERNAME}"
+      DATA_SOURCE_PASS: "${DB_PASSWORD}"
+    restart: unless-stopped
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.64.0
+    container_name: mealguide-redis-exporter
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:v2.55.1
     container_name: mealguide-prometheus
     depends_on:
       app:
         condition: service_healthy
+      postgres-exporter:
+        condition: service_started
+      redis-exporter:
+        condition: service_started
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     command:
@@ -104,5 +130,6 @@ volumes:
   grafana-prod-data:
 
 networks:
-  meal-guide-network:
+  default:
+    name: meal-guide-network
     external: true
