@@ -1160,3 +1160,42 @@ iskLevel only), allergy risk source changed internally.
 - Remaining follow-ups:
   - Apply DB migration for menu_ai_analysis.attempt_count in actual PostgreSQL.
   - Run full test suite in local IDE or fixed Maven wrapper environment.
+
+## 2026-05-15 (prod monitoring: postgres/redis exporter wiring)
+- What changed:
+  - Added postgres-exporter service to compose.prod.yml with DATA_SOURCE_NAME bound to existing DB env vars.
+  - Added edis-exporter service to compose.prod.yml with REDIS_ADDR=redis://redis:6379.
+  - Updated prometheus service depends_on to include both exporters.
+  - Added Prometheus scrape jobs in monitoring/prod/prometheus.yml:
+    - mealguide-postgres-exporter -> postgres-exporter:9187
+    - mealguide-redis-exporter -> edis-exporter:9121
+- Why:
+  - Grafana dashboards for PostgreSQL/Redis were showing No data because only app JVM metrics were being scraped.
+- Affected files:
+  - compose.prod.yml
+  - monitoring/prod/prometheus.yml
+  - docs/work-log/general-work-log.md
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - docs/work-log/general-work-log.md
+- Remaining follow-ups:
+  - Redeploy compose stack and verify Prometheus /targets shows both exporters as UP.
+  - Re-check Grafana panels (pg_up, edis_up) in Explore/dashboard.
+## 2026-05-15 (dev monitoring: postgres/redis exporter wiring)
+- What changed:
+  - Added postgres-exporter and edis-exporter services to compose.dev.yml.
+  - Added Prometheus dev scrape jobs in monitoring/dev/prometheus.yml for both exporters.
+  - Updated dev prometheus.depends_on to include exporter services.
+- Why:
+  - Keep dev monitoring parity with prod and enable Grafana PostgreSQL/Redis dashboards in dev.
+- Affected files:
+  - compose.dev.yml
+  - monitoring/dev/prometheus.yml
+  - docs/work-log/general-work-log.md
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - docs/work-log/general-work-log.md
+- Remaining follow-ups:
+  - docker compose -f compose.dev.yml up -d 후 Prometheus /targets에서 exporter UP 확인.
