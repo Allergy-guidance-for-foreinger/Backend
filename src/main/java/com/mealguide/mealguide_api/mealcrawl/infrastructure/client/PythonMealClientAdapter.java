@@ -79,7 +79,7 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
                     "Python menu analysis request failed: resource access error",
                     null,
                     null,
-                    true,
+                    false,
                     exception
             );
         } catch (RestClientException exception) {

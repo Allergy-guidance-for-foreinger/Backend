@@ -57,6 +57,7 @@ import java.util.stream.Collectors;
 public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
 
     private static final MenuAiStatus DEFAULT_MENU_AI_STATUS = MenuAiStatus.PENDING;
+    private static final int MAX_AI_ANALYSIS_ATTEMPT_COUNT = 2;
     private static final String INGREDIENT_SOURCE_TYPE_CRAWL = "CRAWL";
 
     private final CafeteriaJpaRepository cafeteriaJpaRepository;
@@ -681,7 +682,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
         }
         return menuAiAnalysisJpaRepository.findLatestMenuIdsByStatusWithAttemptBelow(
                 MenuAiStatus.RETRY_PENDING.name(),
-                2,
+                MAX_AI_ANALYSIS_ATTEMPT_COUNT,
                 limit
         );
     }

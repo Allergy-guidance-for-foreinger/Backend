@@ -104,5 +104,6 @@ volumes:
   grafana-dev-data:
 
 networks:
-  meal-guide-network:
+  default:
+    name: meal-guide-network
     external: true

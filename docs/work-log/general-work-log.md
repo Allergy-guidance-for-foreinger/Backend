@@ -1020,7 +1020,8 @@
   - Added duplicate allergy-code deduplication per analysis before insert.
   - Updated menu detail matching flow to use latest SUCCESS menu_ai_analysis_allergy + user_allergy direct intersection.
   - Updated weekly risk flow to compute allergy danger by bulk matched meal-menu lookup (indMealMenuIdsHavingMatchedAllergies) instead of ingredient->allergy mapping.
-  - Kept religion risk logic on eligious_food_restriction_ingredient ingredient matching.
+  - Kept religion risk logic on 
+eligious_food_restriction_ingredient ingredient matching.
   - Kept settings/onboarding allergy validation and user_allergy replacement flow unchanged.
 - Why:
   - Align Java server with DB contract where llergy_ingredient is removed and AI-provided menu allergy codes are source-of-truth for allergy risk matching.
@@ -1048,7 +1049,8 @@
 - API behavior changed:
   - MenuDetailResponse.matchedAllergies[].ingredientCode is now 
 ull (allergy match source changed to AI allergy code table).
-  - Weekly response schema unchanged (iskLevel only), allergy risk source changed internally.
+  - Weekly response schema unchanged (
+iskLevel only), allergy risk source changed internally.
 - Related docs updated:
   - docs/features/mealcrawl-context.md
   - docs/database-context.md
@@ -1056,12 +1058,12 @@ ull (allergy match source changed to AI allergy code table).
 - Remaining follow-ups:
   - Run compile/tests in local Maven/IDE environment and validate one scheduler cycle with Python allergy payload.
 
-### 2026-05-13 (AI ºÐ¼® unknown ingredient ÀÚµ¿ µî·Ï)
+### 2026-05-13 (AI ï¿½Ð¼ï¿½ unknown ingredient ï¿½Úµï¿½ ï¿½ï¿½ï¿½)
 - Changed `MealCrawlPersistenceAdapter` to auto-insert missing `ingredient.code` values during AI analysis save.
 - Unknown `ingredient_code` is no longer skipped; it is inserted into `ingredient(code,name,created_at)` with `name=code` and then saved to `menu_ai_analysis_ingredient`.
 - `allergy_code` behavior remains unchanged: unknown allergy codes are still skipped with WARN logs.
 
-### 2026-05-13 (AI ¸Ê±â ´Ü°è enum °ü¸® ¹Ý¿µ)
+### 2026-05-13 (AI ï¿½Ê±ï¿½ ï¿½Ü°ï¿½ enum ï¿½ï¿½ï¿½ï¿½ ï¿½Ý¿ï¿½)
 - Added `MenuSpicyLevel` enum (1~5 levels) in mealcrawl domain.
 - AI analysis response DTO now accepts `spicyLevel` (and `spicy_level` alias).
 - `MenuAiAnalysisFollowUpService` now reads spicy level from AI response and passes it to persistence update.
@@ -1116,7 +1118,7 @@ ull (allergy match source changed to AI allergy code table).
   - Added AI analysis batching properties:
     - mealguide.mealcrawl.ai-analysis-batch-size (default 5)
     - mealguide.mealcrawl.ai-analysis-retry-batch-size (default 5)
-  - Added retry scheduler cron property mealguide.mealcrawl.analysis-retry-cron (default   0 1 * * *).
+  - Added retry scheduler cron property mealguide.mealcrawl.analysis-retry-cron (default `0 0 1 * * *`).
   - Added 01:00 retry scheduled method in MealCrawlScheduler using existing advisory lock flow.
   - Reworked MenuAiAnalysisFollowUpService to:
     - process analysis targets in batches,
@@ -1124,8 +1126,8 @@ ull (allergy match source changed to AI allergy code table).
     - mark batch-level client failures as RETRY_PENDING (00:00) or FAILED_RETRY_EXHAUSTED (01:00),
     - keep meal import success isolated from AI follow-up failures.
   - Added PythonMealClientException and updated PythonMealClientAdapter.analyzeMenus to preserve HTTP status/body/cause and retryable classification.
-  - Added ttempt_count to MenuAiAnalysis entity and persistence save path.
-  - Added retry target query support (indRetryPendingMenuIds) via MenuAiAnalysisJpaRepository latest-row query.
+  - Added attempt_count to MenuAiAnalysis entity and persistence save path.
+  - Added retry target query support (findRetryPendingMenuIds) via MenuAiAnalysisJpaRepository latest-row query.
   - Updated docs schema to include menu_ai_analysis.attempt_count INT NOT NULL DEFAULT 0.
 - Why:
   - Ensure transient Gemini/Python overload failures are retried once at 01:00 without reanalyzing SUCCESS menus.

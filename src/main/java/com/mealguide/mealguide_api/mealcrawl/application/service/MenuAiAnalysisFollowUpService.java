@@ -109,6 +109,7 @@ public class MenuAiAnalysisFollowUpService {
             Set<String> validAllergyCodes = mealCrawlPersistencePort.findExistingAllergyCodes(
                     extractCandidateAllergyCodes(resultsByMenuId.values())
             );
+            LocalDateTime analyzedAt = LocalDateTime.now();
 
             for (PythonMenuAnalysisTargetDto target : batchTargets) {
                 PythonMenuAnalysisResultDto result = resultsByMenuId.get(target.menuId());
@@ -125,7 +126,7 @@ public class MenuAiAnalysisFollowUpService {
                         result.modelName(),
                         result.modelVersion(),
                         result.reason(),
-                        LocalDateTime.now(),
+                        analyzedAt,
                         attemptCount,
                         toIngredients(result.ingredients()),
                         validIngredientCodes,
@@ -135,7 +136,9 @@ public class MenuAiAnalysisFollowUpService {
                 );
             }
         } catch (PythonMealClientException exception) {
-            MenuAiStatus status = retryMode ? MenuAiStatus.FAILED_RETRY_EXHAUSTED : MenuAiStatus.RETRY_PENDING;
+            MenuAiStatus status = exception.isRetryable()
+                    ? (retryMode ? MenuAiStatus.FAILED_RETRY_EXHAUSTED : MenuAiStatus.RETRY_PENDING)
+                    : MenuAiStatus.FAILED_PERMANENT;
             String message = buildBatchFailureReason(exception);
             for (PythonMenuAnalysisTargetDto target : batchTargets) {
                 saveFailure(target.menuId(), status, message, attemptCount);
