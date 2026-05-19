@@ -30,7 +30,7 @@ public class Menu {
     @Column(name = "spicy_level", nullable = false)
     private Long spicyLevel;
 
-    @Column(name = "ai_analysis_status", nullable = false, length = 20)
+    @Column(name = "ai_analysis_status", nullable = false, length = 40)
     @Enumerated(EnumType.STRING)
     private MenuAiStatus aiAnalysisStatus;
 

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public interface MenuAiAnalysisJpaRepository extends JpaRepository<MenuAiAnalysis, Long> {
@@ -31,15 +32,31 @@ public interface MenuAiAnalysisJpaRepository extends JpaRepository<MenuAiAnalysi
                 from menu_ai_analysis maa
             ) ranked
             where ranked.rn = 1
-              and ranked.status = :status
+              and ranked.status = :failedStatus
               and ranked.attempt_count < :maxAttempt
             order by ranked.menu_id asc
             limit :limit
             """, nativeQuery = true)
-    List<Long> findLatestMenuIdsByStatusWithAttemptBelow(
-            @Param("status") String status,
+    List<Long> findLatestFailedMenuIdsWithAttemptBelow(
+            @Param("failedStatus") String failedStatus,
             @Param("maxAttempt") int maxAttempt,
             @Param("limit") int limit
     );
+
+    @Query("""
+            select analysis
+            from MenuAiAnalysis analysis
+            where analysis.menuId = :menuId
+            order by coalesce(analysis.analyzedAt, analysis.createdAt) desc, analysis.id desc
+            """)
+    List<MenuAiAnalysis> findLatestByMenuId(@Param("menuId") Long menuId);
+
+    default Optional<MenuAiAnalysis> findTopLatestByMenuId(Long menuId) {
+        List<MenuAiAnalysis> rows = findLatestByMenuId(menuId);
+        if (rows == null || rows.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(rows.get(0));
+    }
 }
 

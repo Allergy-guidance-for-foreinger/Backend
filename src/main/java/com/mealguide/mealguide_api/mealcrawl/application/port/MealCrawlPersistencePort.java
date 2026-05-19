@@ -94,7 +94,11 @@ public interface MealCrawlPersistencePort {
 
     Set<Long> findAnalyzedMenuIds(Set<Long> menuIds);
 
-    List<Long> findRetryPendingMenuIds(int limit);
+    List<Long> findRetryTargetMenuIds(int limit, int maxAttemptCount);
+
+    default Map<Long, Integer> findLatestAttemptCounts(Set<Long> menuIds) {
+        return Map.of();
+    }
 
     Map<Long, String> findMenuNamesByIds(Set<Long> menuIds);
 

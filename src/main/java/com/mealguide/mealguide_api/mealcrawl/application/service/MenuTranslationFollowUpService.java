@@ -4,6 +4,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.MealImportResult;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.PythonMealClientPort;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.PythonMealClientException;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResultDto;
@@ -90,72 +91,125 @@ public class MenuTranslationFollowUpService {
                 translationTargets.size(),
                 targetLanguages
         );
-        PythonMenuTranslationResponse response = pythonMealClientPort.translateMenus(
-                new PythonMenuTranslationRequest(translationTargets, targetLanguages)
-        );
-
-        List<PythonMenuTranslationResultDto> results = response.results() == null ? List.of() : response.results();
         int savedCount = 0;
         int skippedInvalidResult = 0;
         int skippedEmptyTranslations = 0;
         int skippedInvalidTranslation = 0;
         int skippedLangMismatch = 0;
         int skippedExistingKey = 0;
+        int responseResultCount = 0;
+        int batchFailureCount = 0;
         Map<MenuTranslationKey, String> translationsToSave = new LinkedHashMap<>();
-
-        for (PythonMenuTranslationResultDto result : results) {
-            if (result == null || result.menuId() == null || !targetMenuIds.contains(result.menuId())) {
-                skippedInvalidResult++;
+        int batchSize = mealCrawlProperties.getTranslationBatchSize();
+        for (int start = 0; start < translationTargets.size(); start += batchSize) {
+            int end = Math.min(start + batchSize, translationTargets.size());
+            List<PythonMenuTranslationTargetDto> batchTargets = translationTargets.subList(start, end);
+            List<PythonMenuTranslationResultDto> results;
+            try {
+                PythonMenuTranslationResponse response = pythonMealClientPort.translateMenus(
+                        new PythonMenuTranslationRequest(batchTargets, targetLanguages)
+                );
+                if (response == null) {
+                    batchFailureCount++;
+                    log.warn(
+                            "event=FAIL stage=translation_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} batchStart={} batchSize={} message=null-translation-response",
+                            runId,
+                            schoolId,
+                            cafeteriaId,
+                            weekStartDate,
+                            start,
+                            batchTargets.size()
+                    );
+                    continue;
+                }
+                results = response.results() == null ? List.of() : response.results();
+            } catch (PythonMealClientException exception) {
+                batchFailureCount++;
+                log.warn(
+                        "event=FAIL stage=translation_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} batchStart={} batchSize={} status={} message={}",
+                        runId,
+                        schoolId,
+                        cafeteriaId,
+                        weekStartDate,
+                        start,
+                        batchTargets.size(),
+                        exception.getHttpStatus(),
+                        exception.getMessage(),
+                        exception
+                );
+                continue;
+            } catch (Exception exception) {
+                batchFailureCount++;
+                log.warn(
+                        "event=FAIL stage=translation_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} batchStart={} batchSize={} message={}",
+                        runId,
+                        schoolId,
+                        cafeteriaId,
+                        weekStartDate,
+                        start,
+                        batchTargets.size(),
+                        exception.getMessage(),
+                        exception
+                );
                 continue;
             }
+            responseResultCount += results.size();
 
-            List<PythonTranslatedMenuNameDto> translations = result.translations();
-            if (translations == null || translations.isEmpty()) {
-                skippedEmptyTranslations++;
-                continue;
-            }
-
-            for (PythonTranslatedMenuNameDto translation : translations) {
-                if (translation == null || isBlank(translation.langCode()) || isBlank(translation.translatedName())) {
-                    skippedInvalidTranslation++;
+            for (PythonMenuTranslationResultDto result : results) {
+                if (result == null || result.menuId() == null || !targetMenuIds.contains(result.menuId())) {
+                    skippedInvalidResult++;
                     continue;
                 }
 
-                String langCode = translation.langCode().trim();
-                if (!targetLanguages.contains(langCode)) {
-                    skippedLangMismatch++;
+                List<PythonTranslatedMenuNameDto> translations = result.translations();
+                if (translations == null || translations.isEmpty()) {
+                    skippedEmptyTranslations++;
                     continue;
                 }
 
-                MenuTranslationKey key = new MenuTranslationKey(result.menuId(), langCode);
-                if (existingKeys.contains(key)) {
-                    skippedExistingKey++;
-                    continue;
-                }
+                for (PythonTranslatedMenuNameDto translation : translations) {
+                    if (translation == null || isBlank(translation.langCode()) || isBlank(translation.translatedName())) {
+                        skippedInvalidTranslation++;
+                        continue;
+                    }
 
-                translationsToSave.put(key, translation.translatedName().trim());
-                existingKeys.add(key);
-                savedCount++;
+                    String langCode = translation.langCode().trim();
+                    if (!targetLanguages.contains(langCode)) {
+                        skippedLangMismatch++;
+                        continue;
+                    }
+
+                    MenuTranslationKey key = new MenuTranslationKey(result.menuId(), langCode);
+                    if (existingKeys.contains(key)) {
+                        skippedExistingKey++;
+                        continue;
+                    }
+
+                    translationsToSave.put(key, translation.translatedName().trim());
+                    existingKeys.add(key);
+                    savedCount++;
+                }
             }
         }
         mealCrawlPersistencePort.saveMenuTranslations(translationsToSave);
         long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
-        int failCount = skippedInvalidResult + skippedEmptyTranslations + skippedInvalidTranslation + skippedLangMismatch + skippedExistingKey;
+        int failCount = skippedInvalidResult + skippedEmptyTranslations + skippedInvalidTranslation + skippedLangMismatch + skippedExistingKey + batchFailureCount;
         int successRate = savedCount + failCount == 0 ? 100 : (savedCount * 100) / (savedCount + failCount);
 
         log.info(
-                "event=END stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} responseResultCount={} savedCount={} skippedInvalidResultCount={} skippedEmptyTranslationsCount={} skippedInvalidTranslationCount={} skippedLangMismatchCount={} skippedExistingKeyCount={} failCount={} successRate={} durationMs={} result={}",
+                "event=END stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} responseResultCount={} savedCount={} skippedInvalidResultCount={} skippedEmptyTranslationsCount={} skippedInvalidTranslationCount={} skippedLangMismatchCount={} skippedExistingKeyCount={} batchFailureCount={} failCount={} successRate={} durationMs={} result={}",
                 runId,
                 schoolId,
                 cafeteriaId,
                 weekStartDate,
-                results.size(),
+                responseResultCount,
                 savedCount,
                 skippedInvalidResult,
                 skippedEmptyTranslations,
                 skippedInvalidTranslation,
                 skippedLangMismatch,
                 skippedExistingKey,
+                batchFailureCount,
                 failCount,
                 successRate,
                 durationMs,

@@ -79,17 +79,17 @@ class MenuAiAnalysisFollowUpServiceTest {
         service.process(new MealImportResult(1L, 1L, List.of(11L, 12L, 13L), List.of(11L, 12L, 13L), List.of()));
 
         assertThat(persistencePort.statusByMenuId.get(11L)).isEqualTo(MenuAiStatus.SUCCESS);
-        assertThat(persistencePort.statusByMenuId.get(12L)).isEqualTo(MenuAiStatus.RETRY_PENDING);
-        assertThat(persistencePort.statusByMenuId.get(13L)).isEqualTo(MenuAiStatus.FAILED_PERMANENT);
+        assertThat(persistencePort.statusByMenuId.get(12L)).isEqualTo(MenuAiStatus.FAILED);
+        assertThat(persistencePort.statusByMenuId.get(13L)).isEqualTo(MenuAiStatus.FAILED);
         assertThat(persistencePort.attemptByMenuId.get(11L)).isEqualTo(1);
         assertThat(persistencePort.attemptByMenuId.get(12L)).isEqualTo(1);
         assertThat(persistencePort.attemptByMenuId.get(13L)).isEqualTo(1);
     }
 
     @Test
-    void retryFlowOnlyUsesRetryPendingTargetsAndMarksExhaustedOnRetryFailure() {
+    void retryFlowOnlyUsesFailedTargetsAndIncreasesAttemptOnRetryFailure() {
         FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
-        persistencePort.retryPendingMenuIds = List.of(21L);
+        persistencePort.retryTargetMenuIds = List.of(21L);
         persistencePort.menuNames.put(21L, "RetryMenu");
 
         FakePythonMealClientPort pythonPort = new FakePythonMealClientPort();
@@ -101,12 +101,12 @@ class MenuAiAnalysisFollowUpServiceTest {
         service.processRetryPending("run-1");
 
         assertThat(persistencePort.lastRetryQueryLimit).isGreaterThan(0);
-        assertThat(persistencePort.statusByMenuId.get(21L)).isEqualTo(MenuAiStatus.FAILED_RETRY_EXHAUSTED);
+        assertThat(persistencePort.statusByMenuId.get(21L)).isEqualTo(MenuAiStatus.FAILED);
         assertThat(persistencePort.attemptByMenuId.get(21L)).isEqualTo(2);
     }
 
     @Test
-    void batchClientFailureMarksWholeBatchRetryPending() {
+    void batchClientFailureMarksWholeBatchFailed() {
         FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
         persistencePort.menuNames.put(31L, "A");
         persistencePort.menuNames.put(32L, "B");
@@ -119,8 +119,8 @@ class MenuAiAnalysisFollowUpServiceTest {
         MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonPort, properties);
         service.process(new MealImportResult(1L, 1L, List.of(31L, 32L), List.of(31L, 32L), List.of()));
 
-        assertThat(persistencePort.statusByMenuId.get(31L)).isEqualTo(MenuAiStatus.RETRY_PENDING);
-        assertThat(persistencePort.statusByMenuId.get(32L)).isEqualTo(MenuAiStatus.RETRY_PENDING);
+        assertThat(persistencePort.statusByMenuId.get(31L)).isEqualTo(MenuAiStatus.FAILED);
+        assertThat(persistencePort.statusByMenuId.get(32L)).isEqualTo(MenuAiStatus.FAILED);
     }
 
     private static class FakePythonMealClientPort implements PythonMealClientPort {
@@ -152,7 +152,8 @@ class MenuAiAnalysisFollowUpServiceTest {
         private final Map<Long, String> menuNames = new HashMap<>();
         private final Map<Long, MenuAiStatus> statusByMenuId = new HashMap<>();
         private final Map<Long, Integer> attemptByMenuId = new HashMap<>();
-        private List<Long> retryPendingMenuIds = List.of();
+        private List<Long> retryTargetMenuIds = List.of();
+        private final Map<Long, Integer> latestAttemptsByMenuId = new HashMap<>();
         private int lastRetryQueryLimit;
 
         @Override
@@ -233,9 +234,14 @@ class MenuAiAnalysisFollowUpServiceTest {
         }
 
         @Override
-        public List<Long> findRetryPendingMenuIds(int limit) {
+        public List<Long> findRetryTargetMenuIds(int limit, int maxAttemptCount) {
             lastRetryQueryLimit = limit;
-            return retryPendingMenuIds;
+            return retryTargetMenuIds;
+        }
+
+        @Override
+        public Map<Long, Integer> findLatestAttemptCounts(Set<Long> menuIds) {
+            return latestAttemptsByMenuId;
         }
 
         @Override

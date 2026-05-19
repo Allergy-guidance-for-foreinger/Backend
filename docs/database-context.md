@@ -1,7 +1,7 @@
 # 데이터베이스 공통 맥락
 
 ## 1. 목적
-이 문서는 프로젝트 전반의 DB 공통 규칙을 정의한다.  
+이 문서는 프로젝트 전반의 DB 공통 규칙을 정의한다.
 기능별 DB 상세 사용 규칙은 각 기능 맥락 문서를 참조한다.
 
 ## 2. 기준 문서
@@ -50,3 +50,10 @@
 - `menu_ai_analysis_allergy`는 AI가 메뉴에서 감지한 알레르기 코드를 저장한다.
 - 알레르기 위험도는 `user_allergy.allergy_code`와 `menu_ai_analysis_allergy.allergy_code` 교집합으로 계산한다.
 - 종교 제한 위험도는 기존 `religious_food_restriction_ingredient` 재료 매핑을 유지한다.
+## 10. AI status column length update (2026-05-19)
+- Extended `menu.ai_analysis_status` and `menu_ai_analysis.status` length from 20 to 40.
+- Reason: (historical) previous retry status value `FAILED_RETRY_EXHAUSTED` exceeded 20 characters and caused insert failure before status simplification.
+
+## 11. AI status simplification and retry criteria update (2026-05-19)
+- Menu AI status model is simplified to `SUCCESS` and `FAILED`.
+- Retry selection now uses latest `FAILED` records with `attempt_count < max_attempt_count`.

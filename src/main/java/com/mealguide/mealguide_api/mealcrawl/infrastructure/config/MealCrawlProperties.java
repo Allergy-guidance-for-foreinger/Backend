@@ -23,13 +23,15 @@ public class MealCrawlProperties {
     private String analysisPath = "/api/v1/menus/analyze";
     private String translationPath = "/api/v1/menus/translate";
     private long weeklyMealCacheTtlSeconds = 86400L;
-    private int aiAnalysisBatchSize = 5;
+    private int aiAnalysisBatchSize = 10;
     private Integer aiAnalysisRetryBatchSize;
+    private int aiAnalysisMaxAttemptCount = 3;
+    private int translationBatchSize = 10;
 
     private List<String> translationTargetLanguages = List.of("en");
 
     public int getAiAnalysisBatchSize() {
-        return aiAnalysisBatchSize > 0 ? aiAnalysisBatchSize : 5;
+        return aiAnalysisBatchSize > 0 ? aiAnalysisBatchSize : 10;
     }
 
     public int getAiAnalysisRetryBatchSize() {
@@ -37,6 +39,14 @@ public class MealCrawlProperties {
             return getAiAnalysisBatchSize();
         }
         return aiAnalysisRetryBatchSize;
+    }
+
+    public int getAiAnalysisMaxAttemptCount() {
+        return aiAnalysisMaxAttemptCount > 0 ? aiAnalysisMaxAttemptCount : 3;
+    }
+
+    public int getTranslationBatchSize() {
+        return translationBatchSize > 0 ? translationBatchSize : 10;
     }
 }
 

@@ -27,7 +27,7 @@ public class MenuAiAnalysis {
     @Column(name = "menu_id", nullable = false)
     private Long menuId;
 
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 40)
     @Enumerated(EnumType.STRING)
     private MenuAiStatus status;
 
@@ -68,6 +68,22 @@ public class MenuAiAnalysis {
         analysis.attemptCount = attemptCount;
         analysis.createdAt = LocalDateTime.now();
         return analysis;
+    }
+
+    public void update(
+            MenuAiStatus status,
+            String modelName,
+            String modelVersion,
+            String reason,
+            LocalDateTime analyzedAt,
+            int attemptCount
+    ) {
+        this.status = status;
+        this.modelName = modelName;
+        this.modelVersion = modelVersion;
+        this.reason = reason;
+        this.analyzedAt = analyzedAt;
+        this.attemptCount = attemptCount;
     }
 }
 
