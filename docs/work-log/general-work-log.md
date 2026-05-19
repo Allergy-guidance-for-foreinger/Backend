@@ -1320,3 +1320,15 @@ iskLevel only), allergy risk source changed internally.
 - API behavior changed: No
 - Remaining follow-ups:
   - Optional data cleanup for historical duplicate rows in `menu_ai_analysis` created before upsert migration.
+## 2026-05-19 (translation batch failure isolation)
+- What changed:
+  - Added per-batch `try-catch` in `MenuTranslationFollowUpService`.
+  - When one translation batch fails, it now logs batch failure and continues with remaining batches.
+  - Added `batchFailureCount` to translation follow-up end log and included it in `failCount`.
+- Why:
+  - Prevent one Python translation API failure from aborting entire cafeteria-week translation flow.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpService.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No

@@ -99,6 +99,21 @@ public class MenuAiAnalysisFollowUpService {
                 : Map.of();
         try {
             PythonMenuAnalysisResponse response = pythonMealClientPort.analyzeMenus(new PythonMenuAnalysisRequest(batchTargets, true, true));
+            if (response == null) {
+                for (PythonMenuAnalysisTargetDto target : batchTargets) {
+                    saveFailure(
+                            target.menuId(),
+                            MenuAiStatus.FAILED,
+                            "AI analysis response is null",
+                            resolveAttemptCount(retryMode, latestAttemptCountByMenuId, target.menuId())
+                    );
+                }
+                log.warn(
+                        "event=FAIL stage=ai_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} batchSize={} message=null-analysis-response",
+                        runId, schoolId, cafeteriaId, weekStartDate, retryMode, batchTargets.size()
+                );
+                return;
+            }
             List<PythonMenuAnalysisResultDto> results = response.results() == null ? List.of() : response.results();
             Map<Long, PythonMenuAnalysisResultDto> resultsByMenuId = new HashMap<>();
             for (PythonMenuAnalysisResultDto result : results) {

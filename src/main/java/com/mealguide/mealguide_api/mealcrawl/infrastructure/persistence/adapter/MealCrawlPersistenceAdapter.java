@@ -753,6 +753,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
         );
 
         menuAiAnalysisIngredientJpaRepository.deleteByMenuAiAnalysisId(analysis.getId());
+        menuAiAnalysisAllergyJpaRepository.deleteByMenuAiAnalysisId(analysis.getId());
 
         saveIngredientsForAnalysis(analysis.getId(), ingredients, null);
     }
