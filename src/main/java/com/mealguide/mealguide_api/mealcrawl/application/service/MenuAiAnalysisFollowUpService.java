@@ -48,8 +48,11 @@ public class MenuAiAnalysisFollowUpService {
     }
 
     public void processRetryPending(String runId) {
-        List<Long> retryPendingMenuIds = mealCrawlPersistencePort.findRetryPendingMenuIds(mealCrawlProperties.getAiAnalysisRetryBatchSize());
-        processMenuIds(runId, null, null, null, new HashSet<>(retryPendingMenuIds), true);
+        List<Long> retryTargetMenuIds = mealCrawlPersistencePort.findRetryTargetMenuIds(
+                mealCrawlProperties.getAiAnalysisRetryBatchSize(),
+                mealCrawlProperties.getAiAnalysisMaxAttemptCount()
+        );
+        processMenuIds(runId, null, null, null, new HashSet<>(retryTargetMenuIds), true);
     }
 
     private void processMenuIds(
@@ -91,7 +94,9 @@ public class MenuAiAnalysisFollowUpService {
             boolean retryMode
     ) {
         Set<Long> batchMenuIds = batchTargets.stream().map(PythonMenuAnalysisTargetDto::menuId).collect(java.util.stream.Collectors.toSet());
-        int attemptCount = retryMode ? 2 : 1;
+        Map<Long, Integer> latestAttemptCountByMenuId = retryMode
+                ? mealCrawlPersistencePort.findLatestAttemptCounts(batchMenuIds)
+                : Map.of();
         try {
             PythonMenuAnalysisResponse response = pythonMealClientPort.analyzeMenus(new PythonMenuAnalysisRequest(batchTargets, true, true));
             List<PythonMenuAnalysisResultDto> results = response.results() == null ? List.of() : response.results();
@@ -114,8 +119,12 @@ public class MenuAiAnalysisFollowUpService {
             for (PythonMenuAnalysisTargetDto target : batchTargets) {
                 PythonMenuAnalysisResultDto result = resultsByMenuId.get(target.menuId());
                 if (result == null) {
-                    saveFailure(target.menuId(), retryMode ? MenuAiStatus.FAILED_RETRY_EXHAUSTED : MenuAiStatus.RETRY_PENDING,
-                            "No analysis response", attemptCount);
+                    saveFailure(
+                            target.menuId(),
+                            MenuAiStatus.FAILED,
+                            "No analysis response",
+                            resolveAttemptCount(retryMode, latestAttemptCountByMenuId, target.menuId())
+                    );
                     continue;
                 }
 
@@ -127,7 +136,7 @@ public class MenuAiAnalysisFollowUpService {
                         result.modelVersion(),
                         result.reason(),
                         analyzedAt,
-                        attemptCount,
+                        resolveAttemptCount(retryMode, latestAttemptCountByMenuId, result.menuId()),
                         toIngredients(result.ingredients()),
                         validIngredientCodes,
                         toAllergies(result.allergies()),
@@ -136,21 +145,19 @@ public class MenuAiAnalysisFollowUpService {
                 );
             }
         } catch (PythonMealClientException exception) {
-            MenuAiStatus status = exception.isRetryable()
-                    ? (retryMode ? MenuAiStatus.FAILED_RETRY_EXHAUSTED : MenuAiStatus.RETRY_PENDING)
-                    : MenuAiStatus.FAILED_PERMANENT;
+            MenuAiStatus status = MenuAiStatus.FAILED;
             String message = buildBatchFailureReason(exception);
             for (PythonMenuAnalysisTargetDto target : batchTargets) {
-                saveFailure(target.menuId(), status, message, attemptCount);
+                saveFailure(target.menuId(), status, message, resolveAttemptCount(retryMode, latestAttemptCountByMenuId, target.menuId()));
             }
             log.warn(
                     "event=FAIL stage=ai_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} batchSize={} status={} message={}",
                     runId, schoolId, cafeteriaId, weekStartDate, retryMode, batchTargets.size(), exception.getHttpStatus(), exception.getMessage(), exception
             );
         } catch (Exception exception) {
-            MenuAiStatus status = retryMode ? MenuAiStatus.FAILED_RETRY_EXHAUSTED : MenuAiStatus.RETRY_PENDING;
+            MenuAiStatus status = MenuAiStatus.FAILED;
             for (PythonMenuAnalysisTargetDto target : batchTargets) {
-                saveFailure(target.menuId(), status, "AI follow-up batch failed", attemptCount);
+                saveFailure(target.menuId(), status, "AI follow-up batch failed", resolveAttemptCount(retryMode, latestAttemptCountByMenuId, target.menuId()));
             }
             log.warn(
                     "event=FAIL stage=ai_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} batchSize={} message={}",
@@ -183,8 +190,7 @@ public class MenuAiAnalysisFollowUpService {
         }
         return switch (status) {
             case SUCCESS -> MenuAiStatus.SUCCESS;
-            case RETRYABLE_FAILED -> retryMode ? MenuAiStatus.FAILED_RETRY_EXHAUSTED : MenuAiStatus.RETRY_PENDING;
-            case PERMANENT_FAILED -> MenuAiStatus.FAILED_PERMANENT;
+            case RETRYABLE_FAILED, PERMANENT_FAILED -> MenuAiStatus.FAILED;
         };
     }
 
@@ -197,7 +203,14 @@ public class MenuAiAnalysisFollowUpService {
         if (hasIngredients && !hasFailureReason) {
             return MenuAiStatus.SUCCESS;
         }
-        return retryMode ? MenuAiStatus.FAILED_RETRY_EXHAUSTED : MenuAiStatus.RETRY_PENDING;
+        return MenuAiStatus.FAILED;
+    }
+
+    private int resolveAttemptCount(boolean retryMode, Map<Long, Integer> latestAttemptCountByMenuId, Long menuId) {
+        if (!retryMode) {
+            return 1;
+        }
+        return latestAttemptCountByMenuId.getOrDefault(menuId, 1) + 1;
     }
 
     private List<MenuIngredientCandidate> toIngredients(List<PythonMenuIngredientResultDto> ingredients) {

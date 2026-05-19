@@ -252,7 +252,7 @@ class WeeklyMealResponseAssemblerTest {
         }
 
         @Override
-        public List<Long> findRetryPendingMenuIds(int limit) {
+        public List<Long> findRetryTargetMenuIds(int limit, int maxAttemptCount) {
             return List.of();
         }
 

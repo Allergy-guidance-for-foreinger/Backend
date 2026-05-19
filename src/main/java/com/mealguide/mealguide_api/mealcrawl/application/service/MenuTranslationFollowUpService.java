@@ -90,52 +90,58 @@ public class MenuTranslationFollowUpService {
                 translationTargets.size(),
                 targetLanguages
         );
-        PythonMenuTranslationResponse response = pythonMealClientPort.translateMenus(
-                new PythonMenuTranslationRequest(translationTargets, targetLanguages)
-        );
-
-        List<PythonMenuTranslationResultDto> results = response.results() == null ? List.of() : response.results();
         int savedCount = 0;
         int skippedInvalidResult = 0;
         int skippedEmptyTranslations = 0;
         int skippedInvalidTranslation = 0;
         int skippedLangMismatch = 0;
         int skippedExistingKey = 0;
+        int responseResultCount = 0;
         Map<MenuTranslationKey, String> translationsToSave = new LinkedHashMap<>();
+        int batchSize = mealCrawlProperties.getTranslationBatchSize();
+        for (int start = 0; start < translationTargets.size(); start += batchSize) {
+            int end = Math.min(start + batchSize, translationTargets.size());
+            List<PythonMenuTranslationTargetDto> batchTargets = translationTargets.subList(start, end);
+            PythonMenuTranslationResponse response = pythonMealClientPort.translateMenus(
+                    new PythonMenuTranslationRequest(batchTargets, targetLanguages)
+            );
+            List<PythonMenuTranslationResultDto> results = response.results() == null ? List.of() : response.results();
+            responseResultCount += results.size();
 
-        for (PythonMenuTranslationResultDto result : results) {
-            if (result == null || result.menuId() == null || !targetMenuIds.contains(result.menuId())) {
-                skippedInvalidResult++;
-                continue;
-            }
-
-            List<PythonTranslatedMenuNameDto> translations = result.translations();
-            if (translations == null || translations.isEmpty()) {
-                skippedEmptyTranslations++;
-                continue;
-            }
-
-            for (PythonTranslatedMenuNameDto translation : translations) {
-                if (translation == null || isBlank(translation.langCode()) || isBlank(translation.translatedName())) {
-                    skippedInvalidTranslation++;
+            for (PythonMenuTranslationResultDto result : results) {
+                if (result == null || result.menuId() == null || !targetMenuIds.contains(result.menuId())) {
+                    skippedInvalidResult++;
                     continue;
                 }
 
-                String langCode = translation.langCode().trim();
-                if (!targetLanguages.contains(langCode)) {
-                    skippedLangMismatch++;
+                List<PythonTranslatedMenuNameDto> translations = result.translations();
+                if (translations == null || translations.isEmpty()) {
+                    skippedEmptyTranslations++;
                     continue;
                 }
 
-                MenuTranslationKey key = new MenuTranslationKey(result.menuId(), langCode);
-                if (existingKeys.contains(key)) {
-                    skippedExistingKey++;
-                    continue;
-                }
+                for (PythonTranslatedMenuNameDto translation : translations) {
+                    if (translation == null || isBlank(translation.langCode()) || isBlank(translation.translatedName())) {
+                        skippedInvalidTranslation++;
+                        continue;
+                    }
 
-                translationsToSave.put(key, translation.translatedName().trim());
-                existingKeys.add(key);
-                savedCount++;
+                    String langCode = translation.langCode().trim();
+                    if (!targetLanguages.contains(langCode)) {
+                        skippedLangMismatch++;
+                        continue;
+                    }
+
+                    MenuTranslationKey key = new MenuTranslationKey(result.menuId(), langCode);
+                    if (existingKeys.contains(key)) {
+                        skippedExistingKey++;
+                        continue;
+                    }
+
+                    translationsToSave.put(key, translation.translatedName().trim());
+                    existingKeys.add(key);
+                    savedCount++;
+                }
             }
         }
         mealCrawlPersistencePort.saveMenuTranslations(translationsToSave);
@@ -149,7 +155,7 @@ public class MenuTranslationFollowUpService {
                 schoolId,
                 cafeteriaId,
                 weekStartDate,
-                results.size(),
+                responseResultCount,
                 savedCount,
                 skippedInvalidResult,
                 skippedEmptyTranslations,

@@ -1215,3 +1215,108 @@ iskLevel only), allergy risk source changed internally.
 - API behavior changed: No
 - Related docs updated:
   - `docs/work-log/general-work-log.md`
+## 2026-05-19 (AI retry status length fix: varchar 20 -> 40)
+- What changed:
+  - Updated JPA column length for AI status fields:
+    - `menu_ai_analysis.status` (`MenuAiAnalysis.status`) from 20 to 40
+    - `menu.ai_analysis_status` (`Menu.aiAnalysisStatus`) from 20 to 40
+  - Updated schema reference `docs/schema.sql`:
+    - `menu_ai_analysis.status VARCHAR(40)`
+    - `menu.ai_analysis_status VARCHAR(40)`
+  - Updated `docs/database-context.md` with the status-length update note.
+- Why:
+  - Scheduler retry at `2026-05-19 01:00` failed with `SQLState 22001` (`value too long for type character varying(20)`) when persisting `FAILED_RETRY_EXHAUSTED`.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuAiAnalysis.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/Menu.java`
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: Yes (status column lengths)
+- API behavior changed: No
+- Related docs updated:
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Apply SQL migration on actual PostgreSQL before next scheduler run.
+## 2026-05-19 (AI status simplification + 10-size batching)
+- What changed:
+  - Simplified `MenuAiStatus` to only `SUCCESS` and `FAILED`.
+  - Changed retry target query from `RETRY_PENDING` based selection to latest `FAILED` with `attempt_count < max_attempt_count`.
+  - Added max attempt configuration in `MealCrawlProperties`:
+    - `aiAnalysisMaxAttemptCount` (default 3)
+  - Changed default analysis batch size to 10 and added translation batch size:
+    - `aiAnalysisBatchSize` default 10
+    - `translationBatchSize` default 10
+  - Updated AI follow-up logic:
+    - all non-success analysis results persist as `FAILED`
+    - retry attempt count is incremented from latest attempt per menu
+  - Updated translation follow-up logic to call Python translation API in batches.
+  - Updated persistence port/adapter and repository methods for new retry selection and latest attempt lookup.
+  - Updated related tests and fake persistence port method signatures.
+- Why:
+  - Reduce Gemini API burst load by splitting large requests into fixed-size batches.
+  - Prevent infinite retry through `attempt_count < max_attempt_count`.
+  - Keep status model simple while ensuring failed targets continue retrying until bounded max attempts.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuAiStatus.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/config/MealCrawlProperties.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MenuAiAnalysisJpaRepository.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlOrchestrationServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealImportServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealResponseAssemblerTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealCacheRefreshServiceTest.java`
+  - `docs/features/mealcrawl-context.md`
+  - `docs/database-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No (this change uses existing `attempt_count`; status length change was handled separately)
+- API behavior changed: No external endpoint contract change
+- Related docs updated:
+  - `docs/features/mealcrawl-context.md`
+  - `docs/database-context.md`
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Apply and verify data migration for legacy status values to `FAILED` in production DB.
+  - Validate scheduler behavior in runtime logs after deployment.
+## 2026-05-19 (latest SUCCESS analysis row selection hardening)
+- What changed:
+  - Updated AI ingredient lookup queries to select exactly one latest `SUCCESS` analysis row per `menu_id` using `row_number()`.
+  - Replaced timestamp max-join pattern with ranked latest-row selection in:
+    - `findAiIngredientsByMealMenuIds`
+    - `findMealMenuIdsHavingAiIngredients`
+- Why:
+  - Prevent ambiguity when multiple analysis rows share the same timestamp and avoid potential FK interpretation confusion for `menu_ai_analysis_ingredient`/`menu_ai_analysis_allergy`.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No (query semantics hardened)
+## 2026-05-19 (menu_ai_analysis upsert by menu_id)
+- What changed:
+  - Changed AI analysis persistence from append-only insert to upsert-style update on latest row per `menu_id`.
+  - Added latest-row lookup in `MenuAiAnalysisJpaRepository` (`findTopLatestByMenuId`).
+  - Added update method in `MenuAiAnalysis` domain entity.
+  - Changed ingredient/allergy persistence to replace mode on same analysis row:
+    - delete existing `menu_ai_analysis_ingredient`/`menu_ai_analysis_allergy` by `menu_ai_analysis_id`
+    - insert current analysis result rows again.
+- Why:
+  - Keep one evolving analysis row per menu in operational path and avoid confusion between old FAILED rows and current SUCCESS row.
+  - Keep FK targets aligned with current analysis row after retries.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuAiAnalysis.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MenuAiAnalysisJpaRepository.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MenuAiAnalysisIngredientJpaRepository.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MenuAiAnalysisAllergyJpaRepository.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Remaining follow-ups:
+  - Optional data cleanup for historical duplicate rows in `menu_ai_analysis` created before upsert migration.

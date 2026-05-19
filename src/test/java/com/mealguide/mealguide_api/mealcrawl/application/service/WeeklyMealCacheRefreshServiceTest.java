@@ -41,8 +41,8 @@ class WeeklyMealCacheRefreshServiceTest {
         when(persistencePort.findWeeklyMealsForCache(10L, weekStartDate, weekStartDate.plusDays(6)))
                 .thenReturn(List.of(
                         new WeeklyMealCacheRow(LocalDate.of(2026, 4, 20), "LUNCH", 1, "A", 11L, "Kimchi Stew", 2L, MenuAiStatus.SUCCESS),
-                        new WeeklyMealCacheRow(LocalDate.of(2026, 4, 20), "LUNCH", 2, "B", 12L, "Rice", 0L, MenuAiStatus.PENDING),
-                        new WeeklyMealCacheRow(LocalDate.of(2026, 4, 20), "LUNCH", 3, "C", 13L, "Fish", 0L, MenuAiStatus.FAILED_PERMANENT)
+                        new WeeklyMealCacheRow(LocalDate.of(2026, 4, 20), "LUNCH", 2, "B", 12L, "Rice", 0L, MenuAiStatus.FAILED),
+                        new WeeklyMealCacheRow(LocalDate.of(2026, 4, 20), "LUNCH", 3, "C", 13L, "Fish", 0L, MenuAiStatus.FAILED)
                 ));
 
         WeeklyMealCacheRefreshService service = new WeeklyMealCacheRefreshService(
