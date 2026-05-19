@@ -54,7 +54,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: mealguide-redis
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis-prod-data:/data
     restart: unless-stopped

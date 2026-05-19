@@ -1332,3 +1332,23 @@ iskLevel only), allergy risk source changed internally.
   - `docs/work-log/general-work-log.md`
 - DB schema changed: No
 - API behavior changed: No
+
+## 2026-05-19 (redis maxmemory 256mb in compose dev/prod)
+- What changed:
+  - Added Redis memory limit and eviction policy to both compose files:
+    - `--maxmemory 256mb`
+    - `--maxmemory-policy allkeys-lru`
+  - Updated Redis service command in:
+    - `compose.dev.yml`
+    - `compose.prod.yml`
+- Why:
+  - Ensure Redis memory limit is applied persistently even when containers are recreated.
+  - Prevent unbounded memory growth on `t3.small` (2GB RAM) runtime.
+- Affected files:
+  - `compose.dev.yml`
+  - `compose.prod.yml`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
