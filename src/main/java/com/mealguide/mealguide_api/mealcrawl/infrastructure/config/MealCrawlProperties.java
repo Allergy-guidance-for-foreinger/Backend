@@ -27,6 +27,8 @@ public class MealCrawlProperties {
     private Integer aiAnalysisRetryBatchSize;
     private int aiAnalysisMaxAttemptCount = 3;
     private int translationBatchSize = 10;
+    private Integer translationRetryBatchSize;
+    private int translationMaxAttemptCount = 3;
 
     private List<String> translationTargetLanguages = List.of("en");
 
@@ -47,6 +49,17 @@ public class MealCrawlProperties {
 
     public int getTranslationBatchSize() {
         return translationBatchSize > 0 ? translationBatchSize : 10;
+    }
+
+    public int getTranslationRetryBatchSize() {
+        if (translationRetryBatchSize == null || translationRetryBatchSize <= 0) {
+            return getTranslationBatchSize();
+        }
+        return translationRetryBatchSize;
+    }
+
+    public int getTranslationMaxAttemptCount() {
+        return translationMaxAttemptCount > 0 ? translationMaxAttemptCount : 3;
     }
 }
 

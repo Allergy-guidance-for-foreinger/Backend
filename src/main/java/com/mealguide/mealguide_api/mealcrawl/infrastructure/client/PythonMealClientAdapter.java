@@ -13,7 +13,6 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -115,15 +114,32 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
                 return new PythonMenuTranslationResponse(List.of());
             }
             return new PythonMenuTranslationResponse(results);
-        } catch (HttpClientErrorException exception) {
-            log.warn(
-                    "Python menu translation request failed: status={}, responseBody={}",
-                    exception.getStatusCode(),
-                    exception.getResponseBodyAsString()
+        } catch (RestClientResponseException exception) {
+            int status = exception.getStatusCode().value();
+            boolean retryable = isRetryableStatus(status);
+            throw new PythonMealClientException(
+                    "Python menu translation request failed: status=" + status,
+                    status,
+                    exception.getResponseBodyAsString(),
+                    retryable,
+                    exception
             );
-            throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR, exception);
+        } catch (ResourceAccessException exception) {
+            throw new PythonMealClientException(
+                    "Python menu translation request failed: resource access error",
+                    null,
+                    null,
+                    false,
+                    exception
+            );
         } catch (RestClientException exception) {
-            throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR, exception);
+            throw new PythonMealClientException(
+                    "Python menu translation request failed",
+                    null,
+                    null,
+                    true,
+                    exception
+            );
         }
     }
 

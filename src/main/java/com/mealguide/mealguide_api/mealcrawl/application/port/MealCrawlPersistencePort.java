@@ -11,6 +11,7 @@ import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuSpicyLevel;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationStatus;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCacheRow;
 
 import java.time.LocalDate;
@@ -230,6 +231,23 @@ public interface MealCrawlPersistencePort {
             MenuTranslationKey key = entry.getKey();
             saveMenuTranslation(key.menuId(), key.langCode(), entry.getValue());
         }
+    }
+
+    default List<MenuTranslationKey> findTranslationRetryTargetKeys(int limit, int maxAttemptCount) {
+        return List.of();
+    }
+
+    default Map<MenuTranslationKey, Integer> findLatestTranslationAttemptCounts(Set<MenuTranslationKey> keys) {
+        return Map.of();
+    }
+
+    default void saveMenuTranslationAnalysis(
+            Long menuId,
+            String langCode,
+            MenuTranslationStatus status,
+            String reason,
+            int attemptCount
+    ) {
     }
 }
 

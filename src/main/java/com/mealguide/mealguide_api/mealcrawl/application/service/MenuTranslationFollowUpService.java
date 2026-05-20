@@ -4,6 +4,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.MealImportResult;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.PythonMealClientPort;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationStatus;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.PythonMealClientException;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
@@ -38,21 +39,48 @@ public class MenuTranslationFollowUpService {
     }
 
     public void process(String runId, Long schoolId, Long cafeteriaId, LocalDate weekStartDate, MealImportResult importResult) {
-        Instant startedAt = Instant.now();
         Set<Long> targetMenuIds = new HashSet<>(importResult.menusNeedingTranslation());
+        List<String> targetLanguages = normalizeTargetLanguages(mealCrawlProperties.getTranslationTargetLanguages());
+        processInternal(runId, schoolId, cafeteriaId, weekStartDate, targetMenuIds, targetLanguages, false, Map.of());
+    }
+
+    public void processRetryPending(String runId) {
+        int limit = mealCrawlProperties.getTranslationRetryBatchSize();
+        int maxAttemptCount = mealCrawlProperties.getTranslationMaxAttemptCount();
+        List<MenuTranslationKey> retryTargetKeys = mealCrawlPersistencePort.findTranslationRetryTargetKeys(limit, maxAttemptCount);
+        if (retryTargetKeys.isEmpty()) {
+            log.info("event=SKIP stage=translation_followup runId={} retryMode=true reason=no-target-keys", runId);
+            return;
+        }
+        Set<Long> targetMenuIds = retryTargetKeys.stream().map(MenuTranslationKey::menuId).collect(java.util.stream.Collectors.toSet());
+        List<String> targetLanguages = retryTargetKeys.stream().map(MenuTranslationKey::langCode).distinct().toList();
+        Map<MenuTranslationKey, Integer> latestAttemptCounts = mealCrawlPersistencePort.findLatestTranslationAttemptCounts(new HashSet<>(retryTargetKeys));
+        processInternal(runId, null, null, null, targetMenuIds, targetLanguages, true, latestAttemptCounts);
+    }
+
+    private void processInternal(
+            String runId,
+            Long schoolId,
+            Long cafeteriaId,
+            LocalDate weekStartDate,
+            Set<Long> targetMenuIds,
+            List<String> targetLanguages,
+            boolean retryMode,
+            Map<MenuTranslationKey, Integer> latestAttemptCounts
+    ) {
+        Instant startedAt = Instant.now();
         if (targetMenuIds.isEmpty()) {
             log.info(
-                    "event=SKIP stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} reason=no-target-menus",
-                    runId, schoolId, cafeteriaId, weekStartDate
+                    "event=SKIP stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} reason=no-target-menus",
+                    runId, schoolId, cafeteriaId, weekStartDate, retryMode
             );
             return;
         }
 
-        List<String> targetLanguages = normalizeTargetLanguages(mealCrawlProperties.getTranslationTargetLanguages());
         if (targetLanguages == null || targetLanguages.isEmpty()) {
             log.info(
-                    "event=SKIP stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} reason=no-target-languages",
-                    runId, schoolId, cafeteriaId, weekStartDate
+                    "event=SKIP stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} reason=no-target-languages",
+                    runId, schoolId, cafeteriaId, weekStartDate, retryMode
             );
             return;
         }
@@ -68,11 +96,12 @@ public class MenuTranslationFollowUpService {
 
         if (translationTargets.isEmpty()) {
             log.info(
-                    "event=SKIP stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} reason=no-translation-targets targetMenuCount={} existingKeyCount={} menuNameCount={} targetLanguages={}",
+                    "event=SKIP stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} reason=no-translation-targets targetMenuCount={} existingKeyCount={} menuNameCount={} targetLanguages={}",
                     runId,
                     schoolId,
                     cafeteriaId,
                     weekStartDate,
+                    retryMode,
                     targetMenuIds.size(),
                     existingKeys.size(),
                     menuNames.size(),
@@ -82,11 +111,12 @@ public class MenuTranslationFollowUpService {
         }
 
         log.info(
-                "event=START stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} targetMenuCount={} requestTargetCount={} targetLanguages={}",
+                "event=START stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} targetMenuCount={} requestTargetCount={} targetLanguages={}",
                 runId,
                 schoolId,
                 cafeteriaId,
                 weekStartDate,
+                retryMode,
                 targetMenuIds.size(),
                 translationTargets.size(),
                 targetLanguages
@@ -100,10 +130,12 @@ public class MenuTranslationFollowUpService {
         int responseResultCount = 0;
         int batchFailureCount = 0;
         Map<MenuTranslationKey, String> translationsToSave = new LinkedHashMap<>();
-        int batchSize = mealCrawlProperties.getTranslationBatchSize();
+        Map<MenuTranslationKey, String> successfulTranslations = new LinkedHashMap<>();
+        int batchSize = retryMode ? mealCrawlProperties.getTranslationRetryBatchSize() : mealCrawlProperties.getTranslationBatchSize();
         for (int start = 0; start < translationTargets.size(); start += batchSize) {
             int end = Math.min(start + batchSize, translationTargets.size());
             List<PythonMenuTranslationTargetDto> batchTargets = translationTargets.subList(start, end);
+            Set<Long> batchMenuIds = batchTargets.stream().map(PythonMenuTranslationTargetDto::menuId).collect(java.util.stream.Collectors.toSet());
             List<PythonMenuTranslationResultDto> results;
             try {
                 PythonMenuTranslationResponse response = pythonMealClientPort.translateMenus(
@@ -111,12 +143,23 @@ public class MenuTranslationFollowUpService {
                 );
                 if (response == null) {
                     batchFailureCount++;
+                    for (String langCode : targetLanguages) {
+                        for (PythonMenuTranslationTargetDto target : batchTargets) {
+                            saveTranslationFailure(
+                                    target.menuId(),
+                                    langCode,
+                                    "Translation response is null",
+                                    resolveAttemptCount(retryMode, latestAttemptCounts, target.menuId(), langCode)
+                            );
+                        }
+                    }
                     log.warn(
-                            "event=FAIL stage=translation_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} batchStart={} batchSize={} message=null-translation-response",
+                            "event=FAIL stage=translation_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} batchStart={} batchSize={} message=null-translation-response",
                             runId,
                             schoolId,
                             cafeteriaId,
                             weekStartDate,
+                            retryMode,
                             start,
                             batchTargets.size()
                     );
@@ -125,12 +168,24 @@ public class MenuTranslationFollowUpService {
                 results = response.results() == null ? List.of() : response.results();
             } catch (PythonMealClientException exception) {
                 batchFailureCount++;
+                String reason = buildBatchFailureReason(exception);
+                for (String langCode : targetLanguages) {
+                    for (PythonMenuTranslationTargetDto target : batchTargets) {
+                        saveTranslationFailure(
+                                target.menuId(),
+                                langCode,
+                                reason,
+                                resolveAttemptCount(retryMode, latestAttemptCounts, target.menuId(), langCode)
+                        );
+                    }
+                }
                 log.warn(
-                        "event=FAIL stage=translation_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} batchStart={} batchSize={} status={} message={}",
+                        "event=FAIL stage=translation_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} batchStart={} batchSize={} status={} message={}",
                         runId,
                         schoolId,
                         cafeteriaId,
                         weekStartDate,
+                        retryMode,
                         start,
                         batchTargets.size(),
                         exception.getHttpStatus(),
@@ -140,12 +195,23 @@ public class MenuTranslationFollowUpService {
                 continue;
             } catch (Exception exception) {
                 batchFailureCount++;
+                for (String langCode : targetLanguages) {
+                    for (PythonMenuTranslationTargetDto target : batchTargets) {
+                        saveTranslationFailure(
+                                target.menuId(),
+                                langCode,
+                                "Translation batch failed",
+                                resolveAttemptCount(retryMode, latestAttemptCounts, target.menuId(), langCode)
+                        );
+                    }
+                }
                 log.warn(
-                        "event=FAIL stage=translation_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} batchStart={} batchSize={} message={}",
+                        "event=FAIL stage=translation_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} batchStart={} batchSize={} message={}",
                         runId,
                         schoolId,
                         cafeteriaId,
                         weekStartDate,
+                        retryMode,
                         start,
                         batchTargets.size(),
                         exception.getMessage(),
@@ -164,9 +230,18 @@ public class MenuTranslationFollowUpService {
                 List<PythonTranslatedMenuNameDto> translations = result.translations();
                 if (translations == null || translations.isEmpty()) {
                     skippedEmptyTranslations++;
+                    for (String langCode : targetLanguages) {
+                        saveTranslationFailure(
+                                result.menuId(),
+                                langCode,
+                                "No translated result",
+                                resolveAttemptCount(retryMode, latestAttemptCounts, result.menuId(), langCode)
+                        );
+                    }
                     continue;
                 }
 
+                Set<String> resultLanguages = new HashSet<>();
                 for (PythonTranslatedMenuNameDto translation : translations) {
                     if (translation == null || isBlank(translation.langCode()) || isBlank(translation.translatedName())) {
                         skippedInvalidTranslation++;
@@ -178,6 +253,7 @@ public class MenuTranslationFollowUpService {
                         skippedLangMismatch++;
                         continue;
                     }
+                    resultLanguages.add(langCode);
 
                     MenuTranslationKey key = new MenuTranslationKey(result.menuId(), langCode);
                     if (existingKeys.contains(key)) {
@@ -185,23 +261,61 @@ public class MenuTranslationFollowUpService {
                         continue;
                     }
 
-                    translationsToSave.put(key, translation.translatedName().trim());
+                    String translatedName = translation.translatedName().trim();
+                    translationsToSave.put(key, translatedName);
+                    successfulTranslations.put(key, translatedName);
                     existingKeys.add(key);
                     savedCount++;
+                }
+
+                for (String targetLang : targetLanguages) {
+                    if (!resultLanguages.contains(targetLang)) {
+                        saveTranslationFailure(
+                                result.menuId(),
+                                targetLang,
+                                "Missing language translation",
+                                resolveAttemptCount(retryMode, latestAttemptCounts, result.menuId(), targetLang)
+                        );
+                    }
+                }
+            }
+
+            for (Long batchMenuId : batchMenuIds) {
+                boolean included = results.stream().anyMatch(result -> result != null && batchMenuId.equals(result.menuId()));
+                if (!included) {
+                    for (String langCode : targetLanguages) {
+                        saveTranslationFailure(
+                                batchMenuId,
+                                langCode,
+                                "No translation response",
+                                resolveAttemptCount(retryMode, latestAttemptCounts, batchMenuId, langCode)
+                        );
+                    }
                 }
             }
         }
         mealCrawlPersistencePort.saveMenuTranslations(translationsToSave);
+        for (Map.Entry<MenuTranslationKey, String> entry : successfulTranslations.entrySet()) {
+            MenuTranslationKey key = entry.getKey();
+            mealCrawlPersistencePort.saveMenuTranslationAnalysis(
+                    key.menuId(),
+                    key.langCode(),
+                    MenuTranslationStatus.SUCCESS,
+                    null,
+                    resolveAttemptCount(retryMode, latestAttemptCounts, key.menuId(), key.langCode())
+            );
+        }
         long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
         int failCount = skippedInvalidResult + skippedEmptyTranslations + skippedInvalidTranslation + skippedLangMismatch + skippedExistingKey + batchFailureCount;
         int successRate = savedCount + failCount == 0 ? 100 : (savedCount * 100) / (savedCount + failCount);
 
         log.info(
-                "event=END stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} responseResultCount={} savedCount={} skippedInvalidResultCount={} skippedEmptyTranslationsCount={} skippedInvalidTranslationCount={} skippedLangMismatchCount={} skippedExistingKeyCount={} batchFailureCount={} failCount={} successRate={} durationMs={} result={}",
+                "event=END stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} responseResultCount={} savedCount={} skippedInvalidResultCount={} skippedEmptyTranslationsCount={} skippedInvalidTranslationCount={} skippedLangMismatchCount={} skippedExistingKeyCount={} batchFailureCount={} failCount={} successRate={} durationMs={} result={}",
                 runId,
                 schoolId,
                 cafeteriaId,
                 weekStartDate,
+                retryMode,
                 responseResultCount,
                 savedCount,
                 skippedInvalidResult,
@@ -215,6 +329,38 @@ public class MenuTranslationFollowUpService {
                 durationMs,
                 failCount == 0 ? "SUCCESS" : "PARTIAL_SUCCESS"
         );
+    }
+
+    private void saveTranslationFailure(Long menuId, String langCode, String reason, int attemptCount) {
+        mealCrawlPersistencePort.saveMenuTranslationAnalysis(
+                menuId,
+                langCode,
+                MenuTranslationStatus.FAILED,
+                reason,
+                attemptCount
+        );
+    }
+
+    private int resolveAttemptCount(
+            boolean retryMode,
+            Map<MenuTranslationKey, Integer> latestAttemptCounts,
+            Long menuId,
+            String langCode
+    ) {
+        if (!retryMode) {
+            return 1;
+        }
+        return latestAttemptCounts.getOrDefault(new MenuTranslationKey(menuId, langCode), 1) + 1;
+    }
+
+    private String buildBatchFailureReason(PythonMealClientException exception) {
+        String body = exception.getResponseBody();
+        if (body != null && body.length() > 500) {
+            body = body.substring(0, 500);
+        }
+        return "Python translation request failed"
+                + (exception.getHttpStatus() == null ? "" : " (status=" + exception.getHttpStatus() + ")")
+                + (body == null || body.isBlank() ? "" : ": " + body);
     }
 
     private boolean hasMissingTranslation(Long menuId, Set<MenuTranslationKey> existingKeys, List<String> targetLanguages) {
