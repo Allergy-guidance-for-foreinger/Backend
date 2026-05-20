@@ -24,6 +24,7 @@ public class MealCrawlScheduler {
     private final MealCrawlTargetService mealCrawlTargetService;
     private final MealCrawlOrchestrationService mealCrawlOrchestrationService;
     private final MenuAiAnalysisFollowUpService menuAiAnalysisFollowUpService;
+    private final MenuTranslationFollowUpService menuTranslationFollowUpService;
 
     @Scheduled(cron = "${mealguide.mealcrawl.scheduler-cron:0 0 0 * * *}")
     public void runWeeklyCrawl() {
@@ -108,6 +109,7 @@ public class MealCrawlScheduler {
         log.info("event=START stage=ai_retry_scheduler runId={} trigger=scheduler baseDate={}", runId, LocalDate.now());
         try {
             menuAiAnalysisFollowUpService.processRetryPending(runId);
+            menuTranslationFollowUpService.processRetryPending(runId);
             long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
             log.info("event=END stage=ai_retry_scheduler runId={} durationMs={} result=SUCCESS", runId, durationMs);
         } catch (Exception exception) {

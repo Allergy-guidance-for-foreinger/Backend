@@ -1370,3 +1370,73 @@ iskLevel only), allergy risk source changed internally.
 - Remaining follow-ups:
   - Monitor retry execution duration and remaining failed target count for 24-48 hours.
   - If backlog still persists, tune only cron interval first before increasing retry batch size.
+
+## 2026-05-20 (translation retry tracking + scheduler integration)
+- What changed:
+  - Added translation analysis status model (`SUCCESS`, `FAILED`) via new `menu_translation_analysis` table in schema docs.
+  - Added translation retry config properties:
+    - `translationRetryBatchSize` (default uses translation batch size)
+    - `translationMaxAttemptCount` (default 3)
+  - Extended `MenuTranslationFollowUpService`:
+    - persists translation follow-up success/failure with `attempt_count`
+    - supports `processRetryPending(runId)` for retry mode
+    - keeps batch-failure isolation while recording failure reason.
+  - Updated `MealCrawlScheduler.runAiRetry()` to run translation retry after AI retry in the same runId.
+  - Updated `PythonMealClientAdapter.translateMenus()` to throw `PythonMealClientException` with HTTP status/body for retry reason persistence.
+- Why:
+  - Translation also had partial failures (e.g., 503), but had no bounded retry state model unlike AI analysis.
+  - Aligning translation retry model with AI improves recoverability and observability.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuTranslationStatus.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlScheduler.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/config/MealCrawlProperties.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `src/main/resources/application.properties`
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/features/mealcrawl-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: Yes (new `menu_translation_analysis` table/indexes in schema docs)
+- API behavior changed: No public endpoint contract change
+- Related docs updated:
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/features/mealcrawl-context.md`
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Apply DB migration in PostgreSQL for `menu_translation_analysis`.
+  - Run integration tests and one full scheduler cycle validation in runtime environment.
+
+## 2026-05-20 (menu_translation_analysis simplification for history-only usage)
+- What changed:
+  - Simplified `menu_translation_analysis` schema role to translation-attempt history only.
+  - Removed duplicated translation-result columns from schema docs (`translated_name`, `translated_at`).
+  - Changed translation analysis persistence from latest-row update/upsert to append-only insert.
+  - Changed latest retry ordering basis from `translated_at/created_at` to `created_at`.
+- Why:
+  - Avoid duplicated source-of-truth with `menu_translation` and keep `menu_translation_analysis` focused on retry/history tracking.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: Yes (translation analysis columns/index definition changed in schema docs)
+- API behavior changed: No
+
+## 2026-05-20 (menu_translation_analysis persistence aligned to AI upsert model)
+- What changed:
+  - Changed `menu_translation_analysis` save path back to latest-row upsert style (update latest `(menu_id, lang_code)` row, insert when absent).
+  - Kept simplified schema (no `translated_name`, no `translated_at`) and updates only `status`, `reason`, `attempt_count`.
+- Why:
+  - Align translation retry-state persistence model with existing `menu_ai_analysis` operational model for simpler runtime management.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `docs/database-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No

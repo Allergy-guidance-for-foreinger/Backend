@@ -57,3 +57,9 @@
 ## 11. AI status simplification and retry criteria update (2026-05-19)
 - Menu AI status model is simplified to `SUCCESS` and `FAILED`.
 - Retry selection now uses latest `FAILED` records with `attempt_count < max_attempt_count`.
+
+## 12. Translation analysis status tracking and retry criteria (2026-05-20)
+- Added `menu_translation_analysis` table to track translation follow-up attempts per `(menu_id, lang_code)`.
+- Status model uses `SUCCESS` and `FAILED` with `attempt_count` (latest-row upsert per `(menu_id, lang_code)`).
+- Retry selection uses latest `FAILED` records with `attempt_count < max_attempt_count`.
+- `menu_translation` remains as final translated value storage, while retry-state is tracked in `menu_translation_analysis`.
