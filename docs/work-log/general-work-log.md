@@ -1352,3 +1352,21 @@ iskLevel only), allergy risk source changed internally.
 - API behavior changed: No
 - Related docs updated:
   - `docs/work-log/general-work-log.md`
+
+## 2026-05-20 (AI retry scheduler interval change to every 15 minutes)
+- What changed:
+  - Updated default value of `mealguide.mealcrawl.analysis-retry-cron` in `application.properties`.
+  - Changed from fixed daily run (`0 35 12 * * *`) to every 15 minutes (`0 */15 * * * *`).
+- Why:
+  - Reduce backlog time of `menu_ai_analysis` failed targets without increasing per-run batch size.
+  - Keep retry pressure smoother to avoid burst load and frequent 503 spikes from large retry bursts.
+- Affected files:
+  - `src/main/resources/application.properties`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Monitor retry execution duration and remaining failed target count for 24-48 hours.
+  - If backlog still persists, tune only cron interval first before increasing retry batch size.
