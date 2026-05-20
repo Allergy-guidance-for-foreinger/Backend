@@ -52,10 +52,25 @@ public class MenuTranslationFollowUpService {
             log.info("event=SKIP stage=translation_followup runId={} retryMode=true reason=no-target-keys", runId);
             return;
         }
-        Set<Long> targetMenuIds = retryTargetKeys.stream().map(MenuTranslationKey::menuId).collect(java.util.stream.Collectors.toSet());
-        List<String> targetLanguages = retryTargetKeys.stream().map(MenuTranslationKey::langCode).distinct().toList();
         Map<MenuTranslationKey, Integer> latestAttemptCounts = mealCrawlPersistencePort.findLatestTranslationAttemptCounts(new HashSet<>(retryTargetKeys));
-        processInternal(runId, null, null, null, targetMenuIds, targetLanguages, true, latestAttemptCounts);
+        Map<String, Set<Long>> targetMenuIdsByLanguage = new LinkedHashMap<>();
+        for (MenuTranslationKey key : retryTargetKeys) {
+            targetMenuIdsByLanguage
+                    .computeIfAbsent(key.langCode(), ignored -> new HashSet<>())
+                    .add(key.menuId());
+        }
+        for (Map.Entry<String, Set<Long>> entry : targetMenuIdsByLanguage.entrySet()) {
+            processInternal(
+                    runId,
+                    null,
+                    null,
+                    null,
+                    entry.getValue(),
+                    List.of(entry.getKey()),
+                    true,
+                    latestAttemptCounts
+            );
+        }
     }
 
     private void processInternal(
@@ -269,7 +284,8 @@ public class MenuTranslationFollowUpService {
                 }
 
                 for (String targetLang : targetLanguages) {
-                    if (!resultLanguages.contains(targetLang)) {
+                    if (!resultLanguages.contains(targetLang)
+                            && !existingKeys.contains(new MenuTranslationKey(result.menuId(), targetLang))) {
                         saveTranslationFailure(
                                 result.menuId(),
                                 targetLang,
@@ -284,12 +300,14 @@ public class MenuTranslationFollowUpService {
                 boolean included = results.stream().anyMatch(result -> result != null && batchMenuId.equals(result.menuId()));
                 if (!included) {
                     for (String langCode : targetLanguages) {
-                        saveTranslationFailure(
-                                batchMenuId,
-                                langCode,
-                                "No translation response",
-                                resolveAttemptCount(retryMode, latestAttemptCounts, batchMenuId, langCode)
-                        );
+                        if (!existingKeys.contains(new MenuTranslationKey(batchMenuId, langCode))) {
+                            saveTranslationFailure(
+                                    batchMenuId,
+                                    langCode,
+                                    "No translation response",
+                                    resolveAttemptCount(retryMode, latestAttemptCounts, batchMenuId, langCode)
+                            );
+                        }
                     }
                 }
             }

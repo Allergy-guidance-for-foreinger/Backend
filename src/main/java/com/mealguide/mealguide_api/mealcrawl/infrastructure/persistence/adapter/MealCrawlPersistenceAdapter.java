@@ -1031,6 +1031,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
         if (keys == null || keys.isEmpty()) {
             return Map.of();
         }
+        Set<MenuTranslationKey> requestedKeys = Set.copyOf(keys);
         List<Long> menuIds = keys.stream().map(MenuTranslationKey::menuId).distinct().toList();
         List<String> langCodes = keys.stream().map(MenuTranslationKey::langCode).distinct().toList();
         String sql = """
@@ -1054,10 +1055,10 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 .addValue("langCodes", langCodes);
         Map<MenuTranslationKey, Integer> latestAttemptCounts = new HashMap<>();
         namedParameterJdbcTemplate.query(sql, params, rs -> {
-            latestAttemptCounts.put(
-                    new MenuTranslationKey(rs.getLong("menu_id"), rs.getString("lang_code")),
-                    rs.getInt("attempt_count")
-            );
+            MenuTranslationKey key = new MenuTranslationKey(rs.getLong("menu_id"), rs.getString("lang_code"));
+            if (requestedKeys.contains(key)) {
+                latestAttemptCounts.put(key, rs.getInt("attempt_count"));
+            }
         });
         return latestAttemptCounts;
     }
