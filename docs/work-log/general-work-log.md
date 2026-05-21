@@ -1440,3 +1440,37 @@ iskLevel only), allergy risk source changed internally.
   - `docs/work-log/general-work-log.md`
 - DB schema changed: No
 - API behavior changed: No
+
+## 2026-05-21 (menu detail response enhancement: allergy/religious matched data)
+- What changed:
+  - Updated `MenuDetailResponse` to remove menu-level `risk` from menu detail response.
+  - Added enriched fields to menu detail response:
+    - `allergies`
+    - `matchedAllergies` (with `riskLevel`, `confidence`)
+    - `ingredients` (`code`, `name`, `source`)
+    - `matchedReligiousIngredients` with nested matched religious restriction info.
+  - Extended menu detail query flow in `MenuDetailQueryService` to assemble these fields.
+  - Added persistence query methods for:
+    - all menu allergies by meal-menu ids
+    - matched religious ingredients by meal-menu ids and user religious code
+  - Included `confidence` in matched-allergy rows and religious matched ingredient rows (AI source).
+- Why:
+  - Provide explainable menu detail risk context by returning matched allergy and religion-related ingredient details in a single response payload.
+  - Keep single-religion domain model unchanged while improving detail response richness.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/dto/response/MenuDetailResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/MealMenuMatchedAllergyRow.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/MealMenuAllergyRow.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/MealMenuReligiousMatchRow.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: Yes (menu detail response contract changed)
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Update API client parsing logic to the new menu detail response fields.
+  - Run full test suite in local IDE or fixed Maven wrapper environment.
