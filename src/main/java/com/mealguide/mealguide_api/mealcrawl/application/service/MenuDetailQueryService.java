@@ -11,6 +11,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealUserPreferencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MenuLikePort;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuRiskLevel;
 import com.mealguide.mealguide_api.review.application.port.MenuReviewPort;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuLikeTarget;
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuDetailBatchResponse;
@@ -111,7 +112,7 @@ public class MenuDetailQueryService {
                     .map(row -> new MenuDetailResponse.MatchedAllergyResponse(
                             row.allergyCode(),
                             row.allergyName(),
-                            "DANGER",
+                            MenuRiskLevel.DANGER.name(),
                             row.confidence()
                     ))
                     .toList();
@@ -227,31 +228,35 @@ public class MenuDetailQueryService {
         if (religiousMatchRows.isEmpty() || ingredientSelection.ingredients().isEmpty()) {
             return List.of();
         }
-        String riskLevel = SOURCE_AI.equals(ingredientSelection.source()) ? "CAUTION" : "DANGER";
+        String riskLevel = SOURCE_AI.equals(ingredientSelection.source())
+                ? MenuRiskLevel.CAUTION.name()
+                : MenuRiskLevel.DANGER.name();
         Map<String, List<MealMenuReligiousMatchRow>> byIngredientCode = religiousMatchRows.stream()
                 .collect(Collectors.groupingBy(MealMenuReligiousMatchRow::ingredientCode));
         return ingredientSelection.ingredients().stream()
                 .filter(ingredient -> byIngredientCode.containsKey(ingredient.code()))
                 .map(ingredient -> {
+                    List<MealMenuReligiousMatchRow> matches = byIngredientCode.get(ingredient.code());
                     List<MenuDetailResponse.MatchedReligiousRestrictionResponse> matchedRestrictions =
-                            byIngredientCode.getOrDefault(ingredient.code(), List.of())
-                                    .stream()
+                            matches.stream()
                                     .map(row -> new MenuDetailResponse.MatchedReligiousRestrictionResponse(
                                             row.restrictionCode(),
                                             row.restrictionName(),
                                             riskLevel
                                     ))
                                     .toList();
+                    java.math.BigDecimal confidence = null;
+                    if (SOURCE_AI.equals(ingredientSelection.source())) {
+                        confidence = matches.stream()
+                                .map(MealMenuReligiousMatchRow::confidence)
+                                .filter(java.util.Objects::nonNull)
+                                .findFirst()
+                                .orElse(null);
+                    }
                     return new MenuDetailResponse.MatchedReligiousIngredientResponse(
                             ingredient.code(),
                             ingredient.name(),
-                            SOURCE_AI.equals(ingredientSelection.source())
-                                    ? byIngredientCode.getOrDefault(ingredient.code(), List.of()).stream()
-                                    .map(MealMenuReligiousMatchRow::confidence)
-                                    .filter(java.util.Objects::nonNull)
-                                    .findFirst()
-                                    .orElse(null)
-                                    : null,
+                            confidence,
                             matchedRestrictions
                     );
                 })
