@@ -3,9 +3,7 @@ package com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.adapter
 import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientRow;
-import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuMatchedAllergyRow;
-import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuReligiousMatchRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.NamedIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
@@ -604,8 +602,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 select tmm.meal_menu_id,
                        maaallergy.allergy_code,
                        coalesce(at.name, a.name) as allergy_name,
-                       maaallergy.reason,
-                       maaallergy.confidence
+                       maaallergy.reason
                 from target_meal_menu tmm
                 join latest_analysis_id lai on lai.menu_id = tmm.menu_id
                 join menu_ai_analysis_allergy maaallergy on maaallergy.menu_ai_analysis_id = lai.id
@@ -626,141 +623,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 rs.getLong("meal_menu_id"),
                 rs.getString("allergy_code"),
                 rs.getString("allergy_name"),
-                rs.getString("reason"),
-                rs.getBigDecimal("confidence")
-        ));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<MealMenuAllergyRow> findAllergiesByMealMenuIds(Set<Long> mealMenuIds, String langCode) {
-        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
-            return List.of();
-        }
-        String sql = """
-                with target_meal_menu as (
-                    select mm.id as meal_menu_id, mm.menu_id
-                    from meal_menu mm
-                    where mm.id in (:mealMenuIds)
-                ),
-                latest_analysis_id as (
-                    select id, menu_id
-                    from (
-                        select maa.id, maa.menu_id,
-                               row_number() over (partition by maa.menu_id order by coalesce(maa.analyzed_at, maa.created_at) desc, maa.id desc) as rn
-                        from menu_ai_analysis maa
-                        join target_meal_menu tmm on tmm.menu_id = maa.menu_id
-                        where maa.status = 'SUCCESS'
-                    ) ranked
-                    where ranked.rn = 1
-                )
-                select tmm.meal_menu_id,
-                       maaallergy.allergy_code,
-                       coalesce(at.name, a.name) as allergy_name,
-                       maaallergy.confidence
-                from target_meal_menu tmm
-                join latest_analysis_id lai on lai.menu_id = tmm.menu_id
-                join menu_ai_analysis_allergy maaallergy on maaallergy.menu_ai_analysis_id = lai.id
-                join allergy a on a.code = maaallergy.allergy_code
-                left join allergy_translation at
-                  on at.allergy_code = a.code
-                 and at.lang_code = :langCode
-                order by tmm.meal_menu_id, maaallergy.allergy_code
-                """;
-        MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("mealMenuIds", mealMenuIds)
-                .addValue("langCode", normalizeLanguageCode(langCode));
-        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MealMenuAllergyRow(
-                rs.getLong("meal_menu_id"),
-                rs.getString("allergy_code"),
-                rs.getString("allergy_name"),
-                rs.getBigDecimal("confidence")
-        ));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<MealMenuReligiousMatchRow> findReligiousMatchedIngredientsByMealMenuIds(
-            Set<Long> mealMenuIds,
-            String religiousCode,
-            String langCode
-    ) {
-        if (mealMenuIds == null || mealMenuIds.isEmpty() || religiousCode == null || religiousCode.isBlank()) {
-            return List.of();
-        }
-        String sql = """
-                with target_meal_menu as (
-                    select mm.id as meal_menu_id, mm.menu_id
-                    from meal_menu mm
-                    where mm.id in (:mealMenuIds)
-                ),
-                selected_ingredients as (
-                    select mmci.meal_menu_id,
-                           mmci.ingredient_code,
-                           cast(null as numeric(5,2)) as confidence,
-                           coalesce(it.name, i.name) as ingredient_name
-                    from meal_menu_confirmed_ingredient mmci
-                    join ingredient i on i.code = mmci.ingredient_code
-                    left join ingredient_translation it
-                      on it.ingredient_code = i.code
-                     and it.lang_code = :langCode
-                    where mmci.meal_menu_id in (:mealMenuIds)
-                    union all
-                    select tmm.meal_menu_id,
-                           mai.ingredient_code,
-                           mai.confidence,
-                           coalesce(it.name, i.name) as ingredient_name
-                    from target_meal_menu tmm
-                    join (
-                        select id, menu_id
-                        from (
-                            select maa.id, maa.menu_id,
-                                   row_number() over (partition by maa.menu_id order by coalesce(maa.analyzed_at, maa.created_at) desc, maa.id desc) as rn
-                            from menu_ai_analysis maa
-                            join target_meal_menu tt on tt.menu_id = maa.menu_id
-                            where maa.status = 'SUCCESS'
-                        ) ranked
-                        where ranked.rn = 1
-                    ) lai on lai.menu_id = tmm.menu_id
-                    join menu_ai_analysis_ingredient mai on mai.menu_ai_analysis_id = lai.id
-                    join ingredient i on i.code = mai.ingredient_code
-                    left join ingredient_translation it
-                      on it.ingredient_code = i.code
-                     and it.lang_code = :langCode
-                    where not exists (
-                        select 1
-                        from meal_menu_confirmed_ingredient mmci
-                        where mmci.meal_menu_id = tmm.meal_menu_id
-                    )
-                )
-                select si.meal_menu_id,
-                       si.ingredient_code,
-                       si.ingredient_name,
-                       si.confidence,
-                       rfri.religious_food_restriction_code as restriction_code,
-                       coalesce(rfrt.name, rfr.name) as restriction_name
-                from selected_ingredients si
-                join religious_food_restriction_ingredient rfri
-                  on rfri.ingredient_code = si.ingredient_code
-                join religious_food_restriction rfr
-                  on rfr.code = rfri.religious_food_restriction_code
-                left join religious_food_restriction_translation rfrt
-                  on rfrt.religious_food_restriction_code = rfr.code
-                 and rfrt.lang_code = :langCode
-                where rfri.religious_food_restriction_code = :religiousCode
-                order by si.meal_menu_id, si.ingredient_code
-                """;
-        MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("mealMenuIds", mealMenuIds)
-                .addValue("religiousCode", religiousCode)
-                .addValue("langCode", normalizeLanguageCode(langCode));
-        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MealMenuReligiousMatchRow(
-                rs.getLong("meal_menu_id"),
-                rs.getString("ingredient_code"),
-                rs.getString("ingredient_name"),
-                rs.getBigDecimal("confidence"),
-                rs.getString("restriction_code"),
-                rs.getString("restriction_name")
+                rs.getString("reason")
         ));
     }
 

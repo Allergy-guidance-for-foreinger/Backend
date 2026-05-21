@@ -1,13 +1,10 @@
 package com.mealguide.mealguide_api.mealcrawl.application.dto;
 
-import java.math.BigDecimal;
-
 public record MealMenuMatchedAllergyRow(
         Long mealMenuId,
         String allergyCode,
         String allergyName,
-        String reason,
-        BigDecimal confidence
+        String reason
 ) {
 }
 
