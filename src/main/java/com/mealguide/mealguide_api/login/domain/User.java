@@ -44,9 +44,6 @@ public class User extends BaseEntity {
     @Column(name = "language_code", length = 10)
     private String languageCode;
 
-    @Column(name = "religious_code", length = 30)
-    private String religiousCode;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private UserStatus status;
@@ -72,7 +69,6 @@ public class User extends BaseEntity {
         user.name = (name == null || name.isBlank()) ? email : name;
         user.countryCode = null;
         user.languageCode = null;
-        user.religiousCode = null;
         user.status = UserStatus.ACTIVE;
         user.role = UserRole.defaultRole();
         user.onboardingCompleted = false;

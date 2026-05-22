@@ -6,7 +6,7 @@ public record OnboardingCompletion(
         String languageCode,
         Long schoolId,
         List<String> allergyCodes,
-        String religiousCode,
+        List<String> religiousCodes,
         String countryCode,
         boolean onboardingCompleted
 ) {

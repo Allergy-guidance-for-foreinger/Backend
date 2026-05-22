@@ -182,12 +182,10 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 .addValue("langCode", langCode);
 
         Map<Long, String> translatedMenuNames = new HashMap<>();
-        namedParameterJdbcTemplate.query(sql, params, rs -> {
-            translatedMenuNames.put(
-                    rs.getLong("meal_menu_id"),
-                    rs.getString("translated_name")
-            );
-        });
+        namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> Map.entry(
+                rs.getLong("meal_menu_id"),
+                rs.getString("translated_name")
+        )).forEach(entry -> translatedMenuNames.put(entry.getKey(), entry.getValue()));
         return translatedMenuNames;
     }
 
@@ -324,8 +322,8 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
 
     @Override
     @Transactional(readOnly = true)
-    public List<RestrictionIngredientRow> findReligiousRestrictionIngredients(String religiousCode) {
-        if (religiousCode == null || religiousCode.isBlank()) {
+    public List<RestrictionIngredientRow> findReligiousRestrictionIngredients(List<String> religiousCodes) {
+        if (religiousCodes == null || religiousCodes.isEmpty()) {
             return List.of();
         }
 
@@ -335,9 +333,9 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                        i.name as ingredient_name
                 from religious_food_restriction_ingredient rfri
                 join ingredient i on i.code = rfri.ingredient_code
-                where rfri.religious_food_restriction_code = :religiousCode
+                where rfri.religious_food_restriction_code in (:religiousCodes)
                 """;
-        MapSqlParameterSource params = new MapSqlParameterSource("religiousCode", religiousCode);
+        MapSqlParameterSource params = new MapSqlParameterSource("religiousCodes", religiousCodes);
         return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new RestrictionIngredientRow(
                 rs.getString("restriction_code"),
                 rs.getString("ingredient_code"),
@@ -682,10 +680,10 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
     @Transactional(readOnly = true)
     public List<MealMenuReligiousMatchRow> findReligiousMatchedIngredientsByMealMenuIds(
             Set<Long> mealMenuIds,
-            String religiousCode,
+            List<String> religiousCodes,
             String langCode
     ) {
-        if (mealMenuIds == null || mealMenuIds.isEmpty() || religiousCode == null || religiousCode.isBlank()) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty() || religiousCodes == null || religiousCodes.isEmpty()) {
             return List.of();
         }
         String sql = """
@@ -747,12 +745,12 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 left join religious_food_restriction_translation rfrt
                   on rfrt.religious_food_restriction_code = rfr.code
                  and rfrt.lang_code = :langCode
-                where rfri.religious_food_restriction_code = :religiousCode
+                where rfri.religious_food_restriction_code in (:religiousCodes)
                 order by si.meal_menu_id, si.ingredient_code
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("mealMenuIds", mealMenuIds)
-                .addValue("religiousCode", religiousCode)
+                .addValue("religiousCodes", religiousCodes)
                 .addValue("langCode", normalizeLanguageCode(langCode));
         return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MealMenuReligiousMatchRow(
                 rs.getLong("meal_menu_id"),
@@ -1191,10 +1189,12 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 .addValue("menuIds", menuIds)
                 .addValue("langCodes", langCodes);
         Map<MenuTranslationKey, Integer> latestAttemptCounts = new HashMap<>();
-        namedParameterJdbcTemplate.query(sql, params, rs -> {
-            MenuTranslationKey key = new MenuTranslationKey(rs.getLong("menu_id"), rs.getString("lang_code"));
-            if (requestedKeys.contains(key)) {
-                latestAttemptCounts.put(key, rs.getInt("attempt_count"));
+        namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> Map.entry(
+                new MenuTranslationKey(rs.getLong("menu_id"), rs.getString("lang_code")),
+                rs.getInt("attempt_count")
+        )).forEach(entry -> {
+            if (requestedKeys.contains(entry.getKey())) {
+                latestAttemptCounts.put(entry.getKey(), entry.getValue());
             }
         });
         return latestAttemptCounts;

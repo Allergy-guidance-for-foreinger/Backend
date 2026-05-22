@@ -11,7 +11,6 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealUserPreferencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MenuLikePort;
-import com.mealguide.mealguide_api.mealcrawl.domain.MenuRiskLevel;
 import com.mealguide.mealguide_api.review.application.port.MenuReviewPort;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuLikeTarget;
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuDetailBatchResponse;
@@ -41,6 +40,7 @@ public class MenuDetailQueryService {
     private final MealCrawlPersistencePort mealCrawlPersistencePort;
     private final MenuLikePort menuLikePort;
     private final MenuReviewPort menuReviewPort;
+    private final RiskLevelPolicyResolver riskLevelPolicyResolver;
 
     public MenuDetailResponse getMenuDetail(Long userId, Long mealMenuId) {
         MenuDetailBatchResponse response = getMenuDetails(userId, List.of(mealMenuId));
@@ -85,7 +85,7 @@ public class MenuDetailQueryService {
                 .stream()
                 .collect(Collectors.groupingBy(MealMenuAllergyRow::mealMenuId));
         Map<Long, List<MealMenuReligiousMatchRow>> religiousMatchesByMealMenuId = mealCrawlPersistencePort
-                .findReligiousMatchedIngredientsByMealMenuIds(targetIds, preference.religiousCode(), languageCode)
+                .findReligiousMatchedIngredientsByMealMenuIds(targetIds, preference.religiousCodes(), languageCode)
                 .stream()
                 .collect(Collectors.groupingBy(MealMenuReligiousMatchRow::mealMenuId));
         Map<Long, MenuLikeTarget> likeTargetsByMealMenuId = new LinkedHashMap<>();
@@ -112,7 +112,7 @@ public class MenuDetailQueryService {
                     .map(row -> new MenuDetailResponse.MatchedAllergyResponse(
                             row.allergyCode(),
                             row.allergyName(),
-                            MenuRiskLevel.DANGER.name(),
+                            riskLevelPolicyResolver.resolveAllergy(true, row.confidence()).name(),
                             row.confidence()
                     ))
                     .toList();
@@ -228,9 +228,6 @@ public class MenuDetailQueryService {
         if (religiousMatchRows.isEmpty() || ingredientSelection.ingredients().isEmpty()) {
             return List.of();
         }
-        String riskLevel = SOURCE_AI.equals(ingredientSelection.source())
-                ? MenuRiskLevel.CAUTION.name()
-                : MenuRiskLevel.DANGER.name();
         Map<String, List<MealMenuReligiousMatchRow>> byIngredientCode = religiousMatchRows.stream()
                 .collect(Collectors.groupingBy(MealMenuReligiousMatchRow::ingredientCode));
         return ingredientSelection.ingredients().stream()
@@ -242,7 +239,7 @@ public class MenuDetailQueryService {
                                     .map(row -> new MenuDetailResponse.MatchedReligiousRestrictionResponse(
                                             row.restrictionCode(),
                                             row.restrictionName(),
-                                            riskLevel
+                                            riskLevelPolicyResolver.resolveReligious(true, row.confidence()).name()
                                     ))
                                     .toList();
                     java.math.BigDecimal confidence = null;

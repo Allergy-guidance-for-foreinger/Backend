@@ -28,9 +28,6 @@ public class UserPreference {
     @Column(name = "country_code", length = 10)
     private String countryCode;
 
-    @Column(name = "religious_code", length = 30)
-    private String religiousCode;
-
     @Column(nullable = false, length = 20)
     private String status;
 
@@ -42,11 +39,6 @@ public class UserPreference {
 
     public void updateLanguageCode(String languageCode) {
         this.languageCode = languageCode;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public void updateReligiousCode(String religiousCode) {
-        this.religiousCode = religiousCode;
         this.updatedAt = LocalDateTime.now();
     }
 

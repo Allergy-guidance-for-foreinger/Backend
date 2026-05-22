@@ -260,3 +260,9 @@
   - `docs/work-log/settings-work-log.md`
 - Remaining follow-ups:
   - Maven wrapper 실행 이슈 해결 후 전체 테스트 검증 필요.
+### 2026-05-22 (settings religious multi-select)
+- What changed:
+  - `UpdateReligionRequest` and `ReligionUpdateResponse` changed to `religiousCodes: List<String>`.
+  - `UserPreferenceService` now replaces multi religious codes via persistence port.
+  - Added persistence queries for `user_religious_food_restriction` read/replace.
+  - Fixed country option localization fallback for invalid country code (`XXX` -> stored DB name fallback).

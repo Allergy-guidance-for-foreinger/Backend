@@ -33,8 +33,9 @@ public class UserPreferenceService {
     }
 
     @Transactional(readOnly = true)
-    public String getReligion(Long userId) {
-        return findUser(userId).getReligiousCode();
+    public List<String> getReligion(Long userId) {
+        findUser(userId);
+        return userPreferencePort.findReligiousCodesByUserId(userId);
     }
 
     @Transactional(readOnly = true)
@@ -72,15 +73,17 @@ public class UserPreferenceService {
     }
 
     @Transactional
-    public String updateReligion(Long userId, String religiousCode) {
-        String normalizedReligiousCode = normalize(religiousCode);
-        if (normalizedReligiousCode != null && !settingsMasterQueryPort.existsReligiousCode(normalizedReligiousCode)) {
-            throw new ServiceException(ErrorCode.INVALID_RELIGIOUS_CODE);
+    public List<String> updateReligion(Long userId, List<String> religiousCodes) {
+        List<String> normalizedReligiousCodes = normalizeReligiousCodes(religiousCodes);
+        for (String religiousCode : normalizedReligiousCodes) {
+            if (!settingsMasterQueryPort.existsReligiousCode(religiousCode)) {
+                throw new ServiceException(ErrorCode.INVALID_RELIGIOUS_CODE);
+            }
         }
 
-        UserPreference user = findUser(userId);
-        user.updateReligiousCode(normalizedReligiousCode);
-        return user.getReligiousCode();
+        findUser(userId);
+        userPreferencePort.replaceReligiousCodes(userId, normalizedReligiousCodes);
+        return normalizedReligiousCodes;
     }
 
     @Transactional
@@ -119,6 +122,17 @@ public class UserPreferenceService {
         Set<String> deduplicated = new LinkedHashSet<>();
         for (String allergyCode : allergyCodes) {
             deduplicated.add(requireText(allergyCode, ErrorCode.INVALID_ALLERGY_CODE));
+        }
+        return new ArrayList<>(deduplicated);
+    }
+
+    private List<String> normalizeReligiousCodes(List<String> religiousCodes) {
+        if (religiousCodes == null) {
+            throw new ServiceException(ErrorCode.INVALID_RELIGIOUS_CODE);
+        }
+        Set<String> deduplicated = new LinkedHashSet<>();
+        for (String religiousCode : religiousCodes) {
+            deduplicated.add(requireText(religiousCode, ErrorCode.INVALID_RELIGIOUS_CODE));
         }
         return new ArrayList<>(deduplicated);
     }

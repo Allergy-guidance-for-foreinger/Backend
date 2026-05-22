@@ -53,7 +53,7 @@ public interface MealCrawlPersistencePort {
 
     Set<Long> findMealMenuIdsHavingAiIngredients(Set<Long> mealMenuIds);
 
-    List<RestrictionIngredientRow> findReligiousRestrictionIngredients(String religiousCode);
+    List<RestrictionIngredientRow> findReligiousRestrictionIngredients(List<String> religiousCodes);
 
     default Optional<MenuDetailRow> findMenuDetailByMealMenuId(Long mealMenuId) {
         return Optional.empty();
@@ -97,7 +97,7 @@ public interface MealCrawlPersistencePort {
 
     default List<MealMenuReligiousMatchRow> findReligiousMatchedIngredientsByMealMenuIds(
             Set<Long> mealMenuIds,
-            String religiousCode,
+            List<String> religiousCodes,
             String langCode
     ) {
         return List.of();

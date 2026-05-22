@@ -16,7 +16,7 @@ public record CompleteOnboardingResponse(
         List<String> allergyCodes,
 
         @Schema(description = "저장된 종교 식이 제한 코드. 미선택 시 null", example = "HALAL")
-        String religiousCode,
+        List<String> religiousCodes,
 
         @Schema(description = "저장된 국가 코드", example = "KR")
         String countryCode,
@@ -29,7 +29,7 @@ public record CompleteOnboardingResponse(
                 completion.languageCode(),
                 completion.schoolId(),
                 completion.allergyCodes(),
-                completion.religiousCode(),
+                completion.religiousCodes(),
                 completion.countryCode(),
                 completion.onboardingCompleted()
         );

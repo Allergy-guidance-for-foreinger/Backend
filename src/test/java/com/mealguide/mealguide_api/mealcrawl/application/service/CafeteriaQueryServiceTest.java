@@ -26,7 +26,7 @@ class CafeteriaQueryServiceTest {
         CafeteriaQueryService service = new CafeteriaQueryService(mealUserPreferencePort, cafeteriaQueryPort);
 
         when(mealUserPreferencePort.getCurrentUserMealPreference(1L))
-                .thenReturn(new CurrentUserMealPreference(1L, 100L, "ko", null, List.of()));
+                .thenReturn(new CurrentUserMealPreference(1L, 100L, "ko", List.of(), List.of()));
         when(cafeteriaQueryPort.findCafeteriasBySchoolId(100L))
                 .thenReturn(List.of(
                         new CafeteriaRow(10L, "학생식당"),
@@ -49,7 +49,7 @@ class CafeteriaQueryServiceTest {
         CafeteriaQueryService service = new CafeteriaQueryService(mealUserPreferencePort, cafeteriaQueryPort);
 
         when(mealUserPreferencePort.getCurrentUserMealPreference(1L))
-                .thenReturn(new CurrentUserMealPreference(1L, 100L, "ko", null, List.of()));
+                .thenReturn(new CurrentUserMealPreference(1L, 100L, "ko", List.of(), List.of()));
         when(cafeteriaQueryPort.findCafeteriasBySchoolId(100L)).thenReturn(List.of());
 
         CafeteriaListResponse response = service.getCafeteriasForCurrentUser(1L);
@@ -65,7 +65,7 @@ class CafeteriaQueryServiceTest {
         CafeteriaQueryService service = new CafeteriaQueryService(mealUserPreferencePort, cafeteriaQueryPort);
 
         when(mealUserPreferencePort.getCurrentUserMealPreference(1L))
-                .thenReturn(new CurrentUserMealPreference(1L, null, "ko", null, List.of()));
+                .thenReturn(new CurrentUserMealPreference(1L, null, "ko", List.of(), List.of()));
 
         assertThatThrownBy(() -> service.getCafeteriasForCurrentUser(1L))
                 .isInstanceOf(ServiceException.class)

@@ -6,6 +6,8 @@ import com.mealguide.mealguide_api.onboarding.infrastructure.persistence.reposit
 import com.mealguide.mealguide_api.onboarding.infrastructure.persistence.repository.OnboardingUserJpaRepository;
 import com.mealguide.mealguide_api.login.domain.UserStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -19,6 +21,7 @@ public class SchoolPersistenceAdapter implements OnboardingCommandPort {
 
     private final OnboardingUserJpaRepository onboardingUserJpaRepository;
     private final OnboardingUserAllergyJpaRepository onboardingUserAllergyJpaRepository;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     @Override
     public boolean existsActiveUserById(Long userId) {
@@ -44,8 +47,11 @@ public class SchoolPersistenceAdapter implements OnboardingCommandPort {
     }
 
     @Override
-    public boolean existsReligiousCode(String religiousCode) {
-        return onboardingUserJpaRepository.existsReligiousCode(religiousCode);
+    public boolean existsAllReligiousCodes(Set<String> religiousCodes) {
+        if (religiousCodes.isEmpty()) {
+            return true;
+        }
+        return onboardingUserJpaRepository.countReligiousCodes(religiousCodes) == religiousCodes.size();
     }
 
     @Override
@@ -63,12 +69,33 @@ public class SchoolPersistenceAdapter implements OnboardingCommandPort {
     }
 
     @Override
-    public boolean completeOnboarding(Long userId, String languageCode, Long schoolId, String religiousCode, String countryCode) {
+    public void replaceReligiousRestrictions(Long userId, List<String> religiousCodes) {
+        String deleteSql = """
+                delete from user_religious_food_restriction
+                where user_id = :userId
+                """;
+        namedParameterJdbcTemplate.update(deleteSql, new MapSqlParameterSource("userId", userId));
+        if (religiousCodes.isEmpty()) {
+            return;
+        }
+
+        String insertSql = """
+                insert into user_religious_food_restriction (user_id, religious_food_restriction_code, created_at)
+                values (:userId, :religiousCode, now())
+                """;
+        for (String religiousCode : religiousCodes) {
+            namedParameterJdbcTemplate.update(insertSql, new MapSqlParameterSource()
+                    .addValue("userId", userId)
+                    .addValue("religiousCode", religiousCode));
+        }
+    }
+
+    @Override
+    public boolean completeOnboarding(Long userId, String languageCode, Long schoolId, String countryCode) {
         return onboardingUserJpaRepository.completeOnboarding(
                 userId,
                 languageCode,
                 schoolId,
-                religiousCode,
                 countryCode,
                 ACTIVE_STATUS
         ) > 0;

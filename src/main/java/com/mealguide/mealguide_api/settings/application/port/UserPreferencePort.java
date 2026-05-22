@@ -11,5 +11,9 @@ public interface UserPreferencePort {
     List<String> findAllergyCodesByUserId(Long userId);
 
     void replaceAllergies(Long userId, List<String> allergyCodes);
+
+    List<String> findReligiousCodesByUserId(Long userId);
+
+    void replaceReligiousCodes(Long userId, List<String> religiousCodes);
 }
 

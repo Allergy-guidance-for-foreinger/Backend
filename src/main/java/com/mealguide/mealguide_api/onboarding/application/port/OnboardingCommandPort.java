@@ -12,12 +12,14 @@ public interface OnboardingCommandPort {
 
     boolean existsAllAllergyCodes(Set<String> allergyCodes);
 
-    boolean existsReligiousCode(String religiousCode);
+    boolean existsAllReligiousCodes(Set<String> religiousCodes);
 
     boolean existsCountryCode(String countryCode);
 
     void replaceAllergies(Long userId, List<String> allergyCodes);
 
-    boolean completeOnboarding(Long userId, String languageCode, Long schoolId, String religiousCode, String countryCode);
+    void replaceReligiousRestrictions(Long userId, List<String> religiousCodes);
+
+    boolean completeOnboarding(Long userId, String languageCode, Long schoolId, String countryCode);
 }
 
