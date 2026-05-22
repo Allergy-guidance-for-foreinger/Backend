@@ -188,7 +188,7 @@ class MenuTranslationFollowUpServiceTest {
         }
 
         @Override
-        public List<RestrictionIngredientRow> findReligiousRestrictionIngredients(String religiousCode) {
+        public List<RestrictionIngredientRow> findReligiousRestrictionIngredients(List<String> religiousCodes) {
             return List.of();
         }
 

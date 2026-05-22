@@ -31,6 +31,7 @@ public class MealCrawlProperties {
     private int translationMaxAttemptCount = 3;
 
     private List<String> translationTargetLanguages = List.of("en");
+    private RiskPolicy riskPolicy = new RiskPolicy();
 
     public int getAiAnalysisBatchSize() {
         return aiAnalysisBatchSize > 0 ? aiAnalysisBatchSize : 10;
@@ -60,6 +61,22 @@ public class MealCrawlProperties {
 
     public int getTranslationMaxAttemptCount() {
         return translationMaxAttemptCount > 0 ? translationMaxAttemptCount : 3;
+    }
+
+    @Getter
+    @Setter
+    public static class RiskPolicy {
+        private MetricPolicy allergy = new MetricPolicy();
+        private MetricPolicy religious = new MetricPolicy();
+    }
+
+    @Getter
+    @Setter
+    public static class MetricPolicy {
+        private boolean enabled = true;
+        private java.math.BigDecimal cautionThreshold = new java.math.BigDecimal("0.50");
+        private java.math.BigDecimal dangerThreshold = new java.math.BigDecimal("0.80");
+        private String defaultWhenConfidenceMissing = "SAFE";
     }
 }
 

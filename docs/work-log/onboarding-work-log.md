@@ -100,3 +100,8 @@
   - `docs/work-log/onboarding-work-log.md`
 - Remaining follow-ups:
   - 현재 환경에서는 Maven wrapper 실행 오류로 자동 테스트 실행 검증이 필요함.
+### 2026-05-22 (onboarding religious multi-select)
+- What changed:
+  - `CompleteOnboardingRequest/Response` religious field changed to `religiousCodes: List<String>`.
+  - Onboarding save flow now validates multiple religious restriction codes and replaces rows in `user_religious_food_restriction`.
+  - `users.religious_code` update dependency removed from onboarding completion update query.

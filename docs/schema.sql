@@ -124,7 +124,6 @@ CREATE TABLE users (
     name VARCHAR(100) NOT NULL,
     country_code VARCHAR(10),
     language_code VARCHAR(10) DEFAULT 'en',
-    religious_code VARCHAR(30),
     status VARCHAR(20) NOT NULL,
     role VARCHAR(20) NOT NULL,
     onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE,
@@ -135,9 +134,6 @@ CREATE TABLE users (
         FOREIGN KEY (school_id) REFERENCES school(id),
     CONSTRAINT fk_users_language
         FOREIGN KEY (language_code) REFERENCES language(code),
-    CONSTRAINT fk_users_religious_code
-        FOREIGN KEY (religious_code)
-        REFERENCES religious_food_restriction(code),
     CONSTRAINT uk_users_email
         UNIQUE (email),
     CONSTRAINT fk_users_country
@@ -153,6 +149,17 @@ CREATE TABLE user_allergy (
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_user_allergy_allergy
         FOREIGN KEY (allergy_code) REFERENCES allergy(code)
+);
+
+CREATE TABLE user_religious_food_restriction (
+    user_id BIGINT NOT NULL,
+    religious_food_restriction_code VARCHAR(30) NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    PRIMARY KEY (user_id, religious_food_restriction_code),
+    CONSTRAINT fk_user_rfr_user
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_rfr_restriction
+        FOREIGN KEY (religious_food_restriction_code) REFERENCES religious_food_restriction(code)
 );
 
 CREATE TABLE meal_schedule (
@@ -479,9 +486,6 @@ CREATE INDEX idx_users_school_id
 CREATE INDEX idx_users_language_code
     ON users (language_code);
 
-CREATE INDEX idx_users_religious_code
-    ON users (religious_code);
-
 CREATE INDEX idx_meal_schedule_cafeteria_date
     ON meal_schedule (cafeteria_id, meal_date);
 
@@ -505,6 +509,9 @@ CREATE INDEX idx_meal_menu_confirmed_ingredient_ingredient_code
 
 CREATE INDEX idx_user_allergy_user_id
     ON user_allergy (user_id);
+
+CREATE INDEX idx_user_rfr_user_id
+    ON user_religious_food_restriction (user_id);
 
 CREATE INDEX idx_rfri_ingredient_code
     ON religious_food_restriction_ingredient (ingredient_code);

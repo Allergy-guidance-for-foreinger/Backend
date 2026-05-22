@@ -1474,3 +1474,10 @@ iskLevel only), allergy risk source changed internally.
 - Remaining follow-ups:
   - Update API client parsing logic to the new menu detail response fields.
   - Run full test suite in local IDE or fixed Maven wrapper environment.
+
+## 2026-05-22 (religious restriction multi-select foundation)
+- What changed:
+  - Switched mealcrawl religious matching input from single `religiousCode` to multi `religiousCodes`.
+  - Updated religious ingredient match queries to use `IN (:religiousCodes)`.
+  - Fixed `MealCrawlPersistenceAdapter` query lambda ambiguity and aligned matched-allergy row mapping with `reason` field.
+- DB schema changed: Yes (`user_religious_food_restriction` table, removed `users.religious_code` dependency in schema docs)

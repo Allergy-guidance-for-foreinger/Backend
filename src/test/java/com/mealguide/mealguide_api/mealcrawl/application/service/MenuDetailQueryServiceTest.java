@@ -10,6 +10,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealUserPreferencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MenuLikePort;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import com.mealguide.mealguide_api.review.application.port.MenuReviewPort;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuLikeTarget;
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuDetailBatchResponse;
@@ -34,7 +35,8 @@ class MenuDetailQueryServiceTest {
                 mock(MealUserPreferencePort.class),
                 mock(MealCrawlPersistencePort.class),
                 mock(MenuLikePort.class),
-                mock(MenuReviewPort.class)
+                mock(MenuReviewPort.class),
+                defaultRiskResolver()
         );
 
         assertThatThrownBy(() -> service.getMenuDetails(1L, List.of()))
@@ -49,7 +51,8 @@ class MenuDetailQueryServiceTest {
                 mock(MealUserPreferencePort.class),
                 mock(MealCrawlPersistencePort.class),
                 mock(MenuLikePort.class),
-                mock(MenuReviewPort.class)
+                mock(MenuReviewPort.class),
+                defaultRiskResolver()
         );
         List<Long> ids = java.util.stream.LongStream.rangeClosed(1, 31).boxed().toList();
 
@@ -65,7 +68,9 @@ class MenuDetailQueryServiceTest {
         MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
         MenuLikePort menuLikePort = mock(MenuLikePort.class);
         MenuReviewPort menuReviewPort = mock(MenuReviewPort.class);
-        MenuDetailQueryService service = new MenuDetailQueryService(preferencePort, persistencePort, menuLikePort, menuReviewPort);
+        MenuDetailQueryService service = new MenuDetailQueryService(
+                preferencePort, persistencePort, menuLikePort, menuReviewPort, defaultRiskResolver()
+        );
 
         stubPreference(preferencePort);
         when(persistencePort.findMenuDetailsByMealMenuIds(Set.of(20L, 10L))).thenReturn(List.of(
@@ -84,7 +89,7 @@ class MenuDetailQueryServiceTest {
                 .thenReturn(List.of(new MealMenuMatchedAllergyRow(10L, "PORK", "Pork", null, null)));
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(20L, 10L), "en"))
                 .thenReturn(List.of(new MealMenuAllergyRow(10L, "PORK", "Pork", null)));
-        when(persistencePort.findReligiousMatchedIngredientsByMealMenuIds(Set.of(20L, 10L), "HALAL", "en"))
+        when(persistencePort.findReligiousMatchedIngredientsByMealMenuIds(Set.of(20L, 10L), List.of("HALAL"), "en"))
                 .thenReturn(List.of());
         when(menuLikePort.countLikesByTargets(Set.of(
                 new MenuLikeTarget(1L, 1L),
@@ -113,7 +118,9 @@ class MenuDetailQueryServiceTest {
         MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
         MenuLikePort menuLikePort = mock(MenuLikePort.class);
         MenuReviewPort menuReviewPort = mock(MenuReviewPort.class);
-        MenuDetailQueryService service = new MenuDetailQueryService(preferencePort, persistencePort, menuLikePort, menuReviewPort);
+        MenuDetailQueryService service = new MenuDetailQueryService(
+                preferencePort, persistencePort, menuLikePort, menuReviewPort, defaultRiskResolver()
+        );
 
         stubPreference(preferencePort);
         when(persistencePort.findMenuDetailsByMealMenuIds(Set.of(10L, 99L))).thenReturn(List.of(
@@ -132,7 +139,9 @@ class MenuDetailQueryServiceTest {
         MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
         MenuLikePort menuLikePort = mock(MenuLikePort.class);
         MenuReviewPort menuReviewPort = mock(MenuReviewPort.class);
-        MenuDetailQueryService service = new MenuDetailQueryService(preferencePort, persistencePort, menuLikePort, menuReviewPort);
+        MenuDetailQueryService service = new MenuDetailQueryService(
+                preferencePort, persistencePort, menuLikePort, menuReviewPort, defaultRiskResolver()
+        );
 
         stubPreference(preferencePort);
         when(persistencePort.findMenuDetailsByMealMenuIds(Set.of(10L, 20L))).thenReturn(List.of(
@@ -150,7 +159,7 @@ class MenuDetailQueryServiceTest {
                 .thenReturn(List.of(new MealMenuMatchedAllergyRow(10L, "PORK", "Pork", null, null)));
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L, 20L), "en"))
                 .thenReturn(List.of(new MealMenuAllergyRow(10L, "PORK", "Pork", null)));
-        when(persistencePort.findReligiousMatchedIngredientsByMealMenuIds(Set.of(10L, 20L), "HALAL", "en"))
+        when(persistencePort.findReligiousMatchedIngredientsByMealMenuIds(Set.of(10L, 20L), List.of("HALAL"), "en"))
                 .thenReturn(List.of());
         when(menuLikePort.countLikesByTargets(Set.of(
                 new MenuLikeTarget(1L, 1L),
@@ -170,7 +179,7 @@ class MenuDetailQueryServiceTest {
         MenuDetailResponse first = response.menus().get(0);
         MenuDetailResponse second = response.menus().get(1);
         assertThat(first.matchedAllergies()).hasSize(1);
-        assertThat(first.matchedAllergies().get(0).riskLevel()).isEqualTo("DANGER");
+        assertThat(first.matchedAllergies().get(0).riskLevel()).isEqualTo("SAFE");
         assertThat(second.matchedAllergies()).isEmpty();
     }
 
@@ -180,7 +189,9 @@ class MenuDetailQueryServiceTest {
         MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
         MenuLikePort menuLikePort = mock(MenuLikePort.class);
         MenuReviewPort menuReviewPort = mock(MenuReviewPort.class);
-        MenuDetailQueryService service = new MenuDetailQueryService(preferencePort, persistencePort, menuLikePort, menuReviewPort);
+        MenuDetailQueryService service = new MenuDetailQueryService(
+                preferencePort, persistencePort, menuLikePort, menuReviewPort, defaultRiskResolver()
+        );
 
         stubPreference(preferencePort);
         when(persistencePort.findMenuDetailsByMealMenuIds(Set.of(10L))).thenReturn(List.of(
@@ -193,7 +204,7 @@ class MenuDetailQueryServiceTest {
         when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("en"))).thenReturn(List.of());
         when(persistencePort.findMatchedAllergiesByMealMenuIds(1L, Set.of(10L), "en")).thenReturn(List.of());
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L), "en")).thenReturn(List.of());
-        when(persistencePort.findReligiousMatchedIngredientsByMealMenuIds(Set.of(10L), "HALAL", "en")).thenReturn(List.of());
+        when(persistencePort.findReligiousMatchedIngredientsByMealMenuIds(Set.of(10L), List.of("HALAL"), "en")).thenReturn(List.of());
         when(menuLikePort.countLikesByTargets(Set.of(new MenuLikeTarget(1L, 1L))))
                 .thenReturn(java.util.Map.of(new MenuLikeTarget(1L, 1L), 5L));
         when(menuLikePort.findLikedTargetsByUser(1L, Set.of(new MenuLikeTarget(1L, 1L))))
@@ -212,6 +223,10 @@ class MenuDetailQueryServiceTest {
 
     private void stubPreference(MealUserPreferencePort preferencePort) {
         when(preferencePort.getCurrentUserMealPreference(1L))
-                .thenReturn(new CurrentUserMealPreference(1L, 100L, "en", "HALAL", List.of("PORK")));
+                .thenReturn(new CurrentUserMealPreference(1L, 100L, "en", List.of("HALAL"), List.of("PORK")));
+    }
+
+    private RiskLevelPolicyResolver defaultRiskResolver() {
+        return new RiskLevelPolicyResolver(new MealCrawlProperties());
     }
 }

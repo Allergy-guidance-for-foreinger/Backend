@@ -6,7 +6,7 @@ public record CurrentUserMealPreference(
         Long userId,
         Long schoolId,
         String languageCode,
-        String religiousCode,
+        List<String> religiousCodes,
         List<String> allergyCodes
 ) {
 }

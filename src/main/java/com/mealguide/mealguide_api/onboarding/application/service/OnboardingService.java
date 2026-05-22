@@ -2,6 +2,7 @@ package com.mealguide.mealguide_api.onboarding.application.service;
 
 import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
+import com.mealguide.mealguide_api.global.base.util.CodeNormalizationUtils;
 import com.mealguide.mealguide_api.onboarding.application.port.OnboardingCommandPort;
 import com.mealguide.mealguide_api.onboarding.domain.OnboardingCompletion;
 import lombok.RequiredArgsConstructor;
@@ -25,13 +26,13 @@ public class OnboardingService {
             String languageCode,
             Long schoolId,
             List<String> allergyCodes,
-            String religiousCode,
+            List<String> religiousCodes,
             String countryCode
     ) {
         String normalizedLanguageCode = requireText(languageCode, ErrorCode.INVALID_LANGUAGE_CODE);
         Long normalizedSchoolId = requireSchoolId(schoolId);
         List<String> normalizedAllergyCodes = normalizeAllergyCodes(allergyCodes);
-        String normalizedReligiousCode = normalize(religiousCode);
+        List<String> normalizedReligiousCodes = normalizeReligiousCodes(religiousCodes);
         String normalizedCountryCode = requireText(countryCode, ErrorCode.INVALID_COUNTRY_CODE);
 
         if (!onboardingCommandPort.existsActiveUserById(userId)) {
@@ -50,7 +51,7 @@ public class OnboardingService {
             throw new ServiceException(ErrorCode.INVALID_ALLERGY_CODE);
         }
 
-        if (normalizedReligiousCode != null && !onboardingCommandPort.existsReligiousCode(normalizedReligiousCode)) {
+        if (!onboardingCommandPort.existsAllReligiousCodes(Set.copyOf(normalizedReligiousCodes))) {
             throw new ServiceException(ErrorCode.INVALID_RELIGIOUS_CODE);
         }
 
@@ -59,11 +60,11 @@ public class OnboardingService {
         }
 
         onboardingCommandPort.replaceAllergies(userId, normalizedAllergyCodes);
+        onboardingCommandPort.replaceReligiousRestrictions(userId, normalizedReligiousCodes);
         boolean updated = onboardingCommandPort.completeOnboarding(
                 userId,
                 normalizedLanguageCode,
                 normalizedSchoolId,
-                normalizedReligiousCode,
                 normalizedCountryCode
         );
         if (!updated) {
@@ -74,7 +75,7 @@ public class OnboardingService {
                 normalizedLanguageCode,
                 normalizedSchoolId,
                 normalizedAllergyCodes,
-                normalizedReligiousCode,
+                normalizedReligiousCodes,
                 normalizedCountryCode,
                 true
         );
@@ -97,6 +98,10 @@ public class OnboardingService {
             deduplicated.add(requireText(allergyCode, ErrorCode.INVALID_ALLERGY_CODE));
         }
         return new ArrayList<>(deduplicated);
+    }
+
+    private List<String> normalizeReligiousCodes(List<String> religiousCodes) {
+        return CodeNormalizationUtils.normalizeRequiredCodes(religiousCodes, ErrorCode.INVALID_RELIGIOUS_CODE);
     }
 
     private String requireText(String value, ErrorCode errorCode) {

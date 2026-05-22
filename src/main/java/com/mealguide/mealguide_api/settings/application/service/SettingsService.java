@@ -125,7 +125,8 @@ public class SettingsService {
         }
         Locale countryLocale = new Locale("", countryCode.trim().toUpperCase(Locale.ROOT));
         String localizedName = countryLocale.getDisplayCountry(locale);
-        if (localizedName == null || localizedName.isBlank()) {
+        if (localizedName == null || localizedName.isBlank()
+                || localizedName.equalsIgnoreCase(countryCode.trim())) {
             return fallbackName;
         }
         return localizedName;

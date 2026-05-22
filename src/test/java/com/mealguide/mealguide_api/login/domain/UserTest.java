@@ -14,7 +14,6 @@ class UserTest {
         assertThat(user.getEmail()).isEqualTo("user@test.com");
         assertThat(user.getName()).isEqualTo("Meal Guide");
         assertThat(user.getLanguageCode()).isNull();
-        assertThat(user.getReligiousCode()).isNull();
         assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
         assertThat(user.getRole()).isEqualTo(UserRole.USER);
         assertThat(user.isOnboardingCompleted()).isFalse();

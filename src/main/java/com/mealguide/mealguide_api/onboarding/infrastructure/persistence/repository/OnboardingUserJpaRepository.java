@@ -38,13 +38,11 @@ public interface OnboardingUserJpaRepository extends JpaRepository<User, Long> {
     boolean existsLanguageCode(@Param("languageCode") String languageCode);
 
     @Query(value = """
-            select exists(
-                select 1
-                from religious_food_restriction r
-                where r.code = :religiousCode
-            )
+            select count(r.code)
+            from religious_food_restriction r
+            where r.code in (:religiousCodes)
             """, nativeQuery = true)
-    boolean existsReligiousCode(@Param("religiousCode") String religiousCode);
+    long countReligiousCodes(@Param("religiousCodes") Set<String> religiousCodes);
 
     @Query(value = """
             select exists(
@@ -60,7 +58,6 @@ public interface OnboardingUserJpaRepository extends JpaRepository<User, Long> {
             update User u
             set u.languageCode = :languageCode,
                 u.schoolId = :schoolId,
-                u.religiousCode = :religiousCode,
                 u.countryCode = :countryCode,
                 u.onboardingCompleted = true
             where u.id = :userId
@@ -71,7 +68,6 @@ public interface OnboardingUserJpaRepository extends JpaRepository<User, Long> {
             @Param("userId") Long userId,
             @Param("languageCode") String languageCode,
             @Param("schoolId") Long schoolId,
-            @Param("religiousCode") String religiousCode,
             @Param("countryCode") String countryCode,
             @Param("status") UserStatus status
     );

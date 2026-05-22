@@ -25,11 +25,12 @@ public class MealUserPreferenceAdapter implements MealUserPreferencePort {
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
         List<String> allergyCodes = userPreferencePort.findAllergyCodesByUserId(userId);
+        List<String> religiousCodes = userPreferencePort.findReligiousCodesByUserId(userId);
         return new CurrentUserMealPreference(
                 user.getId(),
                 user.getSchoolId(),
                 user.getLanguageCode(),
-                user.getReligiousCode(),
+                religiousCodes,
                 allergyCodes
         );
     }

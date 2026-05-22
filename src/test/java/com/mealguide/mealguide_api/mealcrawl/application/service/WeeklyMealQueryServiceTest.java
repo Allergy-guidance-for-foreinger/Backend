@@ -183,7 +183,7 @@ class WeeklyMealQueryServiceTest {
     }
 
     private CurrentUserMealPreference samplePreference() {
-        return new CurrentUserMealPreference(1L, 100L, "en", "HALAL", List.of("PORK"));
+        return new CurrentUserMealPreference(1L, 100L, "en", List.of("HALAL"), List.of("PORK"));
     }
 
     private WeeklyMealCachePayload samplePayload() {

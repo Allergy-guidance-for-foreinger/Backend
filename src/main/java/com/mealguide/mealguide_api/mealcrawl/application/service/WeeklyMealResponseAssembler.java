@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -25,8 +26,10 @@ import java.util.Set;
 public class WeeklyMealResponseAssembler {
 
     private static final String DEFAULT_LANGUAGE_CODE = "ko";
+    private static final BigDecimal MATCHED_CONFIDENCE = BigDecimal.ONE;
 
     private final MealCrawlPersistencePort mealCrawlPersistencePort;
+    private final RiskLevelPolicyResolver riskLevelPolicyResolver;
 
     public WeeklyMealResponse assemble(WeeklyMealCachePayload payload, CurrentUserMealPreference preference) {
         Map<Long, String> translatedMenuNames = resolveTranslatedMenuNames(payload, preference.languageCode());
@@ -60,7 +63,7 @@ public class WeeklyMealResponseAssembler {
                 mealMenuIds
         );
         Map<String, List<RestrictionIngredientRow>> religionIngredientIndex = indexRestrictionIngredientsByIngredientCode(
-                mealCrawlPersistencePort.findReligiousRestrictionIngredients(preference.religiousCode())
+                mealCrawlPersistencePort.findReligiousRestrictionIngredients(preference.religiousCodes())
         );
 
         Map<Long, WeeklyMealResponse.MenuRiskResponse> riskByMealMenuId = new HashMap<>();
@@ -113,7 +116,9 @@ public class WeeklyMealResponseAssembler {
             Map<String, List<RestrictionIngredientRow>> religionIngredientIndex
     ) {
         if (mealMenuIdsWithAllergyRisk.contains(mealMenuId)) {
-            return new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.DANGER.name());
+            return new WeeklyMealResponse.MenuRiskResponse(
+                    riskLevelPolicyResolver.resolveAllergy(true, MATCHED_CONFIDENCE).name()
+            );
         }
 
         if (confirmedMealMenuIds.contains(mealMenuId)) {
@@ -121,7 +126,7 @@ public class WeeklyMealResponseAssembler {
                     confirmedByMealMenuId.getOrDefault(mealMenuId, List.of()),
                     religionIngredientIndex
             );
-            MenuRiskLevel level = hasReligionRisk ? MenuRiskLevel.DANGER : MenuRiskLevel.SAFE;
+            MenuRiskLevel level = riskLevelPolicyResolver.resolveReligious(hasReligionRisk, MATCHED_CONFIDENCE);
             return new WeeklyMealResponse.MenuRiskResponse(level.name());
         }
 
@@ -130,7 +135,7 @@ public class WeeklyMealResponseAssembler {
                     aiByMealMenuId.getOrDefault(mealMenuId, List.of()),
                     religionIngredientIndex
             );
-            MenuRiskLevel level = hasReligionRisk ? MenuRiskLevel.CAUTION : MenuRiskLevel.SAFE;
+            MenuRiskLevel level = riskLevelPolicyResolver.resolveReligious(hasReligionRisk, MATCHED_CONFIDENCE);
             return new WeeklyMealResponse.MenuRiskResponse(level.name());
         }
 

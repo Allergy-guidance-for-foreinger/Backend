@@ -22,6 +22,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
@@ -89,8 +91,8 @@ public class UserSettingsController implements SettingsApi {
             @CurrentUserId Long currentUserId,
             @Valid @RequestBody UpdateReligionRequest request
     ) {
-        String religiousCode = userPreferenceService.updateReligion(currentUserId, request.religiousCode());
-        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(new ReligionUpdateResponse(religiousCode)));
+        List<String> religiousCodes = userPreferenceService.updateReligion(currentUserId, request.religiousCodes());
+        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(new ReligionUpdateResponse(religiousCodes)));
     }
 
     @PatchMapping("/country")
