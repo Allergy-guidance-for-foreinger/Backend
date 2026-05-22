@@ -4,6 +4,7 @@ import com.mealguide.mealguide_api.settings.application.port.SettingsMasterQuery
 import com.mealguide.mealguide_api.settings.application.port.UserPreferencePort;
 import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
+import com.mealguide.mealguide_api.global.base.util.CodeNormalizationUtils;
 import com.mealguide.mealguide_api.settings.domain.UserPreference;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -127,14 +128,7 @@ public class UserPreferenceService {
     }
 
     private List<String> normalizeReligiousCodes(List<String> religiousCodes) {
-        if (religiousCodes == null) {
-            throw new ServiceException(ErrorCode.INVALID_RELIGIOUS_CODE);
-        }
-        Set<String> deduplicated = new LinkedHashSet<>();
-        for (String religiousCode : religiousCodes) {
-            deduplicated.add(requireText(religiousCode, ErrorCode.INVALID_RELIGIOUS_CODE));
-        }
-        return new ArrayList<>(deduplicated);
+        return CodeNormalizationUtils.normalizeRequiredCodes(religiousCodes, ErrorCode.INVALID_RELIGIOUS_CODE);
     }
 
     private String requireText(String value, ErrorCode errorCode) {

@@ -18,6 +18,7 @@ import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuDetai
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -35,6 +36,7 @@ public class MenuDetailQueryService {
     private static final String SOURCE_AI = "AI";
     private static final String AI_STATUS_SUCCESS = "SUCCESS";
     private static final int MAX_BATCH_SIZE = 30;
+    private static final BigDecimal MATCHED_CONFIDENCE = BigDecimal.ONE;
 
     private final MealUserPreferencePort mealUserPreferencePort;
     private final MealCrawlPersistencePort mealCrawlPersistencePort;
@@ -112,7 +114,10 @@ public class MenuDetailQueryService {
                     .map(row -> new MenuDetailResponse.MatchedAllergyResponse(
                             row.allergyCode(),
                             row.allergyName(),
-                            riskLevelPolicyResolver.resolveAllergy(true, row.confidence()).name(),
+                            riskLevelPolicyResolver.resolveAllergy(
+                                    true,
+                                    row.confidence() == null ? MATCHED_CONFIDENCE : row.confidence()
+                            ).name(),
                             row.confidence()
                     ))
                     .toList();
@@ -239,7 +244,10 @@ public class MenuDetailQueryService {
                                     .map(row -> new MenuDetailResponse.MatchedReligiousRestrictionResponse(
                                             row.restrictionCode(),
                                             row.restrictionName(),
-                                            riskLevelPolicyResolver.resolveReligious(true, row.confidence()).name()
+                                            riskLevelPolicyResolver.resolveReligious(
+                                                    true,
+                                                    row.confidence() == null ? MATCHED_CONFIDENCE : row.confidence()
+                                            ).name()
                                     ))
                                     .toList();
                     java.math.BigDecimal confidence = null;

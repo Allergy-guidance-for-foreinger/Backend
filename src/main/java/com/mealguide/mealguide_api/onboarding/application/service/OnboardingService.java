@@ -2,6 +2,7 @@ package com.mealguide.mealguide_api.onboarding.application.service;
 
 import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
+import com.mealguide.mealguide_api.global.base.util.CodeNormalizationUtils;
 import com.mealguide.mealguide_api.onboarding.application.port.OnboardingCommandPort;
 import com.mealguide.mealguide_api.onboarding.domain.OnboardingCompletion;
 import lombok.RequiredArgsConstructor;
@@ -100,14 +101,7 @@ public class OnboardingService {
     }
 
     private List<String> normalizeReligiousCodes(List<String> religiousCodes) {
-        if (religiousCodes == null) {
-            throw new ServiceException(ErrorCode.INVALID_RELIGIOUS_CODE);
-        }
-        Set<String> deduplicated = new LinkedHashSet<>();
-        for (String religiousCode : religiousCodes) {
-            deduplicated.add(requireText(religiousCode, ErrorCode.INVALID_RELIGIOUS_CODE));
-        }
-        return new ArrayList<>(deduplicated);
+        return CodeNormalizationUtils.normalizeRequiredCodes(religiousCodes, ErrorCode.INVALID_RELIGIOUS_CODE);
     }
 
     private String requireText(String value, ErrorCode errorCode) {

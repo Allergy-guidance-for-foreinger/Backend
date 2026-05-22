@@ -8,6 +8,7 @@ import com.mealguide.mealguide_api.settings.domain.UserPreference;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -72,11 +73,12 @@ public class UserPreferencePersistenceAdapter implements UserPreferencePort {
                 insert into user_religious_food_restriction (user_id, religious_food_restriction_code, created_at)
                 values (:userId, :religiousCode, now())
                 """;
-        for (String religiousCode : religiousCodes) {
-            namedParameterJdbcTemplate.update(insertSql, new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("religiousCode", religiousCode));
-        }
+        SqlParameterSource[] batchParams = religiousCodes.stream()
+                .map(religiousCode -> new MapSqlParameterSource()
+                        .addValue("userId", userId)
+                        .addValue("religiousCode", religiousCode))
+                .toArray(SqlParameterSource[]::new);
+        namedParameterJdbcTemplate.batchUpdate(insertSql, batchParams);
     }
 }
 

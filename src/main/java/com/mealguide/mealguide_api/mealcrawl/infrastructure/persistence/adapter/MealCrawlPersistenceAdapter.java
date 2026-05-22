@@ -182,10 +182,11 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 .addValue("langCode", langCode);
 
         Map<Long, String> translatedMenuNames = new HashMap<>();
-        namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> Map.entry(
-                rs.getLong("meal_menu_id"),
-                rs.getString("translated_name")
-        )).forEach(entry -> translatedMenuNames.put(entry.getKey(), entry.getValue()));
+        namedParameterJdbcTemplate.query(sql, params, (org.springframework.jdbc.core.RowCallbackHandler) rs ->
+                translatedMenuNames.put(
+                        rs.getLong("meal_menu_id"),
+                        rs.getString("translated_name")
+                ));
         return translatedMenuNames;
     }
 
@@ -1189,12 +1190,10 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 .addValue("menuIds", menuIds)
                 .addValue("langCodes", langCodes);
         Map<MenuTranslationKey, Integer> latestAttemptCounts = new HashMap<>();
-        namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> Map.entry(
-                new MenuTranslationKey(rs.getLong("menu_id"), rs.getString("lang_code")),
-                rs.getInt("attempt_count")
-        )).forEach(entry -> {
-            if (requestedKeys.contains(entry.getKey())) {
-                latestAttemptCounts.put(entry.getKey(), entry.getValue());
+        namedParameterJdbcTemplate.query(sql, params, (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+            MenuTranslationKey key = new MenuTranslationKey(rs.getLong("menu_id"), rs.getString("lang_code"));
+            if (requestedKeys.contains(key)) {
+                latestAttemptCounts.put(key, rs.getInt("attempt_count"));
             }
         });
         return latestAttemptCounts;

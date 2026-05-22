@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -25,6 +26,7 @@ import java.util.Set;
 public class WeeklyMealResponseAssembler {
 
     private static final String DEFAULT_LANGUAGE_CODE = "ko";
+    private static final BigDecimal MATCHED_CONFIDENCE = BigDecimal.ONE;
 
     private final MealCrawlPersistencePort mealCrawlPersistencePort;
     private final RiskLevelPolicyResolver riskLevelPolicyResolver;
@@ -115,7 +117,7 @@ public class WeeklyMealResponseAssembler {
     ) {
         if (mealMenuIdsWithAllergyRisk.contains(mealMenuId)) {
             return new WeeklyMealResponse.MenuRiskResponse(
-                    riskLevelPolicyResolver.resolveAllergy(true, null).name()
+                    riskLevelPolicyResolver.resolveAllergy(true, MATCHED_CONFIDENCE).name()
             );
         }
 
@@ -124,7 +126,7 @@ public class WeeklyMealResponseAssembler {
                     confirmedByMealMenuId.getOrDefault(mealMenuId, List.of()),
                     religionIngredientIndex
             );
-            MenuRiskLevel level = riskLevelPolicyResolver.resolveReligious(hasReligionRisk, null);
+            MenuRiskLevel level = riskLevelPolicyResolver.resolveReligious(hasReligionRisk, MATCHED_CONFIDENCE);
             return new WeeklyMealResponse.MenuRiskResponse(level.name());
         }
 
@@ -133,7 +135,7 @@ public class WeeklyMealResponseAssembler {
                     aiByMealMenuId.getOrDefault(mealMenuId, List.of()),
                     religionIngredientIndex
             );
-            MenuRiskLevel level = riskLevelPolicyResolver.resolveReligious(hasReligionRisk, null);
+            MenuRiskLevel level = riskLevelPolicyResolver.resolveReligious(hasReligionRisk, MATCHED_CONFIDENCE);
             return new WeeklyMealResponse.MenuRiskResponse(level.name());
         }
 

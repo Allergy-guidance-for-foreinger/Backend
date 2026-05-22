@@ -15,7 +15,7 @@ public record CompleteOnboardingResponse(
         @Schema(description = "저장된 알레르기 코드 목록", example = "[\"EGG\", \"MILK\"]")
         List<String> allergyCodes,
 
-        @Schema(description = "저장된 종교 식이 제한 코드. 미선택 시 null", example = "HALAL")
+        @Schema(description = "저장된 종교 식이 제한 코드 목록. 미선택 시 빈 배열", example = "[\"HALAL\", \"VEGAN\"]")
         List<String> religiousCodes,
 
         @Schema(description = "저장된 국가 코드", example = "KR")

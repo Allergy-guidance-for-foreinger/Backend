@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class WeeklyMealResponseAssemblerTest {
 
     @Test
-    void confirmedAllergyMatchReturnsSafeWhenConfidenceMissing() {
+    void confirmedAllergyMatchReturnsDanger() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
         port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.allergyRiskMealMenuIds = Set.of(11L);
@@ -35,11 +35,11 @@ class WeeklyMealResponseAssemblerTest {
         WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port, defaultRiskResolver());
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
 
-        assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("SAFE");
+        assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("DANGER");
     }
 
     @Test
-    void confirmedReligionMatchReturnsSafeWhenConfidenceMissing() {
+    void confirmedReligionMatchReturnsDanger() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
         port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.religionRestrictions = List.of(new RestrictionIngredientRow("HALAL", "PORK", "Pork"));
@@ -47,11 +47,11 @@ class WeeklyMealResponseAssemblerTest {
         WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port, defaultRiskResolver());
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
 
-        assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("SAFE");
+        assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("DANGER");
     }
 
     @Test
-    void aiAllergyMatchReturnsSafeWhenConfidenceMissing() {
+    void aiAllergyMatchReturnsDanger() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
         port.aiIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.allergyRiskMealMenuIds = Set.of(11L);
@@ -59,11 +59,11 @@ class WeeklyMealResponseAssemblerTest {
         WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port, defaultRiskResolver());
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
 
-        assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("SAFE");
+        assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("DANGER");
     }
 
     @Test
-    void aiReligionMatchReturnsSafeWhenConfidenceMissing() {
+    void aiReligionMatchReturnsDanger() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
         port.aiIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.religionRestrictions = List.of(new RestrictionIngredientRow("HALAL", "PORK", "Pork"));
@@ -71,7 +71,7 @@ class WeeklyMealResponseAssemblerTest {
         WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port, defaultRiskResolver());
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
 
-        assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("SAFE");
+        assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("DANGER");
     }
 
     @Test
@@ -111,7 +111,7 @@ class WeeklyMealResponseAssemblerTest {
     }
 
     @Test
-    void koreanLanguageStillReturnsSafeWhenConfidenceMissing() {
+    void koreanLanguageStillReturnsRiskLevelOnly() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
         port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.allergyRiskMealMenuIds = Set.of(11L);
@@ -119,7 +119,7 @@ class WeeklyMealResponseAssemblerTest {
         WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port, defaultRiskResolver());
         WeeklyMealResponse response = assembler.assemble(samplePayload(), koreanPreference());
 
-        assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("SAFE");
+        assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("DANGER");
     }
 
     private WeeklyMealCachePayload samplePayload() {
