@@ -1481,3 +1481,182 @@ iskLevel only), allergy risk source changed internally.
   - Updated religious ingredient match queries to use `IN (:religiousCodes)`.
   - Fixed `MealCrawlPersistenceAdapter` query lambda ambiguity and aligned matched-allergy row mapping with `reason` field.
 - DB schema changed: Yes (`user_religious_food_restriction` table, removed `users.religious_code` dependency in schema docs)
+
+## 2026-05-22 (menu image analysis API + Firebase storage + image log)
+- What changed:
+  - Added `POST /api/v1/menus/analyze-image` with authenticated multipart upload (`image`).
+  - Added `MenuImageAnalysisService` to orchestrate: log creation, image validation, Firebase upload, Python image identify call, menu match branch, and response assembly.
+  - Extended `PythonMealClientPort/Adapter` with image analysis call (`/api/v1/python/menus/analyze-image`) while reusing existing client base URL and exception style.
+  - Added `menu_image_analysis_log` entity/repository and schema/docs entries.
+  - Added Firebase storage adapter (`MenuImageStoragePort`, `FirebaseMenuImageStorageAdapter`) and mealcrawl image upload properties.
+  - Added external API error passthrough exception/handler to return Python `code/msg` in existing failure envelope shape.
+- Why:
+  - Support new food-photo AI analysis workflow without duplicating existing analysis/translation/matching logic.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/controller/MenuImageAnalysisController.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/swagger/MenuImageAnalysisApi.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/dto/response/MenuImageAnalysisResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuImageAnalysisService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MenuImageStoragePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/FirebaseMenuImageStorageAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuImageAnalysisLog.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuImageAnalysisStatus.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuImageAnalysisResultSource.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MenuImageAnalysisLogJpaRepository.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/PythonMealClientPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonMenuImageAnalysisResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonMenuImageAnalysisResultDto.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/config/MealCrawlProperties.java`
+  - `src/main/java/com/mealguide/mealguide_api/global/base/exception/ExternalApiException.java`
+  - `src/main/java/com/mealguide/mealguide_api/global/base/exception/GlobalExceptionHandler.java`
+  - `src/main/resources/application.properties`
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/features/mealcrawl-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: Yes (`menu_image_analysis_log` table/index)
+- API behavior changed: Yes (new API path only)
+
+## 2026-05-23 (menu image analysis log jsonb mapping fix)
+- What changed:
+  - Added Hibernate JSON JDBC type mapping to `MenuImageAnalysisLog.fallbackResult`.
+  - Kept DB schema unchanged and fixed only entity-side type binding.
+- Why:
+  - PostgreSQL `menu_image_analysis_log.fallback_result` is `jsonb`, but JPA was binding `String` as `varchar`, causing insert failure.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuImageAnalysisLog.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Verify once in local runtime that unknown-menu branch persists `fallback_result` as JSONB without cast errors.
+
+## 2026-05-23 (menu image analysis log status stuck at PROCESSING fix)
+- What changed:
+  - Added explicit `logRepository.save(log)` calls after log state mutations in `saveStoragePath`, `failLog`, `markSuccess`.
+- Why:
+  - `@Transactional` methods were internally invoked in the same service class, so proxy-based transaction interception was bypassed and dirty checking updates were not persisted reliably.
+  - This caused `menu_image_analysis_log.status` to remain `PROCESSING` even after success/failure flow.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuImageAnalysisService.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+
+## 2026-05-23 (Firebase menu image storage client reuse and stream close fix)
+- What changed:
+  - Updated `FirebaseMenuImageStorageAdapter` to reuse a cached `Storage` client instead of creating it per upload request.
+  - Added lazy initialization with synchronization for thread-safe one-time client creation.
+  - Added `try-with-resources` when reading Firebase credentials so `FileInputStream` is always closed.
+- Why:
+  - Prevent per-request Firebase client construction overhead.
+  - Remove credentials stream resource leak risk.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/FirebaseMenuImageStorageAdapter.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+
+## 2026-05-23 (Python image multipart upload stream optimization)
+- What changed:
+  - Changed Python image analysis multipart payload from `image.getBytes()` based `NamedByteArrayResource` to `image.getResource()`.
+  - Removed now-unused inner helper class `NamedByteArrayResource`.
+- Why:
+  - Avoid loading full multipart image bytes into memory in client adapter path.
+  - Use Spring `Resource` based streaming for more efficient request body handling.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+
+## 2026-05-23 (ExternalApiException message field deduplication)
+- What changed:
+  - Removed redundant `msg` field from `ExternalApiException` and kept message in `RuntimeException` base field only.
+  - Updated `GlobalExceptionHandler` to use `e.getMessage()` when building failed response body.
+- Why:
+  - Avoid duplicated state between custom `msg` field and parent exception `message`.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/global/base/exception/ExternalApiException.java`
+  - `src/main/java/com/mealguide/mealguide_api/global/base/exception/GlobalExceptionHandler.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+
+## 2026-05-23 (Menu image analysis late-stage failure log transition fix)
+- What changed:
+  - Wrapped post-identification analyze branch (`known/unknown menu` handling) with `try-catch` in `MenuImageAnalysisService.analyze`.
+  - On late-stage runtime exception, now records `failLog(logId, "COM_001")` before rethrow.
+- Why:
+  - Prevent `menu_image_analysis_log.status` from remaining `PROCESSING` when exceptions occur after image identification.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuImageAnalysisService.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+
+## 2026-05-23 (Menu image analysis null element guard in response assembly)
+- What changed:
+  - Added null guards for list elements while iterating `ingredients` and `allergies` in `MenuImageAnalysisService.assemble`.
+- Why:
+  - Prevent NPE when external Python response contains null items in result arrays.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuImageAnalysisService.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+
+## 2026-05-23 (Python exception HTTP status safe resolution)
+- What changed:
+  - Updated `MenuImageAnalysisService.mapPythonException` to resolve remote status code with `HttpStatus.resolve(...)` and fallback to `HttpStatus.BAD_GATEWAY` for unknown/non-standard codes.
+- Why:
+  - Prevent `IllegalArgumentException` from `HttpStatus.valueOf(int)` when Python side returns an undefined status code, and preserve exception mapping intent.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuImageAnalysisService.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+
+## 2026-05-23 (Python image analysis success=false payload handling)
+- What changed:
+  - Added explicit business-failure handling in `PythonMealClientAdapter.analyzeImage` for `success=false` response payload.
+  - Now throws `PythonMealClientException` with propagated `code/msg` payload instead of returning empty successful result.
+- Why:
+  - Prevent HTTP 200 with failure body from being treated as a successful empty analysis.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+
+## 2026-05-23 (Python image analysis catch-all exception narrowing)
+- What changed:
+  - Replaced broad `catch (Exception)` in `PythonMealClientAdapter.analyzeImage` with `catch (RestClientException)`.
+- Why:
+  - Prevent non-network exceptions (e.g., `ServiceException`) from being rewrapped as retryable client failures and preserve error classification.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`

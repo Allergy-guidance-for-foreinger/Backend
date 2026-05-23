@@ -21,6 +21,7 @@ public class MealCrawlProperties {
     private String pythonBaseUrl = "http://localhost:8000";
     private String crawlPath = "/api/v1/crawl/meals";
     private String analysisPath = "/api/v1/menus/analyze";
+    private String imageAnalysisPath = "/api/v1/python/menus/analyze-image";
     private String translationPath = "/api/v1/menus/translate";
     private long weeklyMealCacheTtlSeconds = 86400L;
     private int aiAnalysisBatchSize = 10;
@@ -29,6 +30,7 @@ public class MealCrawlProperties {
     private int translationBatchSize = 10;
     private Integer translationRetryBatchSize;
     private int translationMaxAttemptCount = 3;
+    private MenuImage menuImage = new MenuImage();
 
     private List<String> translationTargetLanguages = List.of("en");
     private RiskPolicy riskPolicy = new RiskPolicy();
@@ -77,6 +79,22 @@ public class MealCrawlProperties {
         private java.math.BigDecimal cautionThreshold = new java.math.BigDecimal("0.50");
         private java.math.BigDecimal dangerThreshold = new java.math.BigDecimal("0.80");
         private String defaultWhenConfidenceMissing = "SAFE";
+    }
+
+    @Getter
+    @Setter
+    public static class MenuImage {
+        private long maxFileSizeBytes = 10 * 1024 * 1024;
+        private List<String> allowedContentTypes = List.of("image/jpeg", "image/png", "image/webp");
+        private Firebase firebase = new Firebase();
+    }
+
+    @Getter
+    @Setter
+    public static class Firebase {
+        private boolean enabled = false;
+        private String bucketName;
+        private String credentialsPath;
     }
 }
 

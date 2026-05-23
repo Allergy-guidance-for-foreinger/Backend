@@ -13,10 +13,12 @@ import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMealCrawlRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMealCrawlResponse;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuImageAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
+import org.springframework.web.multipart.MultipartFile;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import org.junit.jupiter.api.Test;
 
@@ -136,6 +138,11 @@ class MealCrawlOrchestrationServiceTest {
         @Override
         public PythonMenuTranslationResponse translateMenus(PythonMenuTranslationRequest request) {
             return new PythonMenuTranslationResponse(List.of());
+        }
+
+        @Override
+        public PythonMenuImageAnalysisResponse analyzeImage(MultipartFile image) {
+            return new PythonMenuImageAnalysisResponse(List.of());
         }
     }
 
