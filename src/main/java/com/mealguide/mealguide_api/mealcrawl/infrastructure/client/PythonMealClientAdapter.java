@@ -10,13 +10,19 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResultDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuImageAnalysisResponse;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuImageAnalysisResultDto;
+import org.springframework.core.io.ByteArrayResource;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -143,6 +149,54 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
         }
     }
 
+    @Override
+    public PythonMenuImageAnalysisResponse analyzeImage(MultipartFile image) {
+        try {
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("image", new NamedByteArrayResource(image.getBytes(), image.getOriginalFilename()));
+
+            PythonMenuImageAnalysisEnvelope response = restClient.post()
+                    .uri(mealCrawlProperties.getImageAnalysisPath())
+                    .contentType(org.springframework.http.MediaType.MULTIPART_FORM_DATA)
+                    .body(body)
+                    .retrieve()
+                    .body(PythonMenuImageAnalysisEnvelope.class);
+
+            if (response == null) {
+                throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR);
+            }
+
+            List<PythonMenuImageAnalysisResultDto> results = response.data() == null ? List.of() : response.data().results();
+            return new PythonMenuImageAnalysisResponse(results == null ? List.of() : results);
+        } catch (RestClientResponseException exception) {
+            int status = exception.getStatusCode().value();
+            boolean retryable = isRetryableStatus(status);
+            throw new PythonMealClientException(
+                    "Python image analysis request failed: status=" + status,
+                    status,
+                    exception.getResponseBodyAsString(),
+                    retryable,
+                    exception
+            );
+        } catch (ResourceAccessException exception) {
+            throw new PythonMealClientException(
+                    "Python image analysis request failed: resource access error",
+                    null,
+                    null,
+                    false,
+                    exception
+            );
+        } catch (Exception exception) {
+            throw new PythonMealClientException(
+                    "Python image analysis request failed",
+                    null,
+                    null,
+                    true,
+                    exception
+            );
+        }
+    }
+
     private record PythonMenuTranslationEnvelope(
             List<PythonMenuTranslationResultDto> results,
             PythonMenuTranslationEnvelopeData data
@@ -152,6 +206,33 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
     private record PythonMenuTranslationEnvelopeData(
             List<PythonMenuTranslationResultDto> results
     ) {
+    }
+
+    private record PythonMenuImageAnalysisEnvelope(
+            boolean success,
+            String code,
+            String msg,
+            PythonMenuImageAnalysisEnvelopeData data
+    ) {
+    }
+
+    private record PythonMenuImageAnalysisEnvelopeData(
+            List<PythonMenuImageAnalysisResultDto> results
+    ) {
+    }
+
+    private static final class NamedByteArrayResource extends ByteArrayResource {
+        private final String filename;
+
+        private NamedByteArrayResource(byte[] byteArray, String filename) {
+            super(byteArray);
+            this.filename = filename == null ? "image" : filename;
+        }
+
+        @Override
+        public String getFilename() {
+            return filename;
+        }
     }
 
     private boolean isRetryableStatus(int status) {

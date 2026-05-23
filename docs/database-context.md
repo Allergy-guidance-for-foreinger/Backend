@@ -63,3 +63,8 @@
 - Status model uses `SUCCESS` and `FAILED` with `attempt_count` (latest-row upsert per `(menu_id, lang_code)`).
 - Retry selection uses latest `FAILED` records with `attempt_count < max_attempt_count`.
 - `menu_translation` remains as final translated value storage, while retry-state is tracked in `menu_translation_analysis`.
+
+## 13. Menu image analysis log (2026-05-22)
+- Added `menu_image_analysis_log` for image-based analysis request tracking.
+- Stores `image_storage_path` (Firebase object path only), `status`, `result_source`, identified food summary, optional `fallback_result` JSONB, and `error_code`.
+- `fallback_result` is used only when identified food is not mapped to existing `menu`.

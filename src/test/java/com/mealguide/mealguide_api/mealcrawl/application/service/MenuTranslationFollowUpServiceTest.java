@@ -17,10 +17,12 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResultDto;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuImageAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationTargetDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonTranslatedMenuNameDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -112,6 +114,11 @@ class MenuTranslationFollowUpServiceTest {
         public PythonMenuTranslationResponse translateMenus(PythonMenuTranslationRequest request) {
             this.lastTranslationRequest = request;
             return translationResponse;
+        }
+
+        @Override
+        public PythonMenuImageAnalysisResponse analyzeImage(MultipartFile image) {
+            return new PythonMenuImageAnalysisResponse(List.of());
         }
     }
 

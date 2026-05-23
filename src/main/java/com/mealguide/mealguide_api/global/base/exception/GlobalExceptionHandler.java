@@ -2,6 +2,7 @@ package com.mealguide.mealguide_api.global.base.exception;
 
 import com.mealguide.mealguide_api.global.base.dto.ResponseBody;
 import com.mealguide.mealguide_api.global.base.dto.ResponseUtils;
+import com.mealguide.mealguide_api.global.base.dto.FailedResponseBody;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,12 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = e.getErrorCode();
         return ResponseEntity.status(errorCode.getStatus())
                 .body(ResponseUtils.createFailureResponse(errorCode));
+    }
+
+    @ExceptionHandler(ExternalApiException.class)
+    public ResponseEntity<ResponseBody<Void>> handleExternalApiException(ExternalApiException e) {
+        return ResponseEntity.status(e.getStatus())
+                .body(new FailedResponseBody(e.getCode(), e.getMsg()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
