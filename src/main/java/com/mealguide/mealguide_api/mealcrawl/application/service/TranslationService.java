@@ -26,6 +26,9 @@ public class TranslationService {
         try {
             String normalizedSourceLang = normalizeLanguageCode(sourceLang);
             String normalizedTargetLang = normalizeLanguageCode(targetLang);
+            if (normalizedSourceLang != null && normalizedSourceLang.equals(normalizedTargetLang)) {
+                return new TranslationResponse(text);
+            }
             PythonTextTranslationResponse response = pythonMealClientPort.translateText(
                     new PythonTextTranslationRequest(normalizedSourceLang, normalizedTargetLang, text)
             );
