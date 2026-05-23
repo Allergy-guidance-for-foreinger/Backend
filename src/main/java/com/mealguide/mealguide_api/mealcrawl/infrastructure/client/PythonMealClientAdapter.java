@@ -12,9 +12,9 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuImageAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuImageAnalysisResultDto;
-import org.springframework.core.io.ByteArrayResource;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -153,7 +153,7 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
     public PythonMenuImageAnalysisResponse analyzeImage(MultipartFile image) {
         try {
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("image", new NamedByteArrayResource(image.getBytes(), image.getOriginalFilename()));
+            body.add("image", image.getResource());
 
             PythonMenuImageAnalysisEnvelope response = restClient.post()
                     .uri(mealCrawlProperties.getImageAnalysisPath())
@@ -164,6 +164,17 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
 
             if (response == null) {
                 throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR);
+            }
+            if (!response.success()) {
+                String code = response.code() == null || response.code().isBlank() ? "PYM_500" : response.code();
+                String msg = response.msg() == null || response.msg().isBlank() ? "Python image analysis failed." : response.msg();
+                throw new PythonMealClientException(
+                        "Python image analysis request failed: business failure",
+                        HttpStatus.BAD_GATEWAY.value(),
+                        "{\"code\":\"" + code + "\",\"msg\":\"" + msg + "\"}",
+                        false,
+                        null
+                );
             }
 
             List<PythonMenuImageAnalysisResultDto> results = response.data() == null ? List.of() : response.data().results();
@@ -186,7 +197,7 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
                     false,
                     exception
             );
-        } catch (Exception exception) {
+        } catch (RestClientException exception) {
             throw new PythonMealClientException(
                     "Python image analysis request failed",
                     null,
@@ -219,20 +230,6 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
     private record PythonMenuImageAnalysisEnvelopeData(
             List<PythonMenuImageAnalysisResultDto> results
     ) {
-    }
-
-    private static final class NamedByteArrayResource extends ByteArrayResource {
-        private final String filename;
-
-        private NamedByteArrayResource(byte[] byteArray, String filename) {
-            super(byteArray);
-            this.filename = filename == null ? "image" : filename;
-        }
-
-        @Override
-        public String getFilename() {
-            return filename;
-        }
     }
 
     private boolean isRetryableStatus(int status) {

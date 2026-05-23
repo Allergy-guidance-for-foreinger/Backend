@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class FirebaseMenuImageStorageAdapter implements MenuImageStoragePort {
 
     private final MealCrawlProperties properties;
+    private volatile Storage storage;
 
     public FirebaseMenuImageStorageAdapter(MealCrawlProperties properties) {
         this.properties = properties;
@@ -31,17 +33,11 @@ public class FirebaseMenuImageStorageAdapter implements MenuImageStoragePort {
             String extension = resolveExtension(imageFile.getOriginalFilename(), imageFile.getContentType());
             String objectPath = buildObjectPath(userId, extension);
             String bucket = properties.getMenuImage().getFirebase().getBucketName();
-            String credentialsPath = properties.getMenuImage().getFirebase().getCredentialsPath();
-
-            Storage storage = StorageOptions.newBuilder()
-                    .setCredentials(GoogleCredentials.fromStream(new FileInputStream(credentialsPath)))
-                    .build()
-                    .getService();
 
             BlobInfo blobInfo = BlobInfo.newBuilder(bucket, objectPath)
                     .setContentType(imageFile.getContentType())
                     .build();
-            storage.create(blobInfo, imageFile.getBytes());
+            getOrCreateStorage().create(blobInfo, imageFile.getInputStream());
             return objectPath;
         } catch (IOException e) {
             throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR, e);
@@ -59,5 +55,30 @@ public class FirebaseMenuImageStorageAdapter implements MenuImageStoragePort {
 
     String buildObjectPath(Long userId, String extension) {
         return "menu-analysis/" + userId + "/" + UUID.randomUUID() + "." + extension;
+    }
+
+    private Storage createStorage(String credentialsPath) {
+        try (InputStream inputStream = new FileInputStream(credentialsPath)) {
+            return StorageOptions.newBuilder()
+                    .setCredentials(GoogleCredentials.fromStream(inputStream))
+                    .build()
+                    .getService();
+        } catch (IOException e) {
+            throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR, e);
+        }
+    }
+
+    private Storage getOrCreateStorage() {
+        Storage local = storage;
+        if (local != null) {
+            return local;
+        }
+        synchronized (this) {
+            if (storage == null) {
+                String credentialsPath = properties.getMenuImage().getFirebase().getCredentialsPath();
+                storage = createStorage(credentialsPath);
+            }
+            return storage;
+        }
     }
 }

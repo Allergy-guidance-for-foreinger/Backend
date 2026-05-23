@@ -59,9 +59,14 @@ public class MenuImageAnalysisService {
         PythonMenuImageAnalysisResultDto identified = identifyImageOrFail(log, image);
         String identifiedName = identified.identifiedFoodName();
 
-        return menuJpaRepository.findFirstByName(identifiedName)
-                .map(menu -> handleKnownMenu(log, preference, identified, menu))
-                .orElseGet(() -> handleUnknownMenu(log, preference, identified));
+        try {
+            return menuJpaRepository.findFirstByName(identifiedName)
+                    .map(menu -> handleKnownMenu(log, preference, identified, menu))
+                    .orElseGet(() -> handleUnknownMenu(log, preference, identified));
+        } catch (RuntimeException e) {
+            failLog(log.getId(), "COM_001");
+            throw e;
+        }
     }
 
     private MenuImageAnalysisResponse handleKnownMenu(MenuImageAnalysisLog log, CurrentUserMealPreference preference, PythonMenuImageAnalysisResultDto identified, Menu menu) {
@@ -194,6 +199,7 @@ public class MenuImageAnalysisService {
 
         List<MenuImageAnalysisResponse.MenuIngredientResponse> ingredientResponses = new ArrayList<>();
         for (PythonMenuIngredientResultDto ingredient : ingredients) {
+            if (ingredient == null) continue;
             String code = ingredient.ingredientCode();
             if (code == null || code.isBlank()) continue;
             ingredientResponses.add(new MenuImageAnalysisResponse.MenuIngredientResponse(code, ingredientNames.getOrDefault(code, code)));
@@ -203,6 +209,7 @@ public class MenuImageAnalysisService {
         List<MenuImageAnalysisResponse.MatchedAllergyResponse> matchedAllergies = new ArrayList<>();
         Set<String> userAllergies = new HashSet<>(preference.allergyCodes() == null ? List.of() : preference.allergyCodes());
         for (PythonMenuAllergyResultDto allergy : allergies) {
+            if (allergy == null) continue;
             String code = allergy.allergyCode();
             if (code == null || code.isBlank()) continue;
             String name = allergyNames.getOrDefault(code, code);
@@ -287,8 +294,15 @@ public class MenuImageAnalysisService {
     private RuntimeException mapPythonException(PythonMealClientException e) {
         String code = extractErrorCode(e.getResponseBody());
         String msg = extractErrorMessage(e.getResponseBody());
+        HttpStatus status = HttpStatus.BAD_GATEWAY;
+        if (e.getHttpStatus() != null) {
+            HttpStatus resolved = HttpStatus.resolve(e.getHttpStatus());
+            if (resolved != null) {
+                status = resolved;
+            }
+        }
         return new ExternalApiException(
-                e.getHttpStatus() == null ? HttpStatus.BAD_GATEWAY : HttpStatus.valueOf(e.getHttpStatus()),
+                status,
                 code == null ? "PYM_500" : code,
                 msg == null ? "Python API call failed." : msg
         );

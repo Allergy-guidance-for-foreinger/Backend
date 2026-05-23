@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ExternalApiException.class)
     public ResponseEntity<ResponseBody<Void>> handleExternalApiException(ExternalApiException e) {
         return ResponseEntity.status(e.getStatus())
-                .body(new FailedResponseBody(e.getCode(), e.getMsg()));
+                .body(new FailedResponseBody(e.getCode(), e.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
