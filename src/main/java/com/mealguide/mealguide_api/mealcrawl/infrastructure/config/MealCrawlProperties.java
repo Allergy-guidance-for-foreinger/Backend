@@ -23,6 +23,7 @@ public class MealCrawlProperties {
     private String analysisPath = "/api/v1/menus/analyze";
     private String imageAnalysisPath = "/api/v1/python/menus/analyze-image";
     private String translationPath = "/api/v1/menus/translate";
+    private String textTranslationPath = "/api/v1/translations";
     private long weeklyMealCacheTtlSeconds = 86400L;
     private int aiAnalysisBatchSize = 10;
     private Integer aiAnalysisRetryBatchSize;
