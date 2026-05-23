@@ -1,6 +1,5 @@
 package com.mealguide.mealguide_api.mealcrawl.presentation.controller;
 
-import com.mealguide.mealguide_api.global.auth.annotation.CurrentUserId;
 import com.mealguide.mealguide_api.global.base.dto.ResponseBody;
 import com.mealguide.mealguide_api.global.base.dto.ResponseUtils;
 import com.mealguide.mealguide_api.mealcrawl.application.service.TranslationService;
@@ -26,7 +25,6 @@ public class TranslationController implements TranslationApi {
 
     @PostMapping("/translations")
     public ResponseEntity<ResponseBody<TranslationResponse>> translate(
-            @CurrentUserId Long currentUserId,
             @Valid @RequestBody TranslationRequest request
     ) {
         TranslationResponse response = translationService.translate(

@@ -39,8 +39,18 @@ public class TranslationService {
     }
 
     private RuntimeException mapPythonException(PythonMealClientException e) {
-        String code = extractErrorCode(e.getResponseBody());
-        String msg = extractErrorMessage(e.getResponseBody());
+        String code = "PYM_500";
+        String msg = "Python API call failed.";
+        String responseBody = e.getResponseBody();
+        if (responseBody != null && !responseBody.isBlank()) {
+            try {
+                var node = objectMapper.readTree(responseBody);
+                code = node.path("code").asText(code);
+                msg = node.path("msg").asText(msg);
+            } catch (Exception ignored) {
+                // keep default code/message
+            }
+        }
         HttpStatus status = HttpStatus.BAD_GATEWAY;
         if (e.getHttpStatus() != null) {
             HttpStatus resolved = HttpStatus.resolve(e.getHttpStatus());
@@ -50,27 +60,9 @@ public class TranslationService {
         }
         return new ExternalApiException(
                 status,
-                code == null ? "PYM_500" : code,
-                msg == null ? "Python API call failed." : msg
+                (code == null || code.isBlank()) ? "PYM_500" : code,
+                (msg == null || msg.isBlank()) ? "Python API call failed." : msg
         );
-    }
-
-    private String extractErrorCode(String responseBody) {
-        if (responseBody == null || responseBody.isBlank()) return "PYM_500";
-        try {
-            return objectMapper.readTree(responseBody).path("code").asText("PYM_500");
-        } catch (Exception e) {
-            return "PYM_500";
-        }
-    }
-
-    private String extractErrorMessage(String responseBody) {
-        if (responseBody == null || responseBody.isBlank()) return null;
-        try {
-            return objectMapper.readTree(responseBody).path("msg").asText(null);
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     private String normalizeLanguageCode(String languageCode) {

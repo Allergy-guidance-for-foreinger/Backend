@@ -1,6 +1,5 @@
 package com.mealguide.mealguide_api.mealcrawl.presentation.swagger;
 
-import com.mealguide.mealguide_api.global.auth.annotation.CurrentUserId;
 import com.mealguide.mealguide_api.global.base.dto.ResponseBody;
 import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.config.swagger.SwaggerApiFailedResponse;
@@ -30,7 +29,6 @@ public interface TranslationApi {
             }
     )
     ResponseEntity<ResponseBody<TranslationResponse>> translate(
-            @CurrentUserId Long currentUserId,
             @Valid @RequestBody TranslationRequest request
     );
 }
