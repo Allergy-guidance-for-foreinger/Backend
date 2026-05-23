@@ -16,6 +16,7 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.PythonMealCli
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMealCrawlRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonTextTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMealCrawlResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAllergyResultDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResponse;
@@ -24,6 +25,7 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuImageAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuIngredientResultDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonTextTranslationResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.multipart.MultipartFile;
@@ -152,6 +154,11 @@ class MenuAiAnalysisFollowUpServiceTest {
         @Override
         public PythonMenuImageAnalysisResponse analyzeImage(MultipartFile image) {
             return new PythonMenuImageAnalysisResponse(List.of());
+        }
+
+        @Override
+        public PythonTextTranslationResponse translateText(PythonTextTranslationRequest request) {
+            return new PythonTextTranslationResponse("translated");
         }
     }
 

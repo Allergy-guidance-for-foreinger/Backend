@@ -3,7 +3,9 @@ package com.mealguide.mealguide_api.mealcrawl.infrastructure.client;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMealCrawlRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisTargetDto;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonTextTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMealCrawlResponse;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonTextTranslationResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
@@ -83,5 +85,36 @@ class PythonMealClientAdapterTest {
                 .isInstanceOf(PythonMealClientException.class)
                 .hasMessageContaining("analysis request failed")
                 .hasCauseInstanceOf(ResourceAccessException.class);
+    }
+
+    @Test
+    void translateTextMapsRequestAndResponse() {
+        RestClient.Builder builder = mock(RestClient.Builder.class);
+        RestClient restClient = mock(RestClient.class);
+        RestClient.RequestBodyUriSpec uriSpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec bodySpec = mock(RestClient.RequestBodySpec.class);
+        RestClient.ResponseSpec responseSpec = mock(RestClient.ResponseSpec.class);
+
+        MealCrawlProperties properties = new MealCrawlProperties();
+        properties.setPythonBaseUrl("http://python");
+        properties.setTextTranslationPath("/api/v1/translations");
+
+        PythonTextTranslationRequest request = new PythonTextTranslationRequest("ko", "en", "안녕하세요");
+        PythonTextTranslationResponse expected = new PythonTextTranslationResponse("hello");
+
+        when(builder.baseUrl("http://python")).thenReturn(builder);
+        when(builder.build()).thenReturn(restClient);
+        when(restClient.post()).thenReturn(uriSpec);
+        when(uriSpec.uri("/api/v1/translations")).thenReturn(bodySpec);
+        when(bodySpec.body(request)).thenReturn(bodySpec);
+        when(bodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(PythonTextTranslationResponse.class)).thenReturn(expected);
+
+        PythonMealClientAdapter adapter = new PythonMealClientAdapter(builder, properties);
+        PythonTextTranslationResponse actual = adapter.translateText(request);
+
+        assertThat(actual).isEqualTo(expected);
+        verify(bodySpec).body(request);
+        verify(responseSpec).body(PythonTextTranslationResponse.class);
     }
 }

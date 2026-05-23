@@ -7,6 +7,8 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuImageAnalysisResponse;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonTextTranslationRequest;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonTextTranslationResponse;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface PythonMealClientPort {
@@ -17,6 +19,8 @@ public interface PythonMealClientPort {
     PythonMenuTranslationResponse translateMenus(PythonMenuTranslationRequest request);
 
     PythonMenuImageAnalysisResponse analyzeImage(MultipartFile image);
+
+    PythonTextTranslationResponse translateText(PythonTextTranslationRequest request);
 }
 
 

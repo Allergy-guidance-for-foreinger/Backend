@@ -1660,3 +1660,72 @@ iskLevel only), allergy risk source changed internally.
 - API behavior changed: No
 - Related docs updated:
   - `docs/work-log/general-work-log.md`
+
+## 2026-05-23 (user text translation API added with existing mealcrawl Python client)
+- What changed:
+  - Added `POST /api/v1/translations` user API in mealcrawl presentation layer.
+  - Added request/response DTOs for text translation:
+    - `TranslationRequest { sourceLang, targetLang, text }`
+    - `TranslationResponse { translatedText }`
+  - Added `TranslationService` to orchestrate synchronous text translation call using existing `PythonMealClientPort`.
+  - Extended existing Python client contract:
+    - `PythonMealClientPort.translateText(PythonTextTranslationRequest)`
+    - `PythonMealClientAdapter.translateText(...)` implementation
+  - Added new Python client DTOs:
+    - `PythonTextTranslationRequest`
+    - `PythonTextTranslationResponse`
+  - Added mealcrawl property for text translation path:
+    - `mealguide.mealcrawl.text-translation-path` (`MEAL_CRAWL_TEXT_TRANSLATION_PATH`, default `/api/v1/translations`)
+  - Added Swagger interface `TranslationApi` and controller `TranslationController` with auth-required policy aligned to existing user mealcrawl APIs.
+- Why:
+  - Provide immediate user text translation API while reusing existing Java->Python integration boundary in mealcrawl and existing external API exception propagation flow.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/controller/TranslationController.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/swagger/TranslationApi.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/dto/request/TranslationRequest.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/dto/response/TranslationResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/TranslationService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/PythonMealClientPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/request/PythonTextTranslationRequest.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonTextTranslationResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/config/MealCrawlProperties.java`
+  - `src/main/resources/application.properties`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/TranslationServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapterTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlOrchestrationServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: Yes (new endpoint only)
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Add controller security/integration test for `POST /api/v1/translations` request validation and auth behavior.
+
+## 2026-05-23 (translation API language code-only validation with enum)
+- What changed:
+  - Added `TranslationLanguageCode` enum (`ko`, `en`) to manage allowed translation language codes centrally.
+  - Added custom bean validation annotation/validator:
+    - `@ValidTranslationLanguageCode`
+    - `TranslationLanguageCodeValidator`
+  - Applied validator to `TranslationRequest.sourceLang` and `TranslationRequest.targetLang`.
+  - Updated `TranslationRequest` Swagger descriptions to explicitly document `code only: ko, en`.
+  - Added language code normalization (`trim + lower-case`) in `TranslationService` before Python API call.
+- Why:
+  - Enforce a clear server-side policy that translation language input must be language code only, and reject non-code values as request validation errors.
+  - Keep downstream Python integration stable by always sending normalized standard codes.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/TranslationLanguageCode.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/validation/ValidTranslationLanguageCode.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/validation/TranslationLanguageCodeValidator.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/dto/request/TranslationRequest.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/TranslationService.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: Yes (`POST /api/v1/translations` now rejects non-supported language values at request validation stage)
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Add controller-level request validation tests for invalid `sourceLang`/`targetLang` cases.

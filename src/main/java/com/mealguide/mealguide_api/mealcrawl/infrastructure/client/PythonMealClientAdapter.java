@@ -12,6 +12,8 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuImageAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuImageAnalysisResultDto;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonTextTranslationRequest;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonTextTranslationResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -200,6 +202,48 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
         } catch (RestClientException exception) {
             throw new PythonMealClientException(
                     "Python image analysis request failed",
+                    null,
+                    null,
+                    true,
+                    exception
+            );
+        }
+    }
+
+    @Override
+    public PythonTextTranslationResponse translateText(PythonTextTranslationRequest request) {
+        try {
+            PythonTextTranslationResponse response = restClient.post()
+                    .uri(mealCrawlProperties.getTextTranslationPath())
+                    .body(request)
+                    .retrieve()
+                    .body(PythonTextTranslationResponse.class);
+
+            if (response == null) {
+                throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR);
+            }
+            return response;
+        } catch (RestClientResponseException exception) {
+            int status = exception.getStatusCode().value();
+            boolean retryable = isRetryableStatus(status);
+            throw new PythonMealClientException(
+                    "Python text translation request failed: status=" + status,
+                    status,
+                    exception.getResponseBodyAsString(),
+                    retryable,
+                    exception
+            );
+        } catch (ResourceAccessException exception) {
+            throw new PythonMealClientException(
+                    "Python text translation request failed: resource access error",
+                    null,
+                    null,
+                    false,
+                    exception
+            );
+        } catch (RestClientException exception) {
+            throw new PythonMealClientException(
+                    "Python text translation request failed",
                     null,
                     null,
                     true,
