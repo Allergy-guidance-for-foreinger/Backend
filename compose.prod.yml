@@ -7,6 +7,8 @@ services:
     container_name: mealguide-app-prod
     env_file:
       - .env.prod
+    volumes:
+      - "${MEAL_CRAWL_FIREBASE_CREDENTIALS_HOST_PATH:-/home/ec2-user/secrets/firebase-service-account.json}:${MEAL_CRAWL_FIREBASE_CREDENTIALS_PATH:-/app/secrets/firebase-service-account.json}:ro"
     depends_on:
       postgres:
           condition: service_healthy
