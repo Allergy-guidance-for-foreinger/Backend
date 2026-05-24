@@ -18,7 +18,7 @@ public interface PythonMealClientPort {
 
     PythonMenuTranslationResponse translateMenus(PythonMenuTranslationRequest request);
 
-    PythonMenuImageAnalysisResponse analyzeImage(MultipartFile image);
+    PythonMenuImageAnalysisResponse analyzeImage(MultipartFile image, String langCode);
 
     PythonTextTranslationResponse translateText(PythonTextTranslationRequest request);
 }

@@ -6,6 +6,56 @@
 
 ## 최근 공통 작업
 
+### 2026-05-24 (menu image analysis language-aware response + python call reduction)
+- What changed:
+  - Kept image analysis user API contract as multipart `image` only.
+  - Changed image analysis language handling to server-driven user preference (`CurrentUserMealPreference.languageCode`) with `en` fallback.
+  - Extended Java->Python image analysis call to include `langCode` multipart field (`PythonMealClientPort/Adapter` signature update).
+  - Extended Python image analysis result DTO to support:
+    - `identifiedFoodKoreanName`
+    - `identifiedFoodTranslationName`
+    - `identifiedFoodPronunciationName`
+    - internal `analysisLogId` for service-side response assembly tracking
+  - Removed extra identified-name translation follow-up path in `MenuImageAnalysisService` (no additional Python translation request for identified food name).
+  - Changed menu existence matching key to Korean identified name, and response now exposes Korean/translated/pronunciation identified names separately.
+  - Added pronunciation name to API response DTO (`MenuImageAnalysisResponse`) as response-only field.
+  - Extended `menu_image_analysis_log` entity/schema docs with:
+    - `identified_food_korean_name`
+    - `identified_food_translation_name`
+    - (pronunciation is not persisted)
+  - Updated test stubs and response constructor usage affected by interface/DTO changes.
+- Why:
+  - Reduce Python API over-calls during image analysis by removing secondary translation call.
+  - Keep client request unchanged while returning language-appropriate identified food name automatically.
+  - Preserve menu matching accuracy using Korean canonical name.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuImageAnalysisService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/PythonMealClientPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/dto/response/PythonMenuImageAnalysisResultDto.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/dto/response/MenuImageAnalysisResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/domain/MenuImageAnalysisLog.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/presentation/controller/MenuImageAnalysisControllerSecurityTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuImageAnalysisServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuTranslationFollowUpServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlOrchestrationServiceTest.java`
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: Yes (`menu_image_analysis_log` new columns in schema docs)
+- API behavior changed:
+  - Request contract unchanged.
+  - Response includes `identifiedFoodPronunciationName`.
+  - Identified name language selection now follows user preference without additional translation call.
+- Related docs updated:
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Python API must provide new identified-name fields for full effect.
+  - Run targeted tests in local environment to validate end-to-end response mapping.
+
 ### 2026-04-28 (dev/prod 모니터링 패리티 + 운영 강도 분리)
 - What changed:
   - Prometheus 수집을 위해 `micrometer-registry-prometheus` 의존성을 추가했다.

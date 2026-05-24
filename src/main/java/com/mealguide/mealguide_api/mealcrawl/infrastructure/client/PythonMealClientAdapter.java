@@ -152,10 +152,11 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
     }
 
     @Override
-    public PythonMenuImageAnalysisResponse analyzeImage(MultipartFile image) {
+    public PythonMenuImageAnalysisResponse analyzeImage(MultipartFile image, String langCode) {
         try {
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("image", image.getResource());
+            body.add("language", langCode);
 
             PythonMenuImageAnalysisEnvelope response = restClient.post()
                     .uri(mealCrawlProperties.getImageAnalysisPath())

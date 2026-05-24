@@ -13,8 +13,6 @@ import com.mealguide.mealguide_api.mealcrawl.domain.*;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.PythonMealClientException;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisTargetDto;
-import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
-import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationTargetDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.*;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.repository.MenuAiAnalysisJpaRepository;
@@ -50,52 +48,53 @@ public class MenuImageAnalysisService {
 
     public MenuImageAnalysisResponse analyze(Long userId, MultipartFile image) {
         CurrentUserMealPreference preference = mealUserPreferencePort.getCurrentUserMealPreference(userId);
+        String lang = normalizeLanguageCode(preference.languageCode());
         MenuImageAnalysisLog log = createProcessingLog(userId);
 
         validateFileOrFail(log, image);
         String storagePath = uploadOrFail(log, userId, image);
         saveStoragePath(log.getId(), storagePath);
 
-        PythonMenuImageAnalysisResultDto identified = identifyImageOrFail(log, image);
-        String identifiedName = identified.identifiedFoodName();
+        PythonMenuImageAnalysisResultDto identified = identifyImageOrFail(log, image, lang);
+        String identifiedKoreanName = resolveIdentifiedFoodKoreanName(identified);
 
         try {
-            return menuJpaRepository.findFirstByName(identifiedName)
-                    .map(menu -> handleKnownMenu(log, preference, identified, menu))
-                    .orElseGet(() -> handleUnknownMenu(log, preference, identified));
+            return menuJpaRepository.findFirstByName(identifiedKoreanName)
+                    .map(menu -> handleKnownMenu(log, preference, identified, menu, lang))
+                    .orElseGet(() -> handleUnknownMenu(log, preference, identified, lang));
         } catch (RuntimeException e) {
             failLog(log.getId(), "COM_001");
             throw e;
         }
     }
 
-    private MenuImageAnalysisResponse handleKnownMenu(MenuImageAnalysisLog log, CurrentUserMealPreference preference, PythonMenuImageAnalysisResultDto identified, Menu menu) {
+    private MenuImageAnalysisResponse handleKnownMenu(MenuImageAnalysisLog log, CurrentUserMealPreference preference, PythonMenuImageAnalysisResultDto identified, Menu menu, String lang) {
         Optional<MenuAiAnalysis> latest = menuAiAnalysisJpaRepository.findLatestByMenuId(menu.getId()).stream()
                 .filter(a -> a.getStatus() == MenuAiStatus.SUCCESS)
                 .findFirst();
         if (latest.isPresent()) {
-            MenuImageAnalysisResponse response = assembleFromStored(preference, log.getId(), identified, latest.get(), menu.getId(), MenuImageAnalysisResponse.MenuImageAnalysisResultSource.STORED_AI_ANALYSIS);
+            MenuImageAnalysisResponse response = assembleFromStored(preference, identified, latest.get(), menu.getId(), MenuImageAnalysisResponse.MenuImageAnalysisResultSource.STORED_AI_ANALYSIS, lang);
             markSuccess(log.getId(), MenuImageAnalysisResultSource.STORED_AI_ANALYSIS, identified, null);
             return response;
         }
 
         PythonMenuAnalysisResultDto live = analyzeSingleMenu(menu.getId(), menu.getName());
         saveLiveKnownMenu(menu.getId(), live);
-        MenuImageAnalysisResponse response = assembleFromLive(preference, log.getId(), identified, live, MenuImageAnalysisResponse.MenuImageAnalysisResultSource.LIVE_AI_ANALYSIS);
+        MenuImageAnalysisResponse response = assembleFromLive(preference, identified, live, MenuImageAnalysisResponse.MenuImageAnalysisResultSource.LIVE_AI_ANALYSIS, lang);
         markSuccess(log.getId(), MenuImageAnalysisResultSource.LIVE_AI_ANALYSIS, identified, null);
         return response;
     }
 
-    private MenuImageAnalysisResponse handleUnknownMenu(MenuImageAnalysisLog log, CurrentUserMealPreference preference, PythonMenuImageAnalysisResultDto identified) {
+    private MenuImageAnalysisResponse handleUnknownMenu(MenuImageAnalysisLog log, CurrentUserMealPreference preference, PythonMenuImageAnalysisResultDto identified, String lang) {
         long tempMenuId = -log.getId();
-        PythonMenuAnalysisResultDto live = analyzeSingleMenu(tempMenuId, identified.identifiedFoodName());
+        PythonMenuAnalysisResultDto live = analyzeSingleMenu(tempMenuId, resolveIdentifiedFoodKoreanName(identified));
         String fallbackJson;
         try {
             fallbackJson = objectMapper.writeValueAsString(live);
         } catch (Exception e) {
             fallbackJson = null;
         }
-        MenuImageAnalysisResponse response = assembleFromLive(preference, log.getId(), identified, live, MenuImageAnalysisResponse.MenuImageAnalysisResultSource.LIVE_AI_ANALYSIS);
+        MenuImageAnalysisResponse response = assembleFromLive(preference, identified, live, MenuImageAnalysisResponse.MenuImageAnalysisResultSource.LIVE_AI_ANALYSIS, lang);
         markSuccess(log.getId(), MenuImageAnalysisResultSource.LIVE_AI_ANALYSIS, identified, fallbackJson);
         return response;
     }
@@ -177,23 +176,23 @@ public class MenuImageAnalysisService {
         return out;
     }
 
-    private MenuImageAnalysisResponse assembleFromStored(CurrentUserMealPreference preference, Long logId, PythonMenuImageAnalysisResultDto identified, MenuAiAnalysis analysis, Long menuId, MenuImageAnalysisResponse.MenuImageAnalysisResultSource source) {
+    private MenuImageAnalysisResponse assembleFromStored(CurrentUserMealPreference preference, PythonMenuImageAnalysisResultDto identified, MenuAiAnalysis analysis, Long menuId, MenuImageAnalysisResponse.MenuImageAnalysisResultSource source, String lang) {
         List<PythonMenuIngredientResultDto> ingredients = loadStoredIngredients(analysis.getId());
         List<PythonMenuAllergyResultDto> allergies = loadStoredAllergies(analysis.getId());
         Long spicyLevel = loadMenuSpicyLevel(menuId);
-        return assemble(preference, logId, identified, source, spicyLevel, ingredients, allergies, menuId);
+        return assemble(preference, identified, source, spicyLevel, ingredients, allergies, lang);
     }
 
-    private MenuImageAnalysisResponse assembleFromLive(CurrentUserMealPreference preference, Long logId, PythonMenuImageAnalysisResultDto identified, PythonMenuAnalysisResultDto live, MenuImageAnalysisResponse.MenuImageAnalysisResultSource source) {
-        return assemble(preference, logId, identified, source, live.spicyLevel(), safeIngredients(live.ingredients()), safeAllergies(live.allergies()), live.menuId());
+    private MenuImageAnalysisResponse assembleFromLive(CurrentUserMealPreference preference, PythonMenuImageAnalysisResultDto identified, PythonMenuAnalysisResultDto live, MenuImageAnalysisResponse.MenuImageAnalysisResultSource source, String lang) {
+        return assemble(preference, identified, source, live.spicyLevel(), safeIngredients(live.ingredients()), safeAllergies(live.allergies()), lang);
     }
 
     private List<PythonMenuIngredientResultDto> safeIngredients(List<PythonMenuIngredientResultDto> ingredients) { return ingredients == null ? List.of() : ingredients; }
     private List<PythonMenuAllergyResultDto> safeAllergies(List<PythonMenuAllergyResultDto> allergies) { return allergies == null ? List.of() : allergies; }
 
-    private MenuImageAnalysisResponse assemble(CurrentUserMealPreference preference, Long logId, PythonMenuImageAnalysisResultDto identified, MenuImageAnalysisResponse.MenuImageAnalysisResultSource source, Long spicyLevel, List<PythonMenuIngredientResultDto> ingredients, List<PythonMenuAllergyResultDto> allergies, Long translationMenuId) {
-        String lang = preference.languageCode() == null ? "en" : preference.languageCode();
-        String identifiedName = translateIdentifiedIfNeeded(lang, identified.identifiedFoodName(), translationMenuId);
+    private MenuImageAnalysisResponse assemble(CurrentUserMealPreference preference, PythonMenuImageAnalysisResultDto identified, MenuImageAnalysisResponse.MenuImageAnalysisResultSource source, Long spicyLevel, List<PythonMenuIngredientResultDto> ingredients, List<PythonMenuAllergyResultDto> allergies, String lang) {
+        String identifiedKoreanName = resolveIdentifiedFoodKoreanName(identified);
+        String identifiedTranslationName = resolveIdentifiedFoodTranslationName(identified);
         Map<String, String> ingredientNames = loadIngredientNames(lang, extractIngredientCodes(ingredients));
         Map<String, String> allergyNames = loadAllergyNames(lang, extractAllergyCodes(allergies));
 
@@ -223,9 +222,11 @@ public class MenuImageAnalysisService {
 
         List<MenuImageAnalysisResponse.MatchedReligiousIngredientResponse> religious = mapReligious(preference, lang, ingredients, ingredientNames);
         return new MenuImageAnalysisResponse(
-                logId,
+                identified.analysisLogId(),
                 source,
-                identifiedName,
+                identifiedKoreanName,
+                identifiedTranslationName,
+                identified.identifiedFoodPronunciationName(),
                 identified.identifiedFoodNameReason(),
                 identified.confidence(),
                 spicyLevel,
@@ -256,34 +257,14 @@ public class MenuImageAnalysisService {
         return responses;
     }
 
-    private String translateIdentifiedIfNeeded(String lang, String defaultName, Long menuId) {
-        if (menuId != null && menuId > 0) {
-            Map<Long, String> names = mealCrawlPersistencePort.findMenuNamesByIds(Set.of(menuId));
-            if (names.containsKey(menuId)) {
-                String sql = "select name from menu_translation where menu_id=:menuId and lang_code=:lang";
-                List<String> rows = jdbc.query(sql, new MapSqlParameterSource().addValue("menuId", menuId).addValue("lang", lang), (rs, rowNum) -> rs.getString("name"));
-                if (!rows.isEmpty()) return rows.getFirst();
-            }
-        }
-        if ("ko".equalsIgnoreCase(lang) || menuId == null) return defaultName;
-        PythonMenuTranslationResponse response = pythonMealClientPort.translateMenus(new PythonMenuTranslationRequest(
-                List.of(new PythonMenuTranslationTargetDto(menuId, defaultName)),
-                List.of(lang)
-        ));
-        if (response.results() == null || response.results().isEmpty()) return defaultName;
-        PythonMenuTranslationResultDto first = response.results().getFirst();
-        if (first.translations() == null || first.translations().isEmpty()) return defaultName;
-        return first.translations().getFirst().translatedName();
-    }
-
-    private PythonMenuImageAnalysisResultDto identifyImageOrFail(MenuImageAnalysisLog log, MultipartFile image) {
+    private PythonMenuImageAnalysisResultDto identifyImageOrFail(MenuImageAnalysisLog log, MultipartFile image, String langCode) {
         try {
-            PythonMenuImageAnalysisResponse response = pythonMealClientPort.analyzeImage(image);
+            PythonMenuImageAnalysisResponse response = pythonMealClientPort.analyzeImage(image, langCode);
             if (response == null || response.results() == null || response.results().isEmpty()) {
                 failLog(log.getId(), "COM_001");
                 throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR);
             }
-            return response.results().getFirst();
+            return withAnalysisLogId(response.results().getFirst(), log.getId());
         } catch (PythonMealClientException e) {
             String code = extractErrorCode(e.getResponseBody());
             failLog(log.getId(), code);
@@ -455,8 +436,51 @@ public class MenuImageAnalysisService {
     @Transactional
     protected void markSuccess(Long logId, MenuImageAnalysisResultSource source, PythonMenuImageAnalysisResultDto identified, String fallbackJson) {
         MenuImageAnalysisLog log = logRepository.findById(logId).orElseThrow(() -> new ServiceException(ErrorCode.BINDING_ERROR));
-        log.markSuccess(source, identified.identifiedFoodName(), identified.confidence(), identified.identifiedFoodNameReason(), fallbackJson);
+        log.markSuccess(
+                source,
+                resolveIdentifiedFoodKoreanName(identified),
+                resolveIdentifiedFoodKoreanName(identified),
+                resolveIdentifiedFoodTranslationName(identified),
+                identified.confidence(),
+                identified.identifiedFoodNameReason(),
+                fallbackJson
+        );
         logRepository.save(log);
+    }
+
+    private String normalizeLanguageCode(String languageCode) {
+        if (languageCode == null || languageCode.isBlank()) {
+            return "en";
+        }
+        return languageCode.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private PythonMenuImageAnalysisResultDto withAnalysisLogId(PythonMenuImageAnalysisResultDto identified, Long logId) {
+        return new PythonMenuImageAnalysisResultDto(
+                identified.identifiedFoodName(),
+                identified.identifiedFoodKoreanName(),
+                identified.identifiedFoodTranslationName(),
+                identified.identifiedFoodPronunciationName(),
+                identified.identifiedFoodNameReason(),
+                identified.confidence(),
+                identified.modelName(),
+                identified.modelVersion(),
+                logId
+        );
+    }
+
+    private String resolveIdentifiedFoodKoreanName(PythonMenuImageAnalysisResultDto identified) {
+        if (identified.identifiedFoodKoreanName() != null && !identified.identifiedFoodKoreanName().isBlank()) {
+            return identified.identifiedFoodKoreanName();
+        }
+        return identified.identifiedFoodName();
+    }
+
+    private String resolveIdentifiedFoodTranslationName(PythonMenuImageAnalysisResultDto identified) {
+        if (identified.identifiedFoodTranslationName() != null && !identified.identifiedFoodTranslationName().isBlank()) {
+            return identified.identifiedFoodTranslationName();
+        }
+        return identified.identifiedFoodName();
     }
 
     private record RestrictionMatch(String code, String name) {

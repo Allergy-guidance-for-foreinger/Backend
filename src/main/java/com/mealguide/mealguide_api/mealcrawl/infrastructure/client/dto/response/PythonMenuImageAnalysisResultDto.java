@@ -4,10 +4,14 @@ import java.math.BigDecimal;
 
 public record PythonMenuImageAnalysisResultDto(
         String identifiedFoodName,
+        String identifiedFoodKoreanName,
+        String identifiedFoodTranslationName,
+        String identifiedFoodPronunciationName,
         String identifiedFoodNameReason,
         BigDecimal confidence,
         String modelName,
-        String modelVersion
+        String modelVersion,
+        Long analysisLogId
 ) {
 }
 
