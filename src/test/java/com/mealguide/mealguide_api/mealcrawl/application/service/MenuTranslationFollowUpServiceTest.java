@@ -119,7 +119,7 @@ class MenuTranslationFollowUpServiceTest {
         }
 
         @Override
-        public PythonMenuImageAnalysisResponse analyzeImage(MultipartFile image) {
+        public PythonMenuImageAnalysisResponse analyzeImage(MultipartFile image, String langCode) {
             return new PythonMenuImageAnalysisResponse(List.of());
         }
 

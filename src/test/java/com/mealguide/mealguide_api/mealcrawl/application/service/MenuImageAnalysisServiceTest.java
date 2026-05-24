@@ -50,7 +50,7 @@ class MenuImageAnalysisServiceTest {
         MockMultipartFile file = new MockMultipartFile("image", "a.jpg", "image/jpeg", new byte[0]);
         assertThatThrownBy(() -> service.analyze(1L, file)).isInstanceOf(ServiceException.class);
         verify(storagePort, never()).upload(anyLong(), any());
-        verify(pythonPort, never()).analyzeImage(any());
+        verify(pythonPort, never()).analyzeImage(any(), anyString());
     }
 
     @Test
@@ -78,7 +78,7 @@ class MenuImageAnalysisServiceTest {
         MockMultipartFile file = new MockMultipartFile("image", "a.gif", "image/gif", new byte[]{1, 2});
         assertThatThrownBy(() -> service.analyze(1L, file)).isInstanceOf(ServiceException.class);
         verify(storagePort, never()).upload(anyLong(), any());
-        verify(pythonPort, never()).analyzeImage(any());
+        verify(pythonPort, never()).analyzeImage(any(), anyString());
     }
 
     @Test
@@ -106,6 +106,6 @@ class MenuImageAnalysisServiceTest {
 
         MockMultipartFile file = new MockMultipartFile("image", "a.jpg", "image/jpeg", new byte[]{1, 2});
         assertThatThrownBy(() -> service.analyze(1L, file)).isInstanceOf(ServiceException.class);
-        verify(pythonPort, never()).analyzeImage(any());
+        verify(pythonPort, never()).analyzeImage(any(), anyString());
     }
 }

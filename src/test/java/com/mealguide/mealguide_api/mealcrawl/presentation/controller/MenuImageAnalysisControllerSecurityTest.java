@@ -58,7 +58,9 @@ class MenuImageAnalysisControllerSecurityTest {
                 new MenuImageAnalysisResponse(
                         102L,
                         MenuImageAnalysisResponse.MenuImageAnalysisResultSource.LIVE_AI_ANALYSIS,
-                        "Pork",
+                        "제육볶음",
+                        "Spicy stir-fried pork",
+                        "je-yuk-bokkeum",
                         "reason",
                         new BigDecimal("0.81"),
                         3L,

@@ -37,6 +37,12 @@ public class MenuImageAnalysisLog {
     @Column(name = "identified_food_name", length = 200)
     private String identifiedFoodName;
 
+    @Column(name = "identified_food_korean_name", length = 200)
+    private String identifiedFoodKoreanName;
+
+    @Column(name = "identified_food_translation_name", length = 200)
+    private String identifiedFoodTranslationName;
+
     @Column(name = "image_confidence", precision = 5, scale = 2)
     private BigDecimal imageConfidence;
 
@@ -73,6 +79,8 @@ public class MenuImageAnalysisLog {
     public void markSuccess(
             MenuImageAnalysisResultSource resultSource,
             String identifiedFoodName,
+            String identifiedFoodKoreanName,
+            String identifiedFoodTranslationName,
             BigDecimal imageConfidence,
             String imageReason,
             String fallbackResult
@@ -80,6 +88,8 @@ public class MenuImageAnalysisLog {
         this.status = MenuImageAnalysisStatus.SUCCESS;
         this.resultSource = resultSource;
         this.identifiedFoodName = identifiedFoodName;
+        this.identifiedFoodKoreanName = identifiedFoodKoreanName;
+        this.identifiedFoodTranslationName = identifiedFoodTranslationName;
         this.imageConfidence = imageConfidence;
         this.imageReason = imageReason;
         this.fallbackResult = fallbackResult;

@@ -6,7 +6,9 @@ import java.util.List;
 public record MenuImageAnalysisResponse(
         Long analysisLogId,
         MenuImageAnalysisResultSource resultSource,
-        String identifiedFoodName,
+        String identifiedFoodKoreanName,
+        String identifiedFoodTranslationName,
+        String identifiedFoodPronunciationName,
         String identifiedFoodNameReason,
         BigDecimal imageConfidence,
         Long spicyLevel,

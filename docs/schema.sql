@@ -312,6 +312,8 @@ CREATE TABLE menu_image_analysis_log (
     status VARCHAR(40) NOT NULL,
     result_source VARCHAR(40),
     identified_food_name VARCHAR(200),
+    identified_food_korean_name VARCHAR(200),
+    identified_food_translation_name VARCHAR(200),
     image_confidence NUMERIC(5,2),
     image_reason TEXT,
     fallback_result JSONB,
