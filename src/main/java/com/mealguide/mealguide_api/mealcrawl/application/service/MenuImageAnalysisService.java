@@ -438,7 +438,7 @@ public class MenuImageAnalysisService {
         MenuImageAnalysisLog log = logRepository.findById(logId).orElseThrow(() -> new ServiceException(ErrorCode.BINDING_ERROR));
         log.markSuccess(
                 source,
-                resolveIdentifiedFoodKoreanName(identified),
+                identified.identifiedFoodName(),
                 resolveIdentifiedFoodKoreanName(identified),
                 resolveIdentifiedFoodTranslationName(identified),
                 identified.confidence(),
