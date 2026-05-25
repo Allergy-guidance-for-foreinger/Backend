@@ -16,6 +16,8 @@ public interface UserQueryPort {
 
     boolean existsActiveById(Long userId);
 
+    boolean existsNonCascadeUserReference(Long userId);
+
     boolean softDeleteActiveById(Long userId);
 
     boolean hardDeleteActiveById(Long userId);

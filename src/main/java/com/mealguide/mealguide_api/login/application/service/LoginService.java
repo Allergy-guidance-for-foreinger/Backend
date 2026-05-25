@@ -107,7 +107,10 @@ public class LoginService {
         UserRole role = userQueryPort.findActiveRoleById(authenticatedUserId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
-        boolean success = (role == UserRole.USER)
+        boolean shouldHardDelete = role == UserRole.USER
+                && !userQueryPort.existsNonCascadeUserReference(authenticatedUserId);
+
+        boolean success = shouldHardDelete
                 ? userQueryPort.hardDeleteActiveById(authenticatedUserId)
                 : userQueryPort.softDeleteActiveById(authenticatedUserId);
 

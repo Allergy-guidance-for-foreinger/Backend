@@ -176,6 +176,7 @@ class LoginServiceTest {
     @Test
     void withdrawHardDeletesUserWhenRoleIsUser() {
         when(userQueryPort.findActiveRoleById(1L)).thenReturn(Optional.of(UserRole.USER));
+        when(userQueryPort.existsNonCascadeUserReference(1L)).thenReturn(false);
         when(userQueryPort.hardDeleteActiveById(1L)).thenReturn(true);
 
         loginService.withdraw(1L);
@@ -195,6 +196,15 @@ class LoginServiceTest {
         when(userQueryPort.softDeleteActiveById(3L)).thenReturn(true);
 
         loginService.withdraw(3L);
+    }
+
+    @Test
+    void withdrawSoftDeletesUserWhenRoleIsUserButHasNonCascadeReference() {
+        when(userQueryPort.findActiveRoleById(4L)).thenReturn(Optional.of(UserRole.USER));
+        when(userQueryPort.existsNonCascadeUserReference(4L)).thenReturn(true);
+        when(userQueryPort.softDeleteActiveById(4L)).thenReturn(true);
+
+        loginService.withdraw(4L);
     }
 
     @Test

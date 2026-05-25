@@ -12,7 +12,11 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.List;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -79,16 +83,46 @@ public class UserPersistenceAdapter implements UserQueryPort {
     }
 
     @Override
+    public boolean existsNonCascadeUserReference(Long userId) {
+        String sql = """
+                select exists(
+                    select 1
+                    from meal_menu_confirmed_ingredient mmci
+                    where mmci.confirmed_by_user_id = :userId
+                ) or exists(
+                    select 1
+                    from meal_menu_confirmation_history mmch
+                    where mmch.changed_by_user_id = :userId
+                )
+                """;
+        Boolean exists = namedParameterJdbcTemplate.queryForObject(
+                sql,
+                new MapSqlParameterSource("userId", userId),
+                Boolean.class
+        );
+        return Boolean.TRUE.equals(exists);
+    }
+
+    @Override
     public boolean softDeleteActiveById(Long userId) {
+        List<Long> impactedReviewIds = new ArrayList<>();
+        impactedReviewIds.addAll(findReviewIdsLikedByUser(userId));
+        impactedReviewIds.addAll(softDeleteReviewCommentsByUserId(userId));
+        deleteReviewLikesByUserId(userId);
         softDeleteReviewsByUserId(userId);
-        softDeleteReviewCommentsByUserId(userId);
+        recalculateReviewCounters(new ArrayList<>(new HashSet<>(impactedReviewIds)));
         return userJpaRepository.softDeleteActiveById(userId) > 0;
     }
 
     @Override
     public boolean hardDeleteActiveById(Long userId) {
+        List<Long> impactedReviewIds = findImpactedReviewIdsByUserInteraction(userId);
         userOauthAccountJpaRepository.deleteByUserId(userId);
-        return userJpaRepository.hardDeleteActiveById(userId) > 0;
+        boolean deleted = userJpaRepository.hardDeleteActiveById(userId) > 0;
+        if (deleted) {
+            recalculateReviewCounters(impactedReviewIds);
+        }
+        return deleted;
     }
 
     @Override
@@ -98,36 +132,28 @@ public class UserPersistenceAdapter implements UserQueryPort {
         return savedUser;
     }
 
-    private void softDeleteReviewCommentsByUserId(Long userId) {
+    private List<Long> softDeleteReviewCommentsByUserId(Long userId) {
+        String selectSql = """
+                select distinct review_id
+                from menu_review_comment
+                where user_id = :userId
+                  and deleted_at is null
+                """;
+        List<Long> reviewIds = namedParameterJdbcTemplate.query(
+                selectSql,
+                new MapSqlParameterSource("userId", userId),
+                (rs, rowNum) -> rs.getLong("review_id")
+        );
+
         String sql = """
-                with soft_deleted as (
-                    update menu_review_comment
-                    set deleted_at = now(),
-                        updated_at = now()
-                    where user_id = :userId
-                      and deleted_at is null
-                    returning review_id
-                ),
-                target_reviews as (
-                    select distinct review_id
-                    from soft_deleted
-                ),
-                recalculated as (
-                    select tr.review_id,
-                           count(c.id) as active_comment_count
-                    from target_reviews tr
-                    left join menu_review_comment c
-                           on c.review_id = tr.review_id
-                          and c.deleted_at is null
-                    group by tr.review_id
-                )
-                update menu_review mr
-                set comment_count = r.active_comment_count,
+                update menu_review_comment
+                set deleted_at = now(),
                     updated_at = now()
-                from recalculated r
-                where mr.id = r.review_id
+                where user_id = :userId
+                  and deleted_at is null
                 """;
         namedParameterJdbcTemplate.update(sql, new MapSqlParameterSource("userId", userId));
+        return reviewIds;
     }
 
     private void softDeleteReviewsByUserId(Long userId) {
@@ -139,6 +165,88 @@ public class UserPersistenceAdapter implements UserQueryPort {
                   and deleted_at is null
                 """;
         namedParameterJdbcTemplate.update(sql, new MapSqlParameterSource("userId", userId));
+    }
+
+    private List<Long> findImpactedReviewIdsByUserInteraction(Long userId) {
+        String sql = """
+                select distinct review_id
+                from (
+                    select mrl.review_id
+                    from menu_review_like mrl
+                    where mrl.user_id = :userId
+                    union
+                    select mrc.review_id
+                    from menu_review_comment mrc
+                    where mrc.user_id = :userId
+                ) impacted
+                """;
+        return namedParameterJdbcTemplate.query(
+                sql,
+                new MapSqlParameterSource("userId", userId),
+                (rs, rowNum) -> rs.getLong("review_id")
+        );
+    }
+
+    private List<Long> findReviewIdsLikedByUser(Long userId) {
+        String sql = """
+                select distinct review_id
+                from menu_review_like
+                where user_id = :userId
+                """;
+        return namedParameterJdbcTemplate.query(
+                sql,
+                new MapSqlParameterSource("userId", userId),
+                (rs, rowNum) -> rs.getLong("review_id")
+        );
+    }
+
+    private void deleteReviewLikesByUserId(Long userId) {
+        String sql = """
+                delete from menu_review_like
+                where user_id = :userId
+                """;
+        namedParameterJdbcTemplate.update(sql, new MapSqlParameterSource("userId", userId));
+    }
+
+    private void recalculateReviewCounters(List<Long> reviewIds) {
+        if (reviewIds == null || reviewIds.isEmpty()) {
+            return;
+        }
+
+        String sql = """
+                with target_reviews as (
+                    select unnest(:reviewIds::bigint[]) as review_id
+                ),
+                like_counts as (
+                    select tr.review_id,
+                           count(mrl.id) as like_count
+                    from target_reviews tr
+                    left join menu_review_like mrl on mrl.review_id = tr.review_id
+                    group by tr.review_id
+                ),
+                comment_counts as (
+                    select tr.review_id,
+                           count(mrc.id) as comment_count
+                    from target_reviews tr
+                    left join menu_review_comment mrc
+                           on mrc.review_id = tr.review_id
+                          and mrc.deleted_at is null
+                    group by tr.review_id
+                )
+                update menu_review mr
+                set like_count = lc.like_count,
+                    comment_count = cc.comment_count,
+                    updated_at = now()
+                from like_counts lc
+                join comment_counts cc on cc.review_id = lc.review_id
+                where mr.id = lc.review_id
+                  and mr.deleted_at is null
+                """;
+
+        namedParameterJdbcTemplate.update(
+                sql,
+                new MapSqlParameterSource("reviewIds", reviewIds.toArray(Long[]::new))
+        );
     }
 }
 

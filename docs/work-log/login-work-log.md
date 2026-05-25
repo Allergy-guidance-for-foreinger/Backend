@@ -104,6 +104,8 @@ alter table menu_image_analysis_log
 - What changed:
   - `MANAGER`, `ADMIN` 소프트 삭제 시 해당 사용자가 작성한 `menu_review`를 일괄 소프트 삭제하도록 반영했다.
   - `MANAGER`, `ADMIN` 소프트 삭제 시 해당 사용자가 작성한 `menu_review_comment`를 일괄 소프트 삭제하도록 반영했다.
+  - `MANAGER`, `ADMIN` 소프트 삭제 시 해당 사용자가 남긴 `menu_review_like`를 삭제하도록 반영했다.
+  - 댓글/좋아요 정리 후 영향 리뷰의 `like_count`, `comment_count`를 재정합하도록 반영했다.
   - 댓글 일괄 삭제 후 영향받은 `menu_review.comment_count`를 활성 댓글 기준으로 재정합하도록 반영했다.
   - 현재 스키마에 대댓글(parent-child) 구조가 없어, 정책은 단일 레벨 댓글에 적용됨을 문서에 명시했다.
 - Why:
@@ -120,3 +122,31 @@ alter table menu_image_analysis_log
   - `docs/work-log/login-work-log.md`
 - Remaining follow-ups:
   - 대댓글 정책 적용이 필요하면 `menu_review_comment`에 parent-comment 구조를 도입하는 별도 스키마 변경이 필요.
+
+### 2026-05-25 (USER 하드 삭제 시 리뷰 카운트 정합성 보강)
+- What changed:
+  - `USER` 하드 삭제 전에 해당 사용자가 남긴 리뷰 좋아요/댓글으로 영향받는 `review_id`를 수집하도록 반영했다.
+  - 하드 삭제 후 영향 리뷰의 `like_count`, `comment_count`를 DB 현재 상태 기준으로 재계산하도록 반영했다.
+- Why:
+  - `users` cascade 삭제로 좋아요/댓글 행은 제거되지만, 역정규화 카운트가 남아 불일치할 수 있는 문제를 방지하기 위해.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/login/infrastructure/persistence/adapter/UserPersistenceAdapter.java`
+  - `docs/work-log/login-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+
+### 2026-05-25 (USER 하드 삭제 전 non-cascade 참조 안전 분기)
+- What changed:
+  - `meal_menu_confirmed_ingredient.confirmed_by_user_id`, `meal_menu_confirmation_history.changed_by_user_id` 참조 존재 여부를 조회하는 로직을 추가했다.
+  - `USER`라도 위 non-cascade 참조가 존재하면 하드 삭제 대신 소프트 삭제로 분기하도록 `withdraw` 로직을 보완했다.
+- Why:
+  - 역할 변경 이력 등으로 `USER`가 non-cascade 참조를 가진 경우 하드 삭제 시 FK 제약 위반으로 탈퇴가 실패하는 문제를 방지하기 위해.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/login/application/port/UserQueryPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/login/application/service/LoginService.java`
+  - `src/main/java/com/mealguide/mealguide_api/login/infrastructure/persistence/adapter/UserPersistenceAdapter.java`
+  - `src/test/java/com/mealguide/mealguide_api/login/application/service/LoginServiceTest.java`
+  - `docs/work-log/login-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - `USER` 탈퇴도 non-cascade 참조가 있으면 소프트 삭제로 처리됨.
