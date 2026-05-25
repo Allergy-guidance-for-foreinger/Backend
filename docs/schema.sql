@@ -320,7 +320,7 @@ CREATE TABLE menu_image_analysis_log (
     error_code VARCHAR(30),
     created_at TIMESTAMP NOT NULL,
     CONSTRAINT fk_menu_image_analysis_log_user
-        FOREIGN KEY (user_id) REFERENCES users(id)
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE ingredient_translation (

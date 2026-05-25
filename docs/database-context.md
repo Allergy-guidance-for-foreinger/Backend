@@ -68,3 +68,13 @@
 - Added `menu_image_analysis_log` for image-based analysis request tracking.
 - Stores `image_storage_path` (Firebase object path only), `status`, `result_source`, identified food summary, Korean/translated identified names, optional `fallback_result` JSONB, and `error_code`.
 - `fallback_result` is used only when identified food is not mapped to existing `menu`.
+
+## 14. User withdrawal policy by role (2026-05-25)
+- `menu_image_analysis_log.user_id` FK now uses `ON DELETE CASCADE`.
+- Withdrawal policy:
+  - `USER`: hard delete from `users` (related rows are cleaned by FK cascade; login OAuth links are deleted before user delete).
+  - `MANAGER`, `ADMIN`: soft delete (`status = INACTIVE`, `deleted_at` set) to preserve confirmation audit records.
+- Login policy for inactive account:
+  - If the same Google account matches an `INACTIVE` user, login must fail (`USER_INACTIVE`) and must not create a new user row.
+  - Account recovery is manual DB operation by server admin (`status = ACTIVE`, `deleted_at = NULL`).
+- Reason: keep manager/admin confirmation history in `meal_menu_confirmed_ingredient.confirmed_by_user_id` and `meal_menu_confirmation_history.changed_by_user_id`.

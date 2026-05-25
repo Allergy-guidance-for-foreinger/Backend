@@ -18,7 +18,7 @@
 - 경계 연계: `global.auth.*` (공통 인증 인프라)
 
 ## 3. 주요 클래스
-- `AuthController`: `/auth/login`, `/auth/refresh`, `/auth/logout` 엔드포인트 제공
+- `AuthController`: `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/withdraw` 엔드포인트 제공
 - `LoginService`: 로그인, 토큰 재발급, 로그아웃 유스케이스 오케스트레이션
 - `UserQueryPort`: 사용자 조회/검증 추상화
 - `UserPersistenceAdapter`: `UserQueryPort` 구현체
@@ -40,7 +40,8 @@
   - `user_oauth_accounts.user_id`, `provider`, `provider_user_id`, `provider_email`
 - 조회/저장 규칙
   - 인증 조회 대상은 `ACTIVE` 사용자만 포함한다.
-  - `users.deleted_at` 또는 `status = INACTIVE` 사용자는 일반 인증 조회에서 제외한다.
+- `users.deleted_at` 또는 `status = INACTIVE` 사용자는 일반 인증 조회에서 제외한다.
+- Google 로그인 시 동일 계정의 `INACTIVE` 사용자가 존재하면 신규 계정을 생성하지 않고 로그인 실패 처리한다(관리자 복구 필요).
   - `users.email`이 nullable이므로 email 단독 조회에 의존하지 않는다.
   - Google 계정 매핑은 `user_oauth_accounts` 기준으로 처리한다.
   - 최초 로그인 자동 회원가입은 `users` + `user_oauth_accounts`를 함께 생성한다.
@@ -49,9 +50,10 @@
 
 ## 5. API 규칙
 - 외부 API 경로
-  - `POST /auth/login`
-  - `POST /auth/refresh`
-  - `POST /auth/logout`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+- `DELETE /auth/withdraw`
 - 요청/응답 방향
   - `login`: `LoginRequest(idToken, deviceId)` -> `AuthResponse(accessToken, refreshToken, expiresIn, refreshExpiresIn, role, onboardingCompleted, schoolId)`
   - `refresh`: `RefreshTokenRequest(refreshToken)` -> `AuthResponse(...)`
@@ -59,7 +61,8 @@
 - 인증 필요 여부
   - `POST /auth/login`: 인증 불필요
   - `POST /auth/refresh`: 인증 불필요(유효한 refresh token 필요)
-  - `POST /auth/logout`: 인증 필요(`@CurrentUserId`)
+- `POST /auth/logout`: 인증 필요(`@CurrentUserId`)
+- `DELETE /auth/withdraw`: 인증 필요(`@CurrentUserId`)
 
 ## 6. 공통 비즈니스 규칙
 - Google ID token 검증 성공 시 사용자 계정을 식별한다.
@@ -74,6 +77,7 @@
 - Google ID token 검증에 성공해야 한다.
 - Google 계정은 `provider = GOOGLE`, `provider_user_id = Google subject` 기준으로 식별한다.
 - 연결된 계정이 없으면 `users`와 `user_oauth_accounts`를 함께 생성한다.
+- 단, 동일 Google 계정의 `INACTIVE` 사용자가 있으면 로그인 실패(`USER_INACTIVE`)를 반환한다.
 - 로그인 성공 시 access token과 refresh token을 발급하고, refresh token은 Redis에 저장한다.
 
 ### 7.2 `POST /auth/refresh`
@@ -85,6 +89,17 @@
 - access token 인증이 필요하다.
 - 요청 refresh token의 `userId`가 현재 인증 사용자와 일치해야 한다.
 - refresh token의 `deviceId`를 기준으로 Redis 저장 토큰을 삭제한다.
+
+### 7.4 `DELETE /auth/withdraw`
+- access token 인증이 필요하다.
+- 탈퇴 시점의 사용자 role로 삭제 정책을 분기한다.
+  - `USER`: 하드 삭제
+  - `MANAGER`, `ADMIN`: 소프트 삭제(`status = INACTIVE`, `deleted_at` 설정)
+- `MANAGER`, `ADMIN` 소프트 삭제는 메뉴 확정 이력 보존을 위한 정책이다.
+- 소프트 삭제된 `MANAGER`, `ADMIN` 계정은 서버 관리자가 DB에서 `status=ACTIVE`, `deleted_at=NULL`로 복구하기 전까지 로그인할 수 없다.
+- `MANAGER`, `ADMIN` 소프트 삭제 시 해당 사용자가 작성한 `menu_review`는 `deleted_at` 소프트 삭제 처리한다.
+- `MANAGER`, `ADMIN` 소프트 삭제 시 해당 사용자가 작성한 `menu_review_comment`는 모두 `deleted_at` 소프트 삭제 처리하고, 관련 리뷰의 `comment_count`를 활성 댓글 기준으로 재정합한다.
+- 현재 스키마는 댓글 단일 레벨 구조이며(parent/reply 컬럼 없음), 대댓글 별도 모델은 없다.
 
 ## 8. 주의사항
 - refresh token 회전은 원자적 비교-교체가 필요하다(경쟁 상태 방지).

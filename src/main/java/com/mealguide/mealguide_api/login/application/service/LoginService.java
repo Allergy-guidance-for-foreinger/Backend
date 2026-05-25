@@ -9,6 +9,7 @@ import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.login.application.port.GoogleIdTokenVerifierPort;
 import com.mealguide.mealguide_api.login.application.port.UserQueryPort;
 import com.mealguide.mealguide_api.global.auth.jwt.dto.AuthTokenResult;
+import com.mealguide.mealguide_api.login.domain.UserRole;
 import com.mealguide.mealguide_api.login.domain.User;
 import com.mealguide.mealguide_api.login.domain.google.GoogleUserInfo;
 import lombok.RequiredArgsConstructor;
@@ -39,11 +40,16 @@ public class LoginService {
         }
 
         User user = userQueryPort.findByGoogleAccount(googleUserInfo.subject(), googleUserInfo.email())
-                .orElseGet(() -> userQueryPort.createGoogleUser(
-                        googleUserInfo.subject(),
-                        googleUserInfo.email(),
-                        googleUserInfo.name()
-                ));
+                .orElseGet(() -> {
+                    if (userQueryPort.existsInactiveGoogleAccount(googleUserInfo.subject(), googleUserInfo.email())) {
+                        throw new ServiceException(ErrorCode.USER_INACTIVE);
+                    }
+                    return userQueryPort.createGoogleUser(
+                            googleUserInfo.subject(),
+                            googleUserInfo.email(),
+                            googleUserInfo.name()
+                    );
+                });
 
         return issueTokens(AuthenticatedUser.from(user, deviceId), user.isOnboardingCompleted());
     }
@@ -94,6 +100,20 @@ public class LoginService {
         }
 
         refreshTokenPort.deleteByUserIdAndDeviceId(authenticatedUserId, tokenClaims.deviceId());
+    }
+
+    @Transactional
+    public void withdraw(Long authenticatedUserId) {
+        UserRole role = userQueryPort.findActiveRoleById(authenticatedUserId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+
+        boolean success = (role == UserRole.USER)
+                ? userQueryPort.hardDeleteActiveById(authenticatedUserId)
+                : userQueryPort.softDeleteActiveById(authenticatedUserId);
+
+        if (!success) {
+            throw new ServiceException(ErrorCode.USER_NOT_FOUND);
+        }
     }
 
     private AuthTokenResult issueTokens(AuthenticatedUser authenticatedUser, boolean onboardingCompleted) {
