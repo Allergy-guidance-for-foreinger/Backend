@@ -8,11 +8,19 @@ import java.util.Optional;
 public interface UserQueryPort {
     Optional<User> findByGoogleAccount(String providerUserId, String providerEmail);
 
+    boolean existsInactiveGoogleAccount(String providerUserId, String providerEmail);
+
     Optional<User> findById(Long userId);
 
     Optional<UserRole> findActiveRoleById(Long userId);
 
     boolean existsActiveById(Long userId);
+
+    boolean existsNonCascadeUserReference(Long userId);
+
+    boolean softDeleteActiveById(Long userId);
+
+    boolean hardDeleteActiveById(Long userId);
 
     User createGoogleUser(String providerUserId, String providerEmail, String name);
 }

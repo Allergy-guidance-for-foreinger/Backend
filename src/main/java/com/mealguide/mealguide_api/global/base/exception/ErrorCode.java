@@ -51,6 +51,7 @@ public enum ErrorCode {
     INVALID_RELIGIOUS_CODE(BAD_REQUEST, "USER_019", "유효하지 않은 종교 코드입니다."),
     INVALID_COUNTRY_CODE(BAD_REQUEST, "USER_020", "유효하지 않은 국가 코드입니다."),
     INVALID_SCHOOL_ID(BAD_REQUEST, "USER_021", "유효하지 않은 학교 ID입니다."),
+    USER_INACTIVE(UNAUTHORIZED, "USER_022", "탈퇴한 계정입니다. 관리자에게 문의해주세요."),
 
     MEAL_MENU_NOT_FOUND(NOT_FOUND, "MEAL_001", "Meal menu not found."),
     REVIEW_NOT_FOUND(NOT_FOUND, "REVIEW_001", "Review not found."),

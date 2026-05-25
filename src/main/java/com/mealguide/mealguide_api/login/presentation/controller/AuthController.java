@@ -12,6 +12,7 @@ import com.mealguide.mealguide_api.login.presentation.swagger.AuthApi;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,6 +41,12 @@ public class AuthController implements AuthApi {
             @Valid @RequestBody LogoutRequest request
     ) {
         loginService.logout(currentUserId, request.refreshToken());
+        return ResponseEntity.ok(ResponseUtils.createSuccessResponse());
+    }
+
+    @DeleteMapping("/withdraw")
+    public ResponseEntity<ResponseBody<Void>> withdraw(@CurrentUserId Long currentUserId) {
+        loginService.withdraw(currentUserId);
         return ResponseEntity.ok(ResponseUtils.createSuccessResponse());
     }
 }

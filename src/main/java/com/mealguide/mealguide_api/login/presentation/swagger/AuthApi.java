@@ -28,7 +28,8 @@ public interface AuthApi {
             errors = {
                     @SwaggerApiFailedResponse(ErrorCode.BINDING_ERROR),
                     @SwaggerApiFailedResponse(ErrorCode.GOOGLE_ID_TOKEN_INVALID),
-                    @SwaggerApiFailedResponse(ErrorCode.GOOGLE_EMAIL_NOT_VERIFIED)
+                    @SwaggerApiFailedResponse(ErrorCode.GOOGLE_EMAIL_NOT_VERIFIED),
+                    @SwaggerApiFailedResponse(ErrorCode.USER_INACTIVE)
             }
     )
     ResponseEntity<ResponseBody<AuthResponse>> login(@Valid @RequestBody LoginRequest request);
@@ -66,4 +67,19 @@ public interface AuthApi {
             @CurrentUserId Long currentUserId,
             @Valid @RequestBody LogoutRequest request
     );
+
+    @Operation(
+            summary = "회원 탈퇴",
+            description = "현재 인증 사용자 기준으로 역할별 탈퇴 정책을 적용합니다. USER는 하드 삭제, MANAGER/ADMIN은 소프트 삭제합니다."
+    )
+    @SwaggerApiResponses(
+            success = @SwaggerApiSuccessResponse(description = "회원 탈퇴 성공"),
+            errors = {
+                    @SwaggerApiFailedResponse(ErrorCode.NEED_AUTHORIZED),
+                    @SwaggerApiFailedResponse(ErrorCode.JWT_INVALID),
+                    @SwaggerApiFailedResponse(ErrorCode.JWT_EXPIRED),
+                    @SwaggerApiFailedResponse(ErrorCode.USER_NOT_FOUND)
+            }
+    )
+    ResponseEntity<ResponseBody<Void>> withdraw(@CurrentUserId Long currentUserId);
 }

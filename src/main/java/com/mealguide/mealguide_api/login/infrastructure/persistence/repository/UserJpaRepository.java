@@ -4,6 +4,7 @@ import com.mealguide.mealguide_api.login.domain.User;
 import com.mealguide.mealguide_api.login.domain.UserRole;
 import com.mealguide.mealguide_api.login.domain.UserStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -25,5 +26,32 @@ public interface UserJpaRepository extends JpaRepository<User, Long> {
     );
 
     boolean existsByIdAndDeletedAtIsNullAndStatus(Long userId, UserStatus status);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            value = """
+                    update users
+                    set status = 'INACTIVE',
+                        deleted_at = current_timestamp,
+                        updated_at = current_timestamp
+                    where id = :userId
+                      and deleted_at is null
+                      and status = 'ACTIVE'
+                    """,
+            nativeQuery = true
+    )
+    int softDeleteActiveById(@Param("userId") Long userId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            value = """
+                    delete from users
+                    where id = :userId
+                      and deleted_at is null
+                      and status = 'ACTIVE'
+                    """,
+            nativeQuery = true
+    )
+    int hardDeleteActiveById(@Param("userId") Long userId);
 }
 

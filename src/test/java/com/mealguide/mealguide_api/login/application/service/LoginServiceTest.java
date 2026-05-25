@@ -30,6 +30,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class LoginServiceTest {
@@ -85,6 +87,23 @@ class LoginServiceTest {
         assertThat(result.refreshToken()).isEqualTo("refresh-token");
         assertThat(result.onboardingCompleted()).isFalse();
         assertThat(refreshTokenPort.findByUserIdAndDeviceId(2L, deviceId)).contains(hashToken("refresh-token"));
+    }
+
+    @Test
+    void googleLoginFailsWhenMatchingInactiveUserExists() {
+        String deviceId = "device-001";
+
+        when(googleIdTokenVerifierPort.verify("google-id-token"))
+                .thenReturn(new GoogleUserInfo("google-sub", "inactive@test.com", "Meal Guide", true));
+        when(userQueryPort.findByGoogleAccount("google-sub", "inactive@test.com")).thenReturn(Optional.empty());
+        when(userQueryPort.existsInactiveGoogleAccount("google-sub", "inactive@test.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> loginService.login("google-id-token", deviceId))
+                .isInstanceOf(ServiceException.class)
+                .extracting(exception -> ((ServiceException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.USER_INACTIVE);
+
+        verify(userQueryPort, never()).createGoogleUser(any(), any(), any());
     }
 
     @Test
@@ -149,6 +168,50 @@ class LoginServiceTest {
         when(userQueryPort.existsActiveById(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> loginService.refresh("refresh-token"))
+                .isInstanceOf(ServiceException.class)
+                .extracting(exception -> ((ServiceException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    void withdrawHardDeletesUserWhenRoleIsUser() {
+        when(userQueryPort.findActiveRoleById(1L)).thenReturn(Optional.of(UserRole.USER));
+        when(userQueryPort.existsNonCascadeUserReference(1L)).thenReturn(false);
+        when(userQueryPort.hardDeleteActiveById(1L)).thenReturn(true);
+
+        loginService.withdraw(1L);
+    }
+
+    @Test
+    void withdrawSoftDeletesUserWhenRoleIsManager() {
+        when(userQueryPort.findActiveRoleById(2L)).thenReturn(Optional.of(UserRole.MANAGER));
+        when(userQueryPort.softDeleteActiveById(2L)).thenReturn(true);
+
+        loginService.withdraw(2L);
+    }
+
+    @Test
+    void withdrawSoftDeletesUserWhenRoleIsAdmin() {
+        when(userQueryPort.findActiveRoleById(3L)).thenReturn(Optional.of(UserRole.ADMIN));
+        when(userQueryPort.softDeleteActiveById(3L)).thenReturn(true);
+
+        loginService.withdraw(3L);
+    }
+
+    @Test
+    void withdrawSoftDeletesUserWhenRoleIsUserButHasNonCascadeReference() {
+        when(userQueryPort.findActiveRoleById(4L)).thenReturn(Optional.of(UserRole.USER));
+        when(userQueryPort.existsNonCascadeUserReference(4L)).thenReturn(true);
+        when(userQueryPort.softDeleteActiveById(4L)).thenReturn(true);
+
+        loginService.withdraw(4L);
+    }
+
+    @Test
+    void withdrawFailsWhenUserIsNotActive() {
+        when(userQueryPort.findActiveRoleById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> loginService.withdraw(1L))
                 .isInstanceOf(ServiceException.class)
                 .extracting(exception -> ((ServiceException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.USER_NOT_FOUND);
