@@ -60,12 +60,14 @@ public class LoginService {
         if (!userQueryPort.existsActiveById(tokenClaims.userId())) {
             throw new ServiceException(ErrorCode.USER_NOT_FOUND);
         }
+        UserRole role = userQueryPort.findActiveRoleById(tokenClaims.userId())
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
         AuthenticatedUser authenticatedUser = new AuthenticatedUser(
                 tokenClaims.userId(),
                 null,
                 null,
-                null,
+                role,
                 tokenClaims.deviceId()
         );
         String newAccessToken = tokenProviderPort.generateAccessToken(authenticatedUser);

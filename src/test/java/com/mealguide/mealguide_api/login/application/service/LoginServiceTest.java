@@ -115,6 +115,7 @@ class LoginServiceTest {
         when(tokenProviderPort.parseRefreshToken("old-refresh-token"))
                 .thenReturn(new TokenClaims(1L, deviceId, null, TokenType.REFRESH));
         when(userQueryPort.existsActiveById(1L)).thenReturn(true);
+        when(userQueryPort.findActiveRoleById(1L)).thenReturn(Optional.of(UserRole.USER));
         when(tokenProviderPort.generateAccessToken(any())).thenReturn("new-access-token");
         when(tokenProviderPort.generateRefreshToken(any())).thenReturn("new-refresh-token");
 
@@ -133,6 +134,7 @@ class LoginServiceTest {
         when(tokenProviderPort.parseRefreshToken("missing-refresh-token"))
                 .thenReturn(new TokenClaims(1L, deviceId, null, TokenType.REFRESH));
         when(userQueryPort.existsActiveById(1L)).thenReturn(true);
+        when(userQueryPort.findActiveRoleById(1L)).thenReturn(Optional.of(UserRole.USER));
 
         assertThatThrownBy(() -> loginService.refresh("missing-refresh-token"))
                 .isInstanceOf(ServiceException.class)
@@ -148,6 +150,7 @@ class LoginServiceTest {
         when(tokenProviderPort.parseRefreshToken("refresh-token"))
                 .thenReturn(new TokenClaims(1L, deviceId, null, TokenType.REFRESH));
         when(userQueryPort.existsActiveById(1L)).thenReturn(true);
+        when(userQueryPort.findActiveRoleById(1L)).thenReturn(Optional.of(UserRole.USER));
 
         loginService.logout(1L, "refresh-token");
 

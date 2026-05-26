@@ -174,3 +174,22 @@ alter table menu_image_analysis_log
   - `docs/work-log/login-work-log.md`
 - Remaining follow-ups:
   - 없음 (개발 단계 가정에서 구 토큰 호환 미고려).
+
+### 2026-05-26 (refresh 재발급 AUTH_004 오류 수정)
+- What changed:
+  - `refresh` 경로에서 access token 재발급용 `AuthenticatedUser` 생성 시 `role`을 `null`로 넣던 문제를 수정했다.
+  - `LoginService.refresh`에서 `findActiveRoleById`로 활성 사용자의 role을 조회해 `AuthenticatedUser.role`에 주입하도록 변경했다.
+  - 관련 `LoginServiceTest` refresh 케이스 mock 설정에 `findActiveRoleById` 스텁을 추가했다.
+- Why:
+  - access token 발급 시 `role` 클레임이 필수로 바뀐 이후, refresh 경로에서 role 누락으로 `JWT_INVALID(AUTH_004)`가 발생했기 때문.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/login/application/service/LoginService.java`
+  - `src/test/java/com/mealguide/mealguide_api/login/application/service/LoginServiceTest.java`
+  - `docs/work-log/login-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - `POST /auth/refresh`가 정상 refresh token에 대해 다시 정상 재발급됨.
+- Related docs updated:
+  - `docs/work-log/login-work-log.md`
+- Remaining follow-ups:
+  - 없음.
