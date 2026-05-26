@@ -113,7 +113,7 @@ class LoginServiceTest {
         refreshTokenPort.save(1L, deviceId, "old-refresh-token", Duration.ofDays(14));
 
         when(tokenProviderPort.parseRefreshToken("old-refresh-token"))
-                .thenReturn(new TokenClaims(1L, deviceId, TokenType.REFRESH));
+                .thenReturn(new TokenClaims(1L, deviceId, null, TokenType.REFRESH));
         when(userQueryPort.existsActiveById(1L)).thenReturn(true);
         when(tokenProviderPort.generateAccessToken(any())).thenReturn("new-access-token");
         when(tokenProviderPort.generateRefreshToken(any())).thenReturn("new-refresh-token");
@@ -131,7 +131,7 @@ class LoginServiceTest {
         String deviceId = "device-001";
 
         when(tokenProviderPort.parseRefreshToken("missing-refresh-token"))
-                .thenReturn(new TokenClaims(1L, deviceId, TokenType.REFRESH));
+                .thenReturn(new TokenClaims(1L, deviceId, null, TokenType.REFRESH));
         when(userQueryPort.existsActiveById(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> loginService.refresh("missing-refresh-token"))
@@ -146,7 +146,7 @@ class LoginServiceTest {
         refreshTokenPort.save(1L, deviceId, "refresh-token", Duration.ofDays(14));
 
         when(tokenProviderPort.parseRefreshToken("refresh-token"))
-                .thenReturn(new TokenClaims(1L, deviceId, TokenType.REFRESH));
+                .thenReturn(new TokenClaims(1L, deviceId, null, TokenType.REFRESH));
         when(userQueryPort.existsActiveById(1L)).thenReturn(true);
 
         loginService.logout(1L, "refresh-token");
@@ -164,7 +164,7 @@ class LoginServiceTest {
         refreshTokenPort.save(1L, deviceId, "refresh-token", Duration.ofDays(14));
 
         when(tokenProviderPort.parseRefreshToken("refresh-token"))
-                .thenReturn(new TokenClaims(1L, deviceId, TokenType.REFRESH));
+                .thenReturn(new TokenClaims(1L, deviceId, null, TokenType.REFRESH));
         when(userQueryPort.existsActiveById(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> loginService.refresh("refresh-token"))

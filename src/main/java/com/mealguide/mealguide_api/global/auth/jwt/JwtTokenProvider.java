@@ -6,6 +6,7 @@ import com.mealguide.mealguide_api.global.auth.domain.TokenType;
 import com.mealguide.mealguide_api.global.auth.port.TokenProviderPort;
 import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
+import com.mealguide.mealguide_api.login.domain.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -25,6 +26,7 @@ import java.util.Date;
 public class JwtTokenProvider implements TokenProviderPort {
 
     private static final String CLAIM_DEVICE_ID = "deviceId";
+    private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_TYPE = "type";
 
     private final JwtProperties jwtProperties;
@@ -44,7 +46,7 @@ public class JwtTokenProvider implements TokenProviderPort {
 
     @Override
     public String generateAccessToken(AuthenticatedUser user) {
-        return generateAccessToken(user.userId());
+        return generateAccessToken(user.userId(), user.role());
     }
 
     @Override
@@ -72,12 +74,17 @@ public class JwtTokenProvider implements TokenProviderPort {
         return jwtProperties.getRefreshTokenExpirationSeconds();
     }
 
-    private String generateAccessToken(Long userId) {
+    private String generateAccessToken(Long userId, UserRole role) {
+        if (role == null) {
+            throw new ServiceException(ErrorCode.JWT_INVALID);
+        }
+
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(jwtProperties.getAccessTokenExpirationSeconds());
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
+                .claim(CLAIM_ROLE, role.name())
                 .claim(CLAIM_TYPE, TokenType.ACCESS.name())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiresAt))
@@ -124,10 +131,19 @@ public class JwtTokenProvider implements TokenProviderPort {
                 if (expectedType == TokenType.REFRESH && (deviceId == null || deviceId.isBlank())) {
                     throw new ServiceException(ErrorCode.JWT_INVALID);
                 }
+            UserRole role = null;
+            if (expectedType == TokenType.ACCESS) {
+                String roleClaim = claims.get(CLAIM_ROLE, String.class);
+                if (roleClaim == null || roleClaim.isBlank()) {
+                    throw new ServiceException(ErrorCode.JWT_INVALID);
+                }
+                role = UserRole.valueOf(roleClaim);
+            }
 
             return new TokenClaims(
                     Long.valueOf(claims.getSubject()),
                     deviceId,
+                    role,
                     actualType
             );
         } catch (ExpiredJwtException exception) {

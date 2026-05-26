@@ -2,10 +2,6 @@ package com.mealguide.mealguide_api.global.auth.security;
 
 import com.mealguide.mealguide_api.global.auth.domain.TokenClaims;
 import com.mealguide.mealguide_api.global.auth.port.TokenProviderPort;
-import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
-import com.mealguide.mealguide_api.global.base.exception.ServiceException;
-import com.mealguide.mealguide_api.login.application.port.UserQueryPort;
-import com.mealguide.mealguide_api.login.domain.UserRole;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,7 +23,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final TokenProviderPort tokenProviderPort;
-    private final UserQueryPort userQueryPort;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -42,13 +37,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             String accessToken = authorizationHeader.substring(BEARER_PREFIX.length());
             TokenClaims tokenClaims = tokenProviderPort.parseAccessToken(accessToken);
-            UserRole role = userQueryPort.findActiveRoleById(tokenClaims.userId())
-                    .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
             AuthenticatedUserPrincipal principal = AuthenticatedUserPrincipal.authenticated(
                     tokenClaims.userId(),
                     tokenClaims.deviceId(),
-                    role
+                    tokenClaims.role()
             );
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     principal,
