@@ -150,3 +150,46 @@ alter table menu_image_analysis_log
 - DB schema changed: No
 - API behavior changed:
   - `USER` 탈퇴도 non-cascade 참조가 있으면 소프트 삭제로 처리됨.
+
+### 2026-05-26 (JWT access token role claim 추가 및 필터 role 조회 제거)
+- What changed:
+  - `TokenClaims`에 `role` 필드를 추가했다.
+  - access token 발급 시 `role` 클레임을 포함하도록 `JwtTokenProvider`를 수정했다.
+  - access token 파싱 시 `role` 클레임을 필수 검증하도록 `JwtTokenProvider`를 수정했다.
+  - `JwtAuthenticationFilter`에서 `findActiveRoleById` DB 조회를 제거하고, 토큰의 `role`로 principal authority를 구성하도록 변경했다.
+  - 관련 테스트(`JwtAuthenticationFilterTest`, `LoginServiceTest`)를 새 `TokenClaims` 시그니처에 맞게 수정했다.
+- Why:
+  - JWT payload에 role이 없어 요청마다 DB role 조회가 발생하던 병목을 제거해 connection timeout 위험을 낮추기 위해.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/global/auth/domain/TokenClaims.java`
+  - `src/main/java/com/mealguide/mealguide_api/global/auth/jwt/JwtTokenProvider.java`
+  - `src/main/java/com/mealguide/mealguide_api/global/auth/security/JwtAuthenticationFilter.java`
+  - `src/test/java/com/mealguide/mealguide_api/login/infrastructure/security/JwtAuthenticationFilterTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/login/application/service/LoginServiceTest.java`
+  - `docs/work-log/login-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - 내부 인증 처리 변경: access token에 유효한 `role` 클레임이 없으면 인증 실패.
+- Related docs updated:
+  - `docs/work-log/login-work-log.md`
+- Remaining follow-ups:
+  - 없음 (개발 단계 가정에서 구 토큰 호환 미고려).
+
+### 2026-05-26 (refresh 재발급 AUTH_004 오류 수정)
+- What changed:
+  - `refresh` 경로에서 access token 재발급용 `AuthenticatedUser` 생성 시 `role`을 `null`로 넣던 문제를 수정했다.
+  - `LoginService.refresh`에서 `findActiveRoleById`로 활성 사용자의 role을 조회해 `AuthenticatedUser.role`에 주입하도록 변경했다.
+  - 관련 `LoginServiceTest` refresh 케이스 mock 설정에 `findActiveRoleById` 스텁을 추가했다.
+- Why:
+  - access token 발급 시 `role` 클레임이 필수로 바뀐 이후, refresh 경로에서 role 누락으로 `JWT_INVALID(AUTH_004)`가 발생했기 때문.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/login/application/service/LoginService.java`
+  - `src/test/java/com/mealguide/mealguide_api/login/application/service/LoginServiceTest.java`
+  - `docs/work-log/login-work-log.md`
+- DB schema changed: No
+- API behavior changed:
+  - `POST /auth/refresh`가 정상 refresh token에 대해 다시 정상 재발급됨.
+- Related docs updated:
+  - `docs/work-log/login-work-log.md`
+- Remaining follow-ups:
+  - 없음.

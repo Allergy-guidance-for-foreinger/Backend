@@ -5,9 +5,6 @@ import com.mealguide.mealguide_api.global.auth.domain.TokenType;
 import com.mealguide.mealguide_api.global.auth.port.TokenProviderPort;
 import com.mealguide.mealguide_api.global.auth.security.AuthenticatedUserPrincipal;
 import com.mealguide.mealguide_api.global.auth.security.JwtAuthenticationFilter;
-import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
-import com.mealguide.mealguide_api.global.base.exception.ServiceException;
-import com.mealguide.mealguide_api.login.application.port.UserQueryPort;
 import com.mealguide.mealguide_api.login.domain.UserRole;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -18,10 +15,8 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.io.IOException;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,8 +24,7 @@ import static org.mockito.Mockito.when;
 class JwtAuthenticationFilterTest {
 
     private final TokenProviderPort tokenProviderPort = mock(TokenProviderPort.class);
-    private final UserQueryPort userQueryPort = mock(UserQueryPort.class);
-    private final JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(tokenProviderPort, userQueryPort);
+    private final JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(tokenProviderPort);
 
     @AfterEach
     void tearDown() {
@@ -45,8 +39,7 @@ class JwtAuthenticationFilterTest {
         FilterChain filterChain = mock(FilterChain.class);
 
         when(tokenProviderPort.parseAccessToken("access-token"))
-                .thenReturn(new TokenClaims(1L, null, TokenType.ACCESS));
-        when(userQueryPort.findActiveRoleById(1L)).thenReturn(Optional.of(UserRole.USER));
+                .thenReturn(new TokenClaims(1L, null, UserRole.USER, TokenType.ACCESS));
 
         jwtAuthenticationFilter.doFilter(request, response, filterChain);
 
@@ -59,23 +52,6 @@ class JwtAuthenticationFilterTest {
                 .extracting("authority")
                 .containsExactly("ROLE_USER");
         verify(filterChain).doFilter(request, response);
-    }
-
-    @Test
-    void missingUserForTokenThrowsServiceException() {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("Authorization", "Bearer access-token");
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        FilterChain filterChain = mock(FilterChain.class);
-
-        when(tokenProviderPort.parseAccessToken("access-token"))
-                .thenReturn(new TokenClaims(1L, null, TokenType.ACCESS));
-        when(userQueryPort.findActiveRoleById(1L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> jwtAuthenticationFilter.doFilter(request, response, filterChain))
-                .isInstanceOf(ServiceException.class)
-                .extracting(exception -> ((ServiceException) exception).getErrorCode())
-                .isEqualTo(ErrorCode.USER_NOT_FOUND);
     }
 }
 
