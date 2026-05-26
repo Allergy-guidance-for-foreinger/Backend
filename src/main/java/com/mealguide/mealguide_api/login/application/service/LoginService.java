@@ -57,9 +57,7 @@ public class LoginService {
     @Transactional
     public AuthTokenResult refresh(String refreshToken) {
         TokenClaims tokenClaims = tokenProviderPort.parseRefreshToken(refreshToken);
-        if (!userQueryPort.existsActiveById(tokenClaims.userId())) {
-            throw new ServiceException(ErrorCode.USER_NOT_FOUND);
-        }
+
         UserRole role = userQueryPort.findActiveRoleById(tokenClaims.userId())
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
