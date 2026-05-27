@@ -234,10 +234,15 @@ public class MenuAiAnalysisFollowUpService {
         }
         List<MenuIngredientCandidate> converted = new ArrayList<>();
         for (PythonMenuIngredientResultDto ingredient : ingredients) {
-            if (ingredient == null || ingredient.ingredientCode() == null || ingredient.ingredientCode().isBlank()) {
+            if (ingredient == null
+                    || (isBlank(ingredient.ingredientCode()) && isBlank(ingredient.ingredientName()))) {
                 continue;
             }
-            converted.add(new MenuIngredientCandidate(ingredient.ingredientCode().trim(), ingredient.confidence()));
+            converted.add(new MenuIngredientCandidate(
+                    trimToNull(ingredient.ingredientCode()),
+                    trimToNull(ingredient.ingredientName()),
+                    ingredient.confidence()
+            ));
         }
         return converted;
     }
@@ -260,7 +265,9 @@ public class MenuAiAnalysisFollowUpService {
         Set<String> codes = new HashSet<>();
         for (PythonMenuAnalysisResultDto result : results) {
             for (MenuIngredientCandidate ingredient : toIngredients(result.ingredients())) {
-                codes.add(ingredient.ingredientCode());
+                if (!isBlank(ingredient.ingredientCode())) {
+                    codes.add(ingredient.ingredientCode().trim());
+                }
             }
         }
         return codes;
@@ -288,5 +295,16 @@ public class MenuAiAnalysisFollowUpService {
         return "Python analysis request failed"
                 + (exception.getHttpStatus() == null ? "" : " (status=" + exception.getHttpStatus() + ")")
                 + (body == null || body.isBlank() ? "" : ": " + body);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

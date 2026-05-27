@@ -6,6 +6,45 @@
 
 ## 최근 공통 작업
 
+### 2026-05-27 (AI ingredient auto-registration and ingredient translation batch)
+- What changed:
+  - Extended AI menu ingredient response mapping to keep `ingredientName` and accept snake_case aliases for ingredient/allergy codes.
+  - Changed AI ingredient persistence so code-less or unknown-code ingredients with Korean names are registered in `ingredient` using deterministic `AI_` hash codes.
+  - Added immediate `ingredient_translation(ko)` creation for newly registered AI ingredients.
+  - Kept `allergy` behavior unchanged: unknown allergy codes are skipped.
+  - Added ingredient translation follow-up service and runs it as the next step after menu translation inside `MealCrawlOrchestrationService.crawlAndImport`.
+  - Added Java -> Python ingredient batch translation client for `/api/v1/python/translations/list`.
+  - Batch translation now processes `ko` translation present / `en` translation missing ingredients, with `batchSize` and `maxBatchesPerRun` controls per crawl orchestration run.
+  - Added focused tests for code-less AI ingredient name propagation and ingredient translation batching.
+  - Added proactive `ingredient_translation` identity sequence repair before application inserts when existing seed data left the sequence behind explicit `id` values.
+  - Added `setval(...)` after `ingredient_translation` seed rows in `docs/schema.sql` so fresh DB initialization advances the identity sequence past seeded ids.
+- Why:
+  - AI analysis responses can include useful ingredient names with `ingredientCode = null`; those ingredients should be accumulated for later manager monitoring and religious restriction mapping.
+  - English ingredient translations should be filled asynchronously without blocking AI analysis persistence.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuAiAnalysisFollowUpService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/IngredientTranslationFollowUpService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlScheduler.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/PythonMealClientPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/config/MealCrawlProperties.java`
+  - `src/main/resources/application.properties`
+  - Python ingredient translation request/response DTO files under `mealcrawl.infrastructure.client.dto`
+  - `docs/features/mealcrawl-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No public user API contract change; Java-to-Python internal ingredient translation API added.
+- Related docs updated:
+  - `docs/features/mealcrawl-context.md`
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Python server must expose `/api/v1/python/translations/list` with the agreed envelope response.
+  - Add an admin-facing monitoring/query flow for newly accumulated `AI_` ingredient codes if needed.
+  - Existing local/production DBs that were initialized before this schema-doc correction may still be cleaned up with a one-time sequence repair:
+    `select setval(pg_get_serial_sequence('ingredient_translation', 'id'), coalesce((select max(id) from ingredient_translation), 0) + 1, false);`
+
 ### 2026-05-24 (menu image analysis language-aware response + python call reduction)
 - What changed:
   - Kept image analysis user API contract as multipart `image` only.

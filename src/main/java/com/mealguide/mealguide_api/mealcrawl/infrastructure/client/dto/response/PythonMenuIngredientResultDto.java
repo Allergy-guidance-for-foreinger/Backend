@@ -4,8 +4,12 @@ import java.math.BigDecimal;
 
 public record PythonMenuIngredientResultDto(
         String ingredientCode,
+        String ingredientName,
         BigDecimal confidence
 ) {
+    public PythonMenuIngredientResultDto(String ingredientCode, BigDecimal confidence) {
+        this(ingredientCode, null, confidence);
+    }
 }
 
 

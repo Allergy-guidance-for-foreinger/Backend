@@ -4,7 +4,10 @@ import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.mealcrawl.application.port.PythonMealClientPort;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMealCrawlRequest;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonIngredientTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMealCrawlResponse;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonIngredientTranslationResultDto;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonIngredientTranslationResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
@@ -253,6 +256,58 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
         }
     }
 
+    @Override
+    public PythonIngredientTranslationResponse translateIngredients(PythonIngredientTranslationRequest request) {
+        try {
+            PythonIngredientTranslationEnvelope response = restClient.post()
+                    .uri(mealCrawlProperties.getIngredientTranslationPath())
+                    .body(request)
+                    .retrieve()
+                    .body(PythonIngredientTranslationEnvelope.class);
+
+            if (response == null) {
+                throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR);
+            }
+            if (!response.success()) {
+                throw new PythonMealClientException(
+                        "Python ingredient translation request failed: business failure",
+                        HttpStatus.BAD_GATEWAY.value(),
+                        null,
+                        true,
+                        null
+                );
+            }
+            List<PythonIngredientTranslationResultDto> results = response.data() == null ? List.of() : response.data().results();
+            return new PythonIngredientTranslationResponse(results == null ? List.of() : results);
+        } catch (RestClientResponseException exception) {
+            int status = exception.getStatusCode().value();
+            boolean retryable = isRetryableStatus(status);
+            throw new PythonMealClientException(
+                    "Python ingredient translation request failed: status=" + status,
+                    status,
+                    exception.getResponseBodyAsString(),
+                    retryable,
+                    exception
+            );
+        } catch (ResourceAccessException exception) {
+            throw new PythonMealClientException(
+                    "Python ingredient translation request failed: resource access error",
+                    null,
+                    null,
+                    false,
+                    exception
+            );
+        } catch (RestClientException exception) {
+            throw new PythonMealClientException(
+                    "Python ingredient translation request failed",
+                    null,
+                    null,
+                    true,
+                    exception
+            );
+        }
+    }
+
     private record PythonMenuTranslationEnvelope(
             List<PythonMenuTranslationResultDto> results,
             PythonMenuTranslationEnvelopeData data
@@ -274,6 +329,17 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
 
     private record PythonMenuImageAnalysisEnvelopeData(
             List<PythonMenuImageAnalysisResultDto> results
+    ) {
+    }
+
+    private record PythonIngredientTranslationEnvelope(
+            boolean success,
+            PythonIngredientTranslationEnvelopeData data
+    ) {
+    }
+
+    private record PythonIngredientTranslationEnvelopeData(
+            List<PythonIngredientTranslationResultDto> results
     ) {
     }
 

@@ -16,6 +16,7 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.PythonMealCli
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMealCrawlRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonIngredientTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonTextTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMealCrawlResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAllergyResultDto;
@@ -26,6 +27,7 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuIngredientResultDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonTextTranslationResponse;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonIngredientTranslationResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.multipart.MultipartFile;
@@ -88,6 +90,25 @@ class MenuAiAnalysisFollowUpServiceTest {
         assertThat(persistencePort.attemptByMenuId.get(11L)).isEqualTo(1);
         assertThat(persistencePort.attemptByMenuId.get(12L)).isEqualTo(1);
         assertThat(persistencePort.attemptByMenuId.get(13L)).isEqualTo(1);
+    }
+
+    @Test
+    void processKeepsIngredientNameWhenCodeIsMissing() {
+        FakeMealCrawlPersistencePort persistencePort = new FakeMealCrawlPersistencePort();
+        persistencePort.menuNames.put(70L, "베이컨비프치즈버거");
+
+        FakePythonMealClientPort pythonPort = new FakePythonMealClientPort();
+        pythonPort.response = new PythonMenuAnalysisResponse(List.of(
+                new PythonMenuAnalysisResultDto(70L, "베이컨비프치즈버거", PythonMenuAnalysisStatus.SUCCESS, 1L, null, "m", "v", List.of(
+                        new PythonMenuIngredientResultDto(null, "베이컨", BigDecimal.ONE)
+                ), List.of())
+        ));
+
+        MenuAiAnalysisFollowUpService service = new MenuAiAnalysisFollowUpService(persistencePort, pythonPort, new MealCrawlProperties());
+        service.process(new MealImportResult(1L, 1L, List.of(70L), List.of(70L), List.of()));
+
+        assertThat(persistencePort.ingredientsByMenuId.get(70L))
+                .containsExactly(new MenuIngredientCandidate(null, "베이컨", BigDecimal.ONE));
     }
 
     @Test
@@ -160,12 +181,18 @@ class MenuAiAnalysisFollowUpServiceTest {
         public PythonTextTranslationResponse translateText(PythonTextTranslationRequest request) {
             return new PythonTextTranslationResponse("translated");
         }
+
+        @Override
+        public PythonIngredientTranslationResponse translateIngredients(PythonIngredientTranslationRequest request) {
+            return new PythonIngredientTranslationResponse(List.of());
+        }
     }
 
     private static class FakeMealCrawlPersistencePort implements MealCrawlPersistencePort {
         private final Map<Long, String> menuNames = new HashMap<>();
         private final Map<Long, MenuAiStatus> statusByMenuId = new HashMap<>();
         private final Map<Long, Integer> attemptByMenuId = new HashMap<>();
+        private final Map<Long, List<MenuIngredientCandidate>> ingredientsByMenuId = new HashMap<>();
         private List<Long> retryTargetMenuIds = List.of();
         private final Map<Long, Integer> latestAttemptsByMenuId = new HashMap<>();
         private int lastRetryQueryLimit;
@@ -276,6 +303,7 @@ class MenuAiAnalysisFollowUpServiceTest {
         public void saveMenuAnalysisAndUpdateStatus(Long menuId, MenuAiStatus status, String modelName, String modelVersion, String reason, LocalDateTime analyzedAt, int attemptCount, List<MenuIngredientCandidate> ingredients, Set<String> validIngredientCodes, List<MenuAllergyCandidate> allergies, Set<String> validAllergyCodes, MenuSpicyLevel spicyLevel) {
             statusByMenuId.put(menuId, status);
             attemptByMenuId.put(menuId, attemptCount);
+            ingredientsByMenuId.put(menuId, ingredients);
         }
 
         @Override

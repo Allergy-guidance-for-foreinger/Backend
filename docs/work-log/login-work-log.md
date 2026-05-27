@@ -26,6 +26,21 @@
 - 기능 맥락: `docs/features/login-context.md`
 - 공통 규칙: `docs/project-context.md`, `docs/database-context.md`
 
+### 2026-05-27 (user_oauth_accounts schema reference 보정)
+- What changed:
+  - `docs/schema.sql`에 누락되어 있던 `user_oauth_accounts` 테이블 정의를 추가했다.
+  - `UserOauthAccount` 엔티티 기준으로 `id`, `user_id`, `provider`, `provider_user_id`, `provider_email`, `created_at`, `updated_at` 컬럼을 반영했다.
+  - `uk_user_oauth_accounts_provider_user_id` unique constraint와 조회용 인덱스(`user_id`, `(provider, provider_email)`)를 문서에 추가했다.
+- Why:
+  - 로그인 기능 문서와 엔티티에는 `user_oauth_accounts`가 존재하지만, schema source-of-truth 문서에서 빠져 있어 DB 기준 문서가 불완전했기 때문.
+- Affected files:
+  - `docs/schema.sql`
+  - `docs/work-log/login-work-log.md`
+- DB schema changed: No runtime schema change (schema reference document correction only)
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/login-work-log.md`
+
 ### 2026-05-25 (역할 기반 회원탈퇴 정책 적용)
 - What changed:
   - `DELETE /auth/withdraw` API를 추가했다.

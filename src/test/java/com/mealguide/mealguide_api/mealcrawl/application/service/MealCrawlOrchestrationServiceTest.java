@@ -18,6 +18,8 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.P
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonIngredientTranslationRequest;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonIngredientTranslationResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonTextTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonTextTranslationResponse;
 import org.springframework.web.multipart.MultipartFile;
@@ -60,6 +62,7 @@ class MealCrawlOrchestrationServiceTest {
                 throw new RuntimeException("translation failure");
             }
         };
+        IngredientTranslationFollowUpService ingredientTranslationFollowUpService = mock(IngredientTranslationFollowUpService.class);
 
         MealCrawlOrchestrationService orchestrationService = new MealCrawlOrchestrationService(
                 pythonClient,
@@ -67,7 +70,8 @@ class MealCrawlOrchestrationServiceTest {
                 mealImportService,
                 mock(WeeklyMealCacheRefreshService.class),
                 analysisFollowUpService,
-                translationFollowUpService
+                translationFollowUpService,
+                ingredientTranslationFollowUpService
         );
 
         MealCrawlTarget target = new MealCrawlTarget(1L, 10L, "School", "Cafe", "http://source", LocalDate.now(), LocalDate.now().plusDays(6));
@@ -89,6 +93,7 @@ class MealCrawlOrchestrationServiceTest {
                 pythonClient,
                 new com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties()
         );
+        IngredientTranslationFollowUpService ingredientTranslationFollowUpService = mock(IngredientTranslationFollowUpService.class);
         WeeklyMealCacheRefreshService cacheRefreshService = mock(WeeklyMealCacheRefreshService.class);
         doThrow(new RuntimeException("redis failure"))
                 .when(cacheRefreshService)
@@ -100,7 +105,8 @@ class MealCrawlOrchestrationServiceTest {
                 mealImportService,
                 cacheRefreshService,
                 analysisFollowUpService,
-                translationFollowUpService
+                translationFollowUpService,
+                ingredientTranslationFollowUpService
         );
 
         MealCrawlTarget target = new MealCrawlTarget(
@@ -117,6 +123,33 @@ class MealCrawlOrchestrationServiceTest {
         assertThat(persistencePort.successMarked).isTrue();
         assertThat(persistencePort.failureMarked).isFalse();
         verify(cacheRefreshService).refreshWeeklyMealCache("manual", 1L, 10L, LocalDate.of(2026, 4, 20));
+    }
+
+    @Test
+    void crawlAndImportRunsIngredientTranslationAfterMenuTranslation() {
+        FakePythonClient pythonClient = new FakePythonClient();
+        FakePersistencePort persistencePort = new FakePersistencePort();
+
+        MealImportService mealImportService = new MealImportService(persistencePort, new MealCrawlProperties());
+        MenuAiAnalysisFollowUpService analysisFollowUpService = mock(MenuAiAnalysisFollowUpService.class);
+        MenuTranslationFollowUpService translationFollowUpService = mock(MenuTranslationFollowUpService.class);
+        IngredientTranslationFollowUpService ingredientTranslationFollowUpService = mock(IngredientTranslationFollowUpService.class);
+
+        MealCrawlOrchestrationService orchestrationService = new MealCrawlOrchestrationService(
+                pythonClient,
+                persistencePort,
+                mealImportService,
+                mock(WeeklyMealCacheRefreshService.class),
+                analysisFollowUpService,
+                translationFollowUpService,
+                ingredientTranslationFollowUpService
+        );
+
+        MealCrawlTarget target = new MealCrawlTarget(1L, 10L, "School", "Cafe", "http://source", LocalDate.now(), LocalDate.now().plusDays(6));
+
+        orchestrationService.crawlAndImport("run-1", target);
+
+        verify(ingredientTranslationFollowUpService).process("run-1");
     }
 
     private static class FakePythonClient implements PythonMealClientPort {
@@ -150,6 +183,11 @@ class MealCrawlOrchestrationServiceTest {
         @Override
         public PythonTextTranslationResponse translateText(PythonTextTranslationRequest request) {
             return new PythonTextTranslationResponse("translated");
+        }
+
+        @Override
+        public PythonIngredientTranslationResponse translateIngredients(PythonIngredientTranslationRequest request) {
+            return new PythonIngredientTranslationResponse(List.of());
         }
     }
 
