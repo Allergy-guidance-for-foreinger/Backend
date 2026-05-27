@@ -15,8 +15,10 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonIngredientTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonTextTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonIngredientTranslationResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResultDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuImageAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonTextTranslationResponse;
@@ -126,6 +128,11 @@ class MenuTranslationFollowUpServiceTest {
         @Override
         public PythonTextTranslationResponse translateText(PythonTextTranslationRequest request) {
             return new PythonTextTranslationResponse("translated");
+        }
+
+        @Override
+        public PythonIngredientTranslationResponse translateIngredients(PythonIngredientTranslationRequest request) {
+            return new PythonIngredientTranslationResponse(List.of());
         }
     }
 

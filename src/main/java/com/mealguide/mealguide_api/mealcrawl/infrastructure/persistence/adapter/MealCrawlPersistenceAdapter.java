@@ -6,6 +6,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientR
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuMatchedAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuReligiousMatchRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.IngredientTranslationTarget;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.NamedIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
@@ -45,6 +46,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -61,6 +65,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
 
     private static final MenuAiStatus DEFAULT_MENU_AI_STATUS = MenuAiStatus.FAILED;
     private static final String INGREDIENT_SOURCE_TYPE_CRAWL = "CRAWL";
+    private static final String KOREAN_LANGUAGE_CODE = "ko";
 
     private final CafeteriaJpaRepository cafeteriaJpaRepository;
     private final MealScheduleCrawlHistoryJpaRepository crawlHistoryJpaRepository;
@@ -1023,33 +1028,146 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
         if (ingredients == null || ingredients.isEmpty()) {
             return;
         }
-        Set<String> prevalidatedCodes = validIngredientCodes == null ? Set.of() : validIngredientCodes;
-        Set<String> candidateCodes = ingredients.stream()
-                .filter(ingredient -> ingredient.ingredientCode() != null && !ingredient.ingredientCode().isBlank())
-                .map(ingredient -> ingredient.ingredientCode().trim())
-                .collect(Collectors.toSet());
-        Set<String> validCodes = ensureIngredientCodesExist(candidateCodes, prevalidatedCodes);
+        Map<MenuIngredientCandidate, String> resolvedCodes = resolveIngredientCodes(ingredients, validIngredientCodes);
         Map<String, MenuIngredientCandidate> deduplicated = new LinkedHashMap<>();
         for (MenuIngredientCandidate ingredient : ingredients) {
-            if (ingredient.ingredientCode() == null || ingredient.ingredientCode().isBlank()) {
+            String ingredientCode = resolvedCodes.get(ingredient);
+            if (ingredientCode == null || ingredientCode.isBlank()) {
                 continue;
             }
-            String ingredientCode = ingredient.ingredientCode().trim();
-            if (validCodes.contains(ingredientCode)) {
-                deduplicated.putIfAbsent(ingredientCode, ingredient);
-            }
+            deduplicated.putIfAbsent(ingredientCode, ingredient);
         }
         if (deduplicated.isEmpty()) {
             return;
         }
-        List<MenuAiAnalysisIngredient> entities = deduplicated.values().stream()
-                .map(ingredient -> MenuAiAnalysisIngredient.create(
+        List<MenuAiAnalysisIngredient> entities = deduplicated.entrySet().stream()
+                .map(entry -> MenuAiAnalysisIngredient.create(
                         menuAiAnalysisId,
-                        ingredient.ingredientCode().trim(),
-                        ingredient.confidence()
+                        entry.getKey(),
+                        entry.getValue().confidence()
                 ))
                 .toList();
         menuAiAnalysisIngredientJpaRepository.saveAll(entities);
+    }
+
+    private Map<MenuIngredientCandidate, String> resolveIngredientCodes(
+            List<MenuIngredientCandidate> ingredients,
+            Set<String> prevalidatedCodes
+    ) {
+        Set<String> candidateCodes = ingredients.stream()
+                .map(MenuIngredientCandidate::ingredientCode)
+                .filter(code -> code != null && !code.isBlank())
+                .map(String::trim)
+                .collect(Collectors.toSet());
+        Set<String> existingCodes = new HashSet<>();
+        if (prevalidatedCodes != null && !prevalidatedCodes.isEmpty()) {
+            existingCodes.addAll(prevalidatedCodes);
+        }
+        existingCodes.addAll(findExistingIngredientCodes(candidateCodes));
+
+        Set<String> koreanNamesToResolve = ingredients.stream()
+                .filter(ingredient -> {
+                    String code = trimToNull(ingredient.ingredientCode());
+                    return code == null || !existingCodes.contains(code);
+                })
+                .map(MenuIngredientCandidate::ingredientName)
+                .filter(name -> name != null && !name.isBlank())
+                .map(String::trim)
+                .collect(Collectors.toSet());
+        Map<String, String> existingCodeByKoreanName = findIngredientCodesByKoreanNames(koreanNamesToResolve);
+
+        Map<String, String> newIngredientNamesByCode = new LinkedHashMap<>();
+        Map<MenuIngredientCandidate, String> resolvedCodes = new LinkedHashMap<>();
+        for (MenuIngredientCandidate ingredient : ingredients) {
+            String code = trimToNull(ingredient.ingredientCode());
+            if (code != null && existingCodes.contains(code)) {
+                resolvedCodes.put(ingredient, code);
+                continue;
+            }
+
+            String koreanName = trimToNull(ingredient.ingredientName());
+            if (koreanName == null) {
+                continue;
+            }
+            String existingCode = existingCodeByKoreanName.get(koreanName);
+            if (existingCode != null && !existingCode.isBlank()) {
+                resolvedCodes.put(ingredient, existingCode);
+                continue;
+            }
+
+            String generatedCode = generateAiIngredientCode(koreanName);
+            resolvedCodes.put(ingredient, generatedCode);
+            newIngredientNamesByCode.putIfAbsent(generatedCode, koreanName);
+        }
+
+        saveNewIngredientsWithKoreanTranslations(newIngredientNamesByCode);
+        return resolvedCodes;
+    }
+
+    private Map<String, String> findIngredientCodesByKoreanNames(Set<String> koreanNames) {
+        if (koreanNames == null || koreanNames.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, String> codeByName = new HashMap<>();
+        String ingredientSql = """
+                select i.name, i.code
+                from ingredient i
+                where i.name in (:names)
+                """;
+        namedParameterJdbcTemplate.query(
+                ingredientSql,
+                new MapSqlParameterSource("names", koreanNames),
+                (org.springframework.jdbc.core.RowCallbackHandler) rs ->
+                        codeByName.putIfAbsent(rs.getString("name"), rs.getString("code"))
+        );
+
+        String translationSql = """
+                select it.name, it.ingredient_code
+                from ingredient_translation it
+                where it.lang_code = :langCode
+                  and it.name in (:names)
+                """;
+        namedParameterJdbcTemplate.query(
+                translationSql,
+                new MapSqlParameterSource()
+                        .addValue("langCode", KOREAN_LANGUAGE_CODE)
+                        .addValue("names", koreanNames),
+                (org.springframework.jdbc.core.RowCallbackHandler) rs ->
+                        codeByName.putIfAbsent(rs.getString("name"), rs.getString("ingredient_code"))
+        );
+        return codeByName;
+    }
+
+    private void saveNewIngredientsWithKoreanTranslations(Map<String, String> koreanNamesByCode) {
+        if (koreanNamesByCode == null || koreanNamesByCode.isEmpty()) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        String ingredientSql = """
+                insert into ingredient (code, name, created_at)
+                values (:code, :name, :createdAt)
+                on conflict (code) do nothing
+                """;
+        String translationSql = """
+                insert into ingredient_translation (
+                    ingredient_code, lang_code, name, is_auto_translated, created_at, updated_at
+                ) values (
+                    :code, :langCode, :name, true, :createdAt, :updatedAt
+                )
+                on conflict (ingredient_code, lang_code) do nothing
+                """;
+        for (Map.Entry<String, String> entry : koreanNamesByCode.entrySet()) {
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("code", entry.getKey())
+                    .addValue("name", truncate(entry.getValue(), 100))
+                    .addValue("createdAt", now)
+                    .addValue("updatedAt", now)
+                    .addValue("langCode", KOREAN_LANGUAGE_CODE);
+            namedParameterJdbcTemplate.update(ingredientSql, params);
+            namedParameterJdbcTemplate.update(translationSql, params);
+            log.debug("Inserted missing ingredient from AI analysis: ingredientCode={}, ingredientName={}",
+                    entry.getKey(), entry.getValue());
+        }
     }
 
     private void saveAllergiesForAnalysis(
@@ -1290,6 +1408,82 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
         return new HashSet<>(namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> rs.getString("code")));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<IngredientTranslationTarget> findMissingIngredientTranslationTargets(
+            String sourceLang,
+            String targetLang,
+            int limit,
+            Set<String> excludeIngredientCodes
+    ) {
+        if (limit <= 0 || sourceLang == null || sourceLang.isBlank() || targetLang == null || targetLang.isBlank()) {
+            return List.of();
+        }
+        String normalizedSourceLang = normalizeLanguageCode(sourceLang);
+        String normalizedTargetLang = normalizeLanguageCode(targetLang);
+        Set<String> excludes = excludeIngredientCodes == null ? Set.of() : excludeIngredientCodes;
+        String excludeClause = excludes.isEmpty() ? "" : "  and i.code not in (:excludeCodes)\n";
+        String sql = """
+                select i.code as ingredient_code,
+                       source_translation.name as source_name
+                from ingredient i
+                join ingredient_translation source_translation
+                  on source_translation.ingredient_code = i.code
+                 and source_translation.lang_code = :sourceLang
+                left join ingredient_translation target_translation
+                  on target_translation.ingredient_code = i.code
+                 and target_translation.lang_code = :targetLang
+                where target_translation.ingredient_code is null
+                """ + excludeClause + """
+                order by i.created_at asc, i.code asc
+                limit :limit
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("sourceLang", normalizedSourceLang )
+                .addValue("targetLang", normalizedTargetLang)
+                .addValue("limit", limit);
+        if (!excludes.isEmpty()) {
+            params.addValue("excludeCodes", excludes);
+        }
+        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new IngredientTranslationTarget(
+                rs.getString("ingredient_code"),
+                rs.getString("source_name")
+        ));
+    }
+
+    @Override
+    @Transactional
+    public void saveIngredientTranslations(String langCode, Map<String, String> translatedNamesByIngredientCode) {
+        if (langCode == null || langCode.isBlank()
+                || translatedNamesByIngredientCode == null
+                || translatedNamesByIngredientCode.isEmpty()) {
+            return;
+        }
+        String normalizedLangCode = normalizeLanguageCode(langCode);
+        String sql = """
+                insert into ingredient_translation (
+                    ingredient_code, lang_code, name, is_auto_translated, created_at, updated_at
+                ) values (
+                    :ingredientCode, :langCode, :name, true, :createdAt, :updatedAt
+                )
+                on conflict (ingredient_code, lang_code) do nothing
+                """;
+        LocalDateTime now = LocalDateTime.now();
+        for (Map.Entry<String, String> entry : translatedNamesByIngredientCode.entrySet()) {
+            if (entry.getKey() == null || entry.getKey().isBlank()
+                    || entry.getValue() == null || entry.getValue().isBlank()) {
+                continue;
+            }
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("ingredientCode", entry.getKey().trim())
+                    .addValue("langCode", normalizedLangCode)
+                    .addValue("name", truncate(entry.getValue().trim(), 100))
+                    .addValue("createdAt", now)
+                    .addValue("updatedAt", now);
+            namedParameterJdbcTemplate.update(sql, params);
+        }
+    }
+
     private Set<String> ensureIngredientCodesExist(Set<String> candidateCodes) {
         return ensureIngredientCodesExist(candidateCodes, Set.of());
     }
@@ -1324,6 +1518,34 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
             existingCodes.addAll(findExistingIngredientCodes(candidateCodes));
         }
         return existingCodes;
+    }
+
+    private String generateAiIngredientCode(String ingredientName) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(ingredientName.trim().getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder("AI_");
+            for (int i = 0; i < 8 && i < hash.length; i++) {
+                builder.append(String.format("%02X", hash[i]));
+            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 algorithm is not available", exception);
+        }
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 }
 

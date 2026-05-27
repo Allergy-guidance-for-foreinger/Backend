@@ -24,6 +24,7 @@ public class MealCrawlProperties {
     private String imageAnalysisPath = "/api/v1/python/menus/analyze-image";
     private String translationPath = "/api/v1/menus/translate";
     private String textTranslationPath = "/api/v1/translations";
+    private String ingredientTranslationPath = "/api/v1/python/translations/list";
     private long weeklyMealCacheTtlSeconds = 86400L;
     private int aiAnalysisBatchSize = 10;
     private Integer aiAnalysisRetryBatchSize;
@@ -31,6 +32,8 @@ public class MealCrawlProperties {
     private int translationBatchSize = 10;
     private Integer translationRetryBatchSize;
     private int translationMaxAttemptCount = 3;
+    private int ingredientTranslationBatchSize = 10;
+    private int ingredientTranslationMaxBatchesPerRun = 5;
     private MenuImage menuImage = new MenuImage();
 
     private List<String> translationTargetLanguages = List.of("en");
@@ -64,6 +67,14 @@ public class MealCrawlProperties {
 
     public int getTranslationMaxAttemptCount() {
         return translationMaxAttemptCount > 0 ? translationMaxAttemptCount : 3;
+    }
+
+    public int getIngredientTranslationBatchSize() {
+        return ingredientTranslationBatchSize > 0 ? ingredientTranslationBatchSize : 10;
+    }
+
+    public int getIngredientTranslationMaxBatchesPerRun() {
+        return ingredientTranslationMaxBatchesPerRun;
     }
 
     @Getter

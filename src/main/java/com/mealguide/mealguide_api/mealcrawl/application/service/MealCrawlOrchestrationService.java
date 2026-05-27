@@ -25,6 +25,7 @@ public class MealCrawlOrchestrationService {
     private final WeeklyMealCacheRefreshService weeklyMealCacheRefreshService;
     private final MenuAiAnalysisFollowUpService menuAiAnalysisFollowUpService;
     private final MenuTranslationFollowUpService menuTranslationFollowUpService;
+    private final IngredientTranslationFollowUpService ingredientTranslationFollowUpService;
 
     public void crawlAndImport(MealCrawlTarget target) {
         crawlAndImport("manual", target);
@@ -122,6 +123,21 @@ public class MealCrawlOrchestrationService {
         } catch (Exception exception) {
             log.warn(
                     "event=FAIL stage=translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} errorType={} message={}",
+                    runId,
+                    target.schoolId(),
+                    target.cafeteriaId(),
+                    target.startDate(),
+                    exception.getClass().getSimpleName(),
+                    shorten(exception.getMessage()),
+                    exception
+            );
+        }
+
+        try {
+            ingredientTranslationFollowUpService.process(runId);
+        } catch (Exception exception) {
+            log.warn(
+                    "event=FAIL stage=ingredient_translation_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} errorType={} message={}",
                     runId,
                     target.schoolId(),
                     target.cafeteriaId(),

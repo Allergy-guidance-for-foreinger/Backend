@@ -4,6 +4,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientR
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuMatchedAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuReligiousMatchRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.IngredientTranslationTarget;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.NamedIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
@@ -262,6 +263,23 @@ public interface MealCrawlPersistencePort {
             String reason,
             int attemptCount
     ) {
+    }
+
+    default List<IngredientTranslationTarget> findMissingIngredientTranslationTargets(
+            String sourceLang,
+            String targetLang,
+            int limit,
+            Set<String> excludeIngredientCodes
+    ) {
+        throw new UnsupportedOperationException(
+                "findMissingIngredientTranslationTargets must be implemented by persistence adapter"
+        );
+    }
+
+    default void saveIngredientTranslations(String langCode, Map<String, String> translatedNamesByIngredientCode) {
+        throw new UnsupportedOperationException(
+                "saveIngredientTranslations must be implemented by persistence adapter"
+        );
     }
 }
 
