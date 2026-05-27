@@ -16,8 +16,8 @@
   - Added Java -> Python ingredient batch translation client for `/api/v1/python/translations/list`.
   - Batch translation now processes `ko` translation present / `en` translation missing ingredients, with `batchSize` and `maxBatchesPerRun` controls per crawl orchestration run.
   - Added focused tests for code-less AI ingredient name propagation and ingredient translation batching.
-  - Added proactive `ingredient_translation` identity sequence repair before application inserts when existing seed data left the sequence behind explicit `id` values.
-  - Added `setval(...)` after `ingredient_translation` seed rows in `docs/schema.sql` so fresh DB initialization advances the identity sequence past seeded ids.
+  - Removed direct `id` insertion from translation seed rows in `docs/schema.sql` where DB identity should generate surrogate keys.
+  - Removed application-side proactive `ingredient_translation` sequence repair so routine inserts no longer emit sequence repair WARN logs.
 - Why:
   - AI analysis responses can include useful ingredient names with `ingredientCode = null`; those ingredients should be accumulated for later manager monitoring and religious restriction mapping.
   - English ingredient translations should be filled asynchronously without blocking AI analysis persistence.
@@ -32,6 +32,7 @@
   - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/config/MealCrawlProperties.java`
   - `src/main/resources/application.properties`
   - Python ingredient translation request/response DTO files under `mealcrawl.infrastructure.client.dto`
+  - `docs/schema.sql`
   - `docs/features/mealcrawl-context.md`
   - `docs/work-log/general-work-log.md`
 - DB schema changed: No
@@ -42,7 +43,7 @@
 - Remaining follow-ups:
   - Python server must expose `/api/v1/python/translations/list` with the agreed envelope response.
   - Add an admin-facing monitoring/query flow for newly accumulated `AI_` ingredient codes if needed.
-  - Existing local/production DBs that were initialized before this schema-doc correction may still be cleaned up with a one-time sequence repair:
+  - Existing local/production DBs initialized before this seed cleanup still need one-time sequence repair for affected translation tables, for example:
     `select setval(pg_get_serial_sequence('ingredient_translation', 'id'), coalesce((select max(id) from ingredient_translation), 0) + 1, false);`
 
 ### 2026-05-24 (menu image analysis language-aware response + python call reduction)

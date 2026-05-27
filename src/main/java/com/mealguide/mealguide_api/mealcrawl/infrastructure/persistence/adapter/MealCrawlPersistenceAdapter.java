@@ -1156,7 +1156,6 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 )
                 on conflict (ingredient_code, lang_code) do nothing
                 """;
-        repairIngredientTranslationIdentitySequence();
         for (Map.Entry<String, String> entry : koreanNamesByCode.entrySet()) {
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("code", entry.getKey())
@@ -1420,6 +1419,8 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
         if (limit <= 0 || sourceLang == null || sourceLang.isBlank() || targetLang == null || targetLang.isBlank()) {
             return List.of();
         }
+        String normalizedSourceLang = normalizeLanguageCode(sourceLang);
+        String normalizedTargetLang = normalizeLanguageCode(targetLang);
         Set<String> excludes = excludeIngredientCodes == null ? Set.of() : excludeIngredientCodes;
         String excludeClause = excludes.isEmpty() ? "" : "  and i.code not in (:excludeCodes)\n";
         String sql = """
@@ -1438,8 +1439,8 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 limit :limit
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("sourceLang", sourceLang)
-                .addValue("targetLang", targetLang)
+                .addValue("sourceLang", normalizedSourceLang )
+                .addValue("targetLang", normalizedTargetLang)
                 .addValue("limit", limit);
         if (!excludes.isEmpty()) {
             params.addValue("excludeCodes", excludes);
@@ -1458,6 +1459,7 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 || translatedNamesByIngredientCode.isEmpty()) {
             return;
         }
+        String normalizedLangCode = normalizeLanguageCode(langCode);
         String sql = """
                 insert into ingredient_translation (
                     ingredient_code, lang_code, name, is_auto_translated, created_at, updated_at
@@ -1467,7 +1469,6 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 on conflict (ingredient_code, lang_code) do nothing
                 """;
         LocalDateTime now = LocalDateTime.now();
-        repairIngredientTranslationIdentitySequence();
         for (Map.Entry<String, String> entry : translatedNamesByIngredientCode.entrySet()) {
             if (entry.getKey() == null || entry.getKey().isBlank()
                     || entry.getValue() == null || entry.getValue().isBlank()) {
@@ -1475,24 +1476,12 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
             }
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("ingredientCode", entry.getKey().trim())
-                    .addValue("langCode", langCode.trim())
+                    .addValue("langCode", normalizedLangCode)
                     .addValue("name", truncate(entry.getValue().trim(), 100))
                     .addValue("createdAt", now)
                     .addValue("updatedAt", now);
             namedParameterJdbcTemplate.update(sql, params);
         }
-    }
-
-    private void repairIngredientTranslationIdentitySequence() {
-        String sql = """
-                select setval(
-                    pg_get_serial_sequence('ingredient_translation', 'id'),
-                    coalesce((select max(id) from ingredient_translation), 0) + 1,
-                    false
-                )
-                """;
-        namedParameterJdbcTemplate.getJdbcTemplate().queryForObject(sql, Long.class);
-        log.warn("Repaired ingredient_translation identity sequence after primary key duplicate");
     }
 
     private Set<String> ensureIngredientCodesExist(Set<String> candidateCodes) {

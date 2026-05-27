@@ -273,7 +273,7 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
                         "Python ingredient translation request failed: business failure",
                         HttpStatus.BAD_GATEWAY.value(),
                         null,
-                        true,
+                        false,
                         null
                 );
             }
@@ -294,7 +294,7 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
                     "Python ingredient translation request failed: resource access error",
                     null,
                     null,
-                    false,
+                    true,
                     exception
             );
         } catch (RestClientException exception) {

@@ -271,10 +271,15 @@ public interface MealCrawlPersistencePort {
             int limit,
             Set<String> excludeIngredientCodes
     ) {
-        return List.of();
+        throw new UnsupportedOperationException(
+                "findMissingIngredientTranslationTargets must be implemented by persistence adapter"
+        );
     }
 
     default void saveIngredientTranslations(String langCode, Map<String, String> translatedNamesByIngredientCode) {
+        throw new UnsupportedOperationException(
+                "saveIngredientTranslations must be implemented by persistence adapter"
+        );
     }
 }
 

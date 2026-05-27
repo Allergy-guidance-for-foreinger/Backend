@@ -212,7 +212,11 @@ public class MenuAiAnalysisFollowUpService {
     private MenuAiStatus inferStatusWithoutExplicitValue(PythonMenuAnalysisResultDto result, boolean retryMode) {
         boolean hasIngredients = result.ingredients() != null
                 && result.ingredients().stream().anyMatch(ingredient ->
-                ingredient != null && ingredient.ingredientCode() != null && !ingredient.ingredientCode().isBlank()
+                ingredient != null && (
+                        !isBlank(ingredient.ingredientCode())
+                                || !isBlank(ingredient.ingredientName())
+                )
+
         );
         boolean hasFailureReason = result.reason() != null && !result.reason().isBlank();
         if (hasIngredients && !hasFailureReason) {

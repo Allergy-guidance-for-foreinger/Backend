@@ -33,7 +33,7 @@ public class MealCrawlProperties {
     private Integer translationRetryBatchSize;
     private int translationMaxAttemptCount = 3;
     private int ingredientTranslationBatchSize = 10;
-    private int ingredientTranslationMaxBatchesPerRun = 10;
+    private int ingredientTranslationMaxBatchesPerRun = 5;
     private MenuImage menuImage = new MenuImage();
 
     private List<String> translationTargetLanguages = List.of("en");
@@ -74,7 +74,7 @@ public class MealCrawlProperties {
     }
 
     public int getIngredientTranslationMaxBatchesPerRun() {
-        return ingredientTranslationMaxBatchesPerRun > 0 ? ingredientTranslationMaxBatchesPerRun : 10;
+        return ingredientTranslationMaxBatchesPerRun;
     }
 
     @Getter
