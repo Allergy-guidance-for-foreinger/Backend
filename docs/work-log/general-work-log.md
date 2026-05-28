@@ -6,6 +6,38 @@
 
 ## 최근 공통 작업
 
+### 2026-05-28 (review anonymous participant persistence and deleted user display)
+- What changed:
+  - Added persistent review anonymous participant mapping policy using `menu_review_anonymous_participant`.
+  - Changed review anonymous name lookup from per-request participant ranking to direct mapping lookup.
+  - Added write-time anonymous participant issuance before top-level menu review/comment and reply comment creation.
+  - Changed review/comment writer handling so withdrawn users can remain visible as `Deleted user`.
+  - Changed `menu_review.user_id` and `menu_review_comment.user_id` schema reference to nullable `ON DELETE SET NULL`.
+  - Added schema reference for stable anonymous number uniqueness per `(cafeteria_id, menu_id)`.
+- Why:
+  - Anonymous numbers must remain stable when comments are soft-deleted or users withdraw.
+  - Review list performance should not depend on ranking the full participant set on every request.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/review/application/service/MenuReviewService.java`
+  - `src/main/java/com/mealguide/mealguide_api/review/application/port/MenuReviewPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/review/application/dto/MenuReviewRow.java`
+  - `src/main/java/com/mealguide/mealguide_api/review/application/dto/MenuReviewCommentRow.java`
+  - `src/main/java/com/mealguide/mealguide_api/review/domain/MenuReview.java`
+  - `src/main/java/com/mealguide/mealguide_api/review/domain/MenuReviewComment.java`
+  - `src/main/java/com/mealguide/mealguide_api/review/infrastructure/persistence/adapter/MenuReviewPersistenceAdapter.java`
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/features/mealcrawl-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: Yes (`menu_review_anonymous_participant`, review/comment writer FK policy).
+- API behavior changed: Yes (withdrawn review/comment writers are displayed as `Deleted user`; active writers still use `Anonymous N`).
+- Related docs updated:
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/features/mealcrawl-context.md`
+- Remaining follow-ups:
+  - Existing development DBs need matching DDL and backfill if they are not recreated from `docs/schema.sql`.
+
 ### 2026-05-27 (AI ingredient auto-registration and ingredient translation batch)
 - What changed:
   - Extended AI menu ingredient response mapping to keep `ingredientName` and accept snake_case aliases for ingredient/allergy codes.

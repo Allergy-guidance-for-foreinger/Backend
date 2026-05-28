@@ -52,6 +52,61 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
 
     @Override
     @Transactional
+    public void ensureAnonymousParticipant(Long cafeteriaId, Long menuId, Long userId) {
+        String findSql = """
+                select anonymous_no
+                from menu_review_anonymous_participant
+                where cafeteria_id = :cafeteriaId
+                  and menu_id = :menuId
+                  and user_id = :userId
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("cafeteriaId", cafeteriaId)
+                .addValue("menuId", menuId)
+                .addValue("userId", userId);
+        List<Long> existing = namedParameterJdbcTemplate.query(findSql, params, (rs, rowNum) -> rs.getLong("anonymous_no"));
+        if (!existing.isEmpty()) {
+            return;
+        }
+
+        String lockSql = """
+                select pg_advisory_xact_lock(hashtextextended(:lockKey, 0))
+                """;
+        namedParameterJdbcTemplate.query(
+                lockSql,
+                new MapSqlParameterSource("lockKey", cafeteriaId + ":" + menuId),
+                rs -> {
+                }
+        );
+
+        existing = namedParameterJdbcTemplate.query(findSql, params, (rs, rowNum) -> rs.getLong("anonymous_no"));
+        if (!existing.isEmpty()) {
+            return;
+        }
+
+        String insertSql = """
+                insert into menu_review_anonymous_participant (
+                    cafeteria_id, menu_id, user_id, anonymous_no, first_participated_at, created_at
+                )
+                values (
+                    :cafeteriaId,
+                    :menuId,
+                    :userId,
+                    coalesce((
+                        select max(anonymous_no)
+                        from menu_review_anonymous_participant
+                        where cafeteria_id = :cafeteriaId
+                          and menu_id = :menuId
+                    ), 0) + 1,
+                    now(),
+                    now()
+                )
+                """;
+        namedParameterJdbcTemplate.update(insertSql, params);
+    }
+
+    @Override
+    @Transactional
     public Long saveReview(Long userId, Long cafeteriaId, Long menuId, Long mealMenuId, LocalDate mealDate, String content) {
         return menuReviewJpaRepository.save(MenuReview.create(
                 userId, cafeteriaId, menuId, mealMenuId, mealDate, content
@@ -63,18 +118,20 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
     public Optional<MenuReviewRow> findActiveReviewById(Long reviewId) {
         String sql = """
                 select mr.id as review_id, mr.user_id, u.name as writer_name,
+                       (mr.user_id is null or u.id is null or u.status <> 'ACTIVE' or u.deleted_at is not null) as writer_deleted,
                        mr.cafeteria_id, mr.menu_id, mr.meal_menu_id, mr.meal_date,
                        mr.content, mr.like_count, mr.comment_count, mr.created_at, mr.updated_at
                 from menu_review mr
-                join users u on u.id = mr.user_id
+                left join users u on u.id = mr.user_id
                 where mr.id = :reviewId
                   and mr.deleted_at is null
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource("reviewId", reviewId);
         List<MenuReviewRow> rows = namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MenuReviewRow(
                 rs.getLong("review_id"),
-                rs.getLong("user_id"),
+                rs.getObject("user_id", Long.class),
                 rs.getString("writer_name"),
+                rs.getBoolean("writer_deleted"),
                 rs.getLong("cafeteria_id"),
                 rs.getLong("menu_id"),
                 rs.getObject("meal_menu_id", Long.class),
@@ -165,33 +222,12 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
             return Map.of();
         }
         String sql = """
-                with participants as (
-                    select distinct participant.user_id
-                    from (
-                        select mr.user_id
-                        from menu_review mr
-                        where mr.cafeteria_id = :cafeteriaId
-                          and mr.menu_id = :menuId
-                          and mr.deleted_at is null
-
-                        union
-
-                        select mrc.user_id
-                        from menu_review_comment mrc
-                        join menu_review mr on mr.id = mrc.review_id
-                        where mr.cafeteria_id = :cafeteriaId
-                          and mr.menu_id = :menuId
-                          and mr.deleted_at is null
-                          and mrc.deleted_at is null
-                    ) participant
-                ),
-                ranked as (
-                    select user_id, dense_rank() over (order by user_id asc) as anon_no
-                    from participants
-                )
-                select user_id, anon_no
-                from ranked
-                where user_id in (:userIds)
+                select user_id, anonymous_no as anon_no
+                from menu_review_anonymous_participant
+                where cafeteria_id = :cafeteriaId
+                  and menu_id = :menuId
+                  and user_id is not null
+                  and user_id in (:userIds)
                 """;
         Map<Long, String> anonymousNames = new HashMap<>();
         namedParameterJdbcTemplate.query(sql, new MapSqlParameterSource()
@@ -210,10 +246,11 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
     public List<MenuReviewRow> findReviewPage(Long cafeteriaId, Long menuId, int page, int size) {
         String sql = """
                 select mr.id as review_id, mr.user_id, u.name as writer_name,
+                       (mr.user_id is null or u.id is null or u.status <> 'ACTIVE' or u.deleted_at is not null) as writer_deleted,
                        mr.cafeteria_id, mr.menu_id, mr.meal_menu_id, mr.meal_date,
                        mr.content, mr.like_count, mr.comment_count, mr.created_at, mr.updated_at
                 from menu_review mr
-                join users u on u.id = mr.user_id
+                left join users u on u.id = mr.user_id
                 where mr.cafeteria_id = :cafeteriaId
                   and mr.menu_id = :menuId
                   and mr.deleted_at is null
@@ -227,8 +264,9 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
                 .addValue("offset", (long) page * size);
         return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MenuReviewRow(
                 rs.getLong("review_id"),
-                rs.getLong("user_id"),
+                rs.getObject("user_id", Long.class),
                 rs.getString("writer_name"),
+                rs.getBoolean("writer_deleted"),
                 rs.getLong("cafeteria_id"),
                 rs.getLong("menu_id"),
                 rs.getObject("meal_menu_id", Long.class),
@@ -342,9 +380,10 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
     public List<MenuReviewCommentRow> findCommentPage(Long reviewId, int page, int size) {
         String sql = """
                 select c.id as comment_id, c.review_id, c.user_id, u.name as writer_name,
+                       (c.user_id is null or u.id is null or u.status <> 'ACTIVE' or u.deleted_at is not null) as writer_deleted,
                        c.content, c.created_at, c.updated_at
                 from menu_review_comment c
-                join users u on u.id = c.user_id
+                left join users u on u.id = c.user_id
                 where c.review_id = :reviewId
                   and c.deleted_at is null
                 order by c.created_at asc, c.id asc
@@ -357,8 +396,9 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
         return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MenuReviewCommentRow(
                 rs.getLong("comment_id"),
                 rs.getLong("review_id"),
-                rs.getLong("user_id"),
+                rs.getObject("user_id", Long.class),
                 rs.getString("writer_name"),
+                rs.getBoolean("writer_deleted"),
                 rs.getString("content"),
                 rs.getTimestamp("created_at").toLocalDateTime(),
                 rs.getTimestamp("updated_at").toLocalDateTime()
@@ -389,9 +429,10 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
     public Optional<MenuReviewCommentRow> findActiveCommentById(Long commentId) {
         String sql = """
                 select c.id as comment_id, c.review_id, c.user_id, u.name as writer_name,
+                       (c.user_id is null or u.id is null or u.status <> 'ACTIVE' or u.deleted_at is not null) as writer_deleted,
                        c.content, c.created_at, c.updated_at
                 from menu_review_comment c
-                join users u on u.id = c.user_id
+                left join users u on u.id = c.user_id
                 where c.id = :commentId
                   and c.deleted_at is null
                 """;
@@ -399,8 +440,9 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
                 (rs, rowNum) -> new MenuReviewCommentRow(
                         rs.getLong("comment_id"),
                         rs.getLong("review_id"),
-                        rs.getLong("user_id"),
+                        rs.getObject("user_id", Long.class),
                         rs.getString("writer_name"),
+                        rs.getBoolean("writer_deleted"),
                         rs.getString("content"),
                         rs.getTimestamp("created_at").toLocalDateTime(),
                         rs.getTimestamp("updated_at").toLocalDateTime()

@@ -97,8 +97,10 @@
   - `MANAGER`, `ADMIN`: 소프트 삭제(`status = INACTIVE`, `deleted_at` 설정)
 - `MANAGER`, `ADMIN` 소프트 삭제는 메뉴 확정 이력 보존을 위한 정책이다.
 - 소프트 삭제된 `MANAGER`, `ADMIN` 계정은 서버 관리자가 DB에서 `status=ACTIVE`, `deleted_at=NULL`로 복구하기 전까지 로그인할 수 없다.
-- `MANAGER`, `ADMIN` 소프트 삭제 시 해당 사용자가 작성한 `menu_review`는 `deleted_at` 소프트 삭제 처리한다.
-- `MANAGER`, `ADMIN` 소프트 삭제 시 해당 사용자가 작성한 `menu_review_comment`는 모두 `deleted_at` 소프트 삭제 처리하고, 관련 리뷰의 `comment_count`를 활성 댓글 기준으로 재정합한다.
+- 탈퇴한 사용자가 작성한 `menu_review`와 `menu_review_comment`는 숨기지 않고 유지한다.
+- `USER` 하드 삭제 시 리뷰/댓글 작성자 FK는 `ON DELETE SET NULL`로 끊기며, 조회 응답은 `Deleted user`로 표시한다.
+- `MANAGER`, `ADMIN` 소프트 삭제 중에는 기존 `user_id`를 유지하되 조회 응답은 `Deleted user`로 표시한다. 계정 복구 후에는 기존 익명 번호 표시가 다시 가능하다.
+- 탈퇴 시 해당 사용자가 남긴 `menu_review_like`는 삭제하고, 관련 리뷰의 `like_count`를 재정합한다.
 - 현재 스키마는 댓글 단일 레벨 구조이며(parent/reply 컬럼 없음), 대댓글 별도 모델은 없다.
 
 ## 8. 주의사항

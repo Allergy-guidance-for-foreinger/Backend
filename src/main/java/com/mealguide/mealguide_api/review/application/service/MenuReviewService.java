@@ -33,6 +33,8 @@ public class MenuReviewService {
     private static final int MAX_SIZE = 100;
     private static final int MAX_REVIEW_CONTENT_LENGTH = 500;
     private static final int MAX_COMMENT_CONTENT_LENGTH = 300;
+    private static final String ANONYMOUS_FALLBACK_NAME = "Anonymous";
+    private static final String DELETED_USER_NAME = "Deleted user";
 
     private final MenuReviewPort menuReviewPort;
 
@@ -47,18 +49,21 @@ public class MenuReviewService {
         List<MenuReviewRow> rows = menuReviewPort.findReviewPage(target.cafeteriaId(), target.menuId(), normalizedPage, normalizedSize);
         List<Long> reviewIds = rows.stream().map(MenuReviewRow::reviewId).toList();
         Set<Long> likedIds = menuReviewPort.findLikedReviewIds(userId, reviewIds);
-        Set<Long> writerUserIds = rows.stream().map(MenuReviewRow::userId).collect(java.util.stream.Collectors.toSet());
+        Set<Long> writerUserIds = rows.stream()
+                .filter(row -> !row.writerDeleted())
+                .map(MenuReviewRow::userId)
+                .collect(java.util.stream.Collectors.toSet());
         Map<Long, String> anonymousNames = resolveAnonymousNamesForUsers(target.cafeteriaId(), target.menuId(), writerUserIds);
 
         List<MenuReviewItemResponse> items = rows.stream().map(row -> new MenuReviewItemResponse(
                 row.reviewId(),
-                anonymousNames.getOrDefault(row.userId(), "Anonymous"),
+                resolveWriterName(row.userId(), row.writerDeleted(), anonymousNames),
                 row.content(),
                 row.mealDate(),
                 row.likeCount(),
                 row.commentCount(),
                 likedIds.contains(row.reviewId()),
-                userId.equals(row.userId()),
+                isMine(userId, row.userId(), row.writerDeleted()),
                 row.createdAt(),
                 row.updatedAt()
         )).toList();
@@ -78,6 +83,7 @@ public class MenuReviewService {
         String normalizedContent = normalizeReviewContent(content);
         MenuReviewTargetRow target = menuReviewPort.findTargetByMealMenuId(mealMenuId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.MEAL_MENU_NOT_FOUND));
+        menuReviewPort.ensureAnonymousParticipant(target.cafeteriaId(), target.menuId(), userId);
         Long reviewId = menuReviewPort.saveReview(
                 userId,
                 target.cafeteriaId(),
@@ -168,6 +174,7 @@ public class MenuReviewService {
         List<MenuReviewCommentRow> commentRows = menuReviewPort.findCommentPage(reviewId, normalizedPage, normalizedSize);
         Set<Long> commentUserIds = commentRows
                 .stream()
+                .filter(row -> !row.writerDeleted())
                 .map(MenuReviewCommentRow::userId)
                 .collect(java.util.stream.Collectors.toSet());
         Map<Long, String> anonymousNames = resolveAnonymousNamesForUsers(review.cafeteriaId(), review.menuId(), commentUserIds);
@@ -177,9 +184,9 @@ public class MenuReviewService {
                 .stream()
                 .map(row -> new ReviewCommentItemResponse(
                         row.commentId(),
-                        anonymousNames.getOrDefault(row.userId(), "Anonymous"),
+                        resolveWriterName(row.userId(), row.writerDeleted(), anonymousNames),
                         row.content(),
-                        userId.equals(row.userId()),
+                        isMine(userId, row.userId(), row.writerDeleted()),
                         row.createdAt(),
                         row.updatedAt()
                 ))
@@ -196,6 +203,7 @@ public class MenuReviewService {
         String normalizedContent = normalizeCommentContent(content);
         MenuReviewRow review = menuReviewPort.findActiveReviewById(reviewId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.REVIEW_NOT_FOUND));
+        menuReviewPort.ensureAnonymousParticipant(review.cafeteriaId(), review.menuId(), userId);
         Long commentId = menuReviewPort.saveComment(reviewId, userId, normalizedContent);
         menuReviewPort.incrementReviewCommentCount(reviewId);
         MenuReviewCommentRow comment = menuReviewPort.findActiveCommentById(commentId)
@@ -320,13 +328,13 @@ public class MenuReviewService {
                 review.mealMenuId(),
                 review.cafeteriaId(),
                 review.menuId(),
-                anonymousNames.getOrDefault(review.userId(), "Anonymous"),
+                resolveWriterName(review.userId(), review.writerDeleted(), anonymousNames),
                 review.content(),
                 review.mealDate(),
                 review.likeCount(),
                 review.commentCount(),
                 likedByMe,
-                mine,
+                isMine(mine, review.userId(), review.writerDeleted()),
                 review.createdAt(),
                 review.updatedAt()
         );
@@ -340,12 +348,27 @@ public class MenuReviewService {
         return new ReviewCommentResponse(
                 comment.commentId(),
                 comment.reviewId(),
-                anonymousNames.getOrDefault(comment.userId(), "Anonymous"),
+                resolveWriterName(comment.userId(), comment.writerDeleted(), anonymousNames),
                 comment.content(),
-                mine,
+                isMine(mine, comment.userId(), comment.writerDeleted()),
                 comment.createdAt(),
                 comment.updatedAt()
         );
+    }
+
+    private String resolveWriterName(Long writerUserId, boolean writerDeleted, Map<Long, String> anonymousNames) {
+        if (writerDeleted || writerUserId == null) {
+            return DELETED_USER_NAME;
+        }
+        return anonymousNames.getOrDefault(writerUserId, ANONYMOUS_FALLBACK_NAME);
+    }
+
+    private boolean isMine(boolean expectedMine, Long writerUserId, boolean writerDeleted) {
+        return expectedMine && writerUserId != null && !writerDeleted;
+    }
+
+    private boolean isMine(Long currentUserId, Long writerUserId, boolean writerDeleted) {
+        return currentUserId != null && writerUserId != null && !writerDeleted && currentUserId.equals(writerUserId);
     }
 
     private Map<Long, String> resolveAnonymousNamesForUsers(Long cafeteriaId, Long menuId, Set<Long> userIds) {

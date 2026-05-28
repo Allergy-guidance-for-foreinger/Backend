@@ -44,6 +44,7 @@
 - Review/comment delete is soft-delete by `deleted_at`.
 - Review list API uses page/size and latest-first ordering by date and recency.
 - Comment list API uses page/size and oldest-first ordering.
+- `menu_review.user_id` and `menu_review_comment.user_id` use `ON DELETE SET NULL` so USER hard withdrawal keeps content visible as `Deleted user`.
 
 ## 9. AI allergy analysis mapping (2026-05-13)
 - `allergy_ingredient` 매핑 테이블은 제거됐다.
@@ -78,3 +79,11 @@
   - If the same Google account matches an `INACTIVE` user, login must fail (`USER_INACTIVE`) and must not create a new user row.
   - Account recovery is manual DB operation by server admin (`status = ACTIVE`, `deleted_at = NULL`).
 - Reason: keep manager/admin confirmation history in `meal_menu_confirmed_ingredient.confirmed_by_user_id` and `meal_menu_confirmation_history.changed_by_user_id`.
+
+## 15. Review anonymous participant mapping (2026-05-28)
+- Added `menu_review_anonymous_participant` for stable anonymous numbers per `(cafeteria_id, menu_id)`.
+- Numbering is assigned once when a user first writes a top-level menu review/comment or reply comment in the menu target.
+- Deleted review/comment rows and user withdrawal must not reuse previously assigned numbers.
+- `user_id` is nullable and uses `ON DELETE SET NULL`; withdrawn USER content remains visible as `Deleted user`.
+- MANAGER/ADMIN soft withdrawal keeps `user_id`; while inactive, review display uses `Deleted user`, and after recovery it can show the original anonymous number again.
+- Lookup should read this mapping table directly instead of ranking active review/comment participants on each request.

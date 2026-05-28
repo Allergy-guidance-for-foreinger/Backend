@@ -25,7 +25,7 @@ public class MenuReviewComment {
     @Column(name = "review_id", nullable = false)
     private Long reviewId;
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id")
     private Long userId;
 
     @Column(name = "content", nullable = false)

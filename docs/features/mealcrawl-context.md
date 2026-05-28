@@ -121,8 +121,11 @@
 - Review/comment writer name no longer returns `users.name`.
 - Display name format: `Anonymous N`.
 - Anonymous numbering scope: `(cafeteria_id, menu_id)` participant set.
-- Participant set includes active review writers + active comment writers under active reviews.
+- Participant set includes top-level menu review writers + reply comment writers in the menu target.
 - Same user gets stable `Anonymous N` across pages and comment endpoints in same menu target.
+- Anonymous numbering is persisted in `menu_review_anonymous_participant` when the user first writes in the menu target.
+- Review/comment soft delete and user withdrawal do not reuse an already assigned anonymous number.
+- Withdrawn users are displayed as `Deleted user`; USER hard withdrawal sets review/comment `user_id` to null, while MANAGER/ADMIN soft withdrawal displays `Deleted user` until account recovery.
 
 ## 2026-05-15 AI analysis retry policy update
 - 00:00 crawl/import flow remains unchanged, but AI follow-up now runs in batches (mealguide.mealcrawl.ai-analysis-batch-size, default 5).

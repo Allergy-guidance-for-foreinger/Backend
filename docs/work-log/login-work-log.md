@@ -26,6 +26,24 @@
 - 기능 맥락: `docs/features/login-context.md`
 - 공통 규칙: `docs/project-context.md`, `docs/database-context.md`
 
+### 2026-05-28 (withdrawal keeps review/comment content visible)
+- What changed:
+  - Changed withdrawal cleanup policy so `MANAGER`/`ADMIN` soft withdrawal no longer soft-deletes authored `menu_review` or `menu_review_comment` rows.
+  - Kept withdrawal-time `menu_review_like` deletion and review counter recalculation for likes.
+  - Updated login context to state that withdrawn users' review/comment content remains visible as `Deleted user`.
+- Why:
+  - Review content should remain visible after withdrawal while author identity is hidden.
+  - MANAGER/ADMIN account recovery should be able to restore the original anonymous display because the same `user_id` is retained.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/login/infrastructure/persistence/adapter/UserPersistenceAdapter.java`
+  - `docs/features/login-context.md`
+  - `docs/work-log/login-work-log.md`
+- DB schema changed: No in login code directly; review schema reference changed separately to support USER hard-delete content preservation.
+- API behavior changed: Yes (withdrawn MANAGER/ADMIN review/comment content remains visible as `Deleted user` instead of being hidden).
+- Related docs updated:
+  - `docs/features/login-context.md`
+  - `docs/work-log/login-work-log.md`
+
 ### 2026-05-27 (user_oauth_accounts schema reference 보정)
 - What changed:
   - `docs/schema.sql`에 누락되어 있던 `user_oauth_accounts` 테이블 정의를 추가했다.
@@ -116,6 +134,8 @@ alter table menu_image_analysis_log
   - 서버 관리자 수동 복구 SQL 운영 Runbook 별도 정리 필요.
 
 ### 2026-05-25 (MANAGER/ADMIN 탈퇴 시 댓글 비노출 정리)
+- Superseded:
+  - 2026-05-28 정책 변경으로 MANAGER/ADMIN 탈퇴 시 리뷰/댓글 콘텐츠는 더 이상 비노출 처리하지 않고 `Deleted user` 작성자로 유지한다.
 - What changed:
   - `MANAGER`, `ADMIN` 소프트 삭제 시 해당 사용자가 작성한 `menu_review`를 일괄 소프트 삭제하도록 반영했다.
   - `MANAGER`, `ADMIN` 소프트 삭제 시 해당 사용자가 작성한 `menu_review_comment`를 일괄 소프트 삭제하도록 반영했다.
