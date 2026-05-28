@@ -12,11 +12,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.List;
-import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -105,12 +102,9 @@ public class UserPersistenceAdapter implements UserQueryPort {
 
     @Override
     public boolean softDeleteActiveById(Long userId) {
-        List<Long> impactedReviewIds = new ArrayList<>();
-        impactedReviewIds.addAll(findReviewIdsLikedByUser(userId));
-        impactedReviewIds.addAll(softDeleteReviewCommentsByUserId(userId));
+        List<Long> impactedReviewIds = findReviewIdsLikedByUser(userId);
         deleteReviewLikesByUserId(userId);
-        softDeleteReviewsByUserId(userId);
-        recalculateReviewCounters(new ArrayList<>(new HashSet<>(impactedReviewIds)));
+        recalculateReviewCounters(impactedReviewIds);
         return userJpaRepository.softDeleteActiveById(userId) > 0;
     }
 
@@ -130,41 +124,6 @@ public class UserPersistenceAdapter implements UserQueryPort {
         User savedUser = userJpaRepository.save(User.createForFirstGoogleLogin(providerEmail, name));
         userOauthAccountJpaRepository.save(UserOauthAccount.createGoogleAccount(savedUser, providerUserId, providerEmail));
         return savedUser;
-    }
-
-    private List<Long> softDeleteReviewCommentsByUserId(Long userId) {
-        String selectSql = """
-                select distinct review_id
-                from menu_review_comment
-                where user_id = :userId
-                  and deleted_at is null
-                """;
-        List<Long> reviewIds = namedParameterJdbcTemplate.query(
-                selectSql,
-                new MapSqlParameterSource("userId", userId),
-                (rs, rowNum) -> rs.getLong("review_id")
-        );
-
-        String sql = """
-                update menu_review_comment
-                set deleted_at = now(),
-                    updated_at = now()
-                where user_id = :userId
-                  and deleted_at is null
-                """;
-        namedParameterJdbcTemplate.update(sql, new MapSqlParameterSource("userId", userId));
-        return reviewIds;
-    }
-
-    private void softDeleteReviewsByUserId(Long userId) {
-        String sql = """
-                update menu_review
-                set deleted_at = now(),
-                    updated_at = now()
-                where user_id = :userId
-                  and deleted_at is null
-                """;
-        namedParameterJdbcTemplate.update(sql, new MapSqlParameterSource("userId", userId));
     }
 
     private List<Long> findImpactedReviewIdsByUserInteraction(Long userId) {

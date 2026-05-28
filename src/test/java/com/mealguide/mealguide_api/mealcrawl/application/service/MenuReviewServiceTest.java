@@ -19,6 +19,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +40,7 @@ class MenuReviewServiceTest {
         when(port.findActiveReviewById(101L)).thenReturn(Optional.of(reviewRow(101L, 1L, 1L, 25L, "second", 0, 0)));
         service.createReview(1L, 10L, "second");
 
+        verify(port, times(2)).ensureAnonymousParticipant(1L, 25L, 1L);
         verify(port).saveReview(1L, 1L, 25L, 10L, LocalDate.now(), "first");
         verify(port).saveReview(1L, 1L, 25L, 10L, LocalDate.now(), "second");
     }
@@ -66,6 +68,28 @@ class MenuReviewServiceTest {
         assertThat(response.reviews().get(0).likedByMe()).isTrue();
         assertThat(response.reviews().get(0).writerName()).isEqualTo("Anonymous 1");
         assertThat(response.reviews().get(1).writerName()).isEqualTo("Anonymous 2");
+    }
+
+    @Test
+    void listShowsDeletedUserForDeletedWriter() {
+        MenuReviewPort port = mock(MenuReviewPort.class);
+        MenuReviewService service = new MenuReviewService(port);
+        when(port.findTargetByMealMenuId(10L)).thenReturn(Optional.of(new MenuReviewTargetRow(10L, 1L, 25L, LocalDate.now())));
+        when(port.countActiveReviews(1L, 25L)).thenReturn(2L);
+        when(port.findAnonymousNamesByMenuTargetAndUserIds(1L, 25L, Set.of(2L)))
+                .thenReturn(java.util.Map.of(2L, "Anonymous 1"));
+        when(port.findReviewPage(1L, 25L, 0, 20)).thenReturn(List.of(
+                reviewRow(101L, 2L, 1L, 25L, "active", 0, 0),
+                deletedReviewRow(100L, 1L, 25L, "deleted")
+        ));
+        when(port.findLikedReviewIds(1L, List.of(101L, 100L))).thenReturn(Set.of());
+
+        MenuReviewListResponse response = service.getReviews(1L, 10L, 0, 20);
+
+        assertThat(response.reviews()).hasSize(2);
+        assertThat(response.reviews().get(0).writerName()).isEqualTo("Anonymous 1");
+        assertThat(response.reviews().get(1).writerName()).isEqualTo("Deleted user");
+        assertThat(response.reviews().get(1).mine()).isFalse();
     }
 
     @Test
@@ -108,14 +132,15 @@ class MenuReviewServiceTest {
                 .thenReturn(java.util.Map.of(1L, "Anonymous 1"));
         when(port.saveComment(10L, 1L, "hello")).thenReturn(5L);
         when(port.findActiveCommentById(5L)).thenReturn(Optional.of(new MenuReviewCommentRow(
-                5L, 10L, 1L, "writer", "hello", LocalDateTime.now(), LocalDateTime.now()
+                5L, 10L, 1L, "writer", false, "hello", LocalDateTime.now(), LocalDateTime.now()
         )));
 
         service.createComment(1L, 10L, "hello");
+        verify(port).ensureAnonymousParticipant(1L, 25L, 1L);
         verify(port).incrementReviewCommentCount(10L);
 
         when(port.findActiveCommentById(5L)).thenReturn(Optional.of(new MenuReviewCommentRow(
-                5L, 10L, 1L, "writer", "hello", LocalDateTime.now(), LocalDateTime.now()
+                5L, 10L, 1L, "writer", false, "hello", LocalDateTime.now(), LocalDateTime.now()
         )));
         service.deleteComment(1L, 10L, 5L);
         verify(port).decrementReviewCommentCount(10L);
@@ -126,6 +151,7 @@ class MenuReviewServiceTest {
                 reviewId,
                 userId,
                 "writer",
+                false,
                 cafeteriaId,
                 menuId,
                 10L,
@@ -133,6 +159,24 @@ class MenuReviewServiceTest {
                 content,
                 like,
                 comment,
+                LocalDateTime.now(),
+                LocalDateTime.now()
+        );
+    }
+
+    private MenuReviewRow deletedReviewRow(Long reviewId, Long cafeteriaId, Long menuId, String content) {
+        return new MenuReviewRow(
+                reviewId,
+                null,
+                null,
+                true,
+                cafeteriaId,
+                menuId,
+                10L,
+                LocalDate.now(),
+                content,
+                0,
+                0,
                 LocalDateTime.now(),
                 LocalDateTime.now()
         );

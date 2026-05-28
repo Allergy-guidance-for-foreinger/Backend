@@ -7,6 +7,7 @@ public record MenuReviewRow(
         Long reviewId,
         Long userId,
         String writerName,
+        boolean writerDeleted,
         Long cafeteriaId,
         Long menuId,
         Long mealMenuId,

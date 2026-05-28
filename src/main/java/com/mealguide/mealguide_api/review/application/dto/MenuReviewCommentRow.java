@@ -7,6 +7,7 @@ public record MenuReviewCommentRow(
         Long reviewId,
         Long userId,
         String writerName,
+        boolean writerDeleted,
         String content,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

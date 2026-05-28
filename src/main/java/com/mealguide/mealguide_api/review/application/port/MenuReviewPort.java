@@ -14,6 +14,8 @@ public interface MenuReviewPort {
 
     Optional<MenuReviewTargetRow> findTargetByMealMenuId(Long mealMenuId);
 
+    void ensureAnonymousParticipant(Long cafeteriaId, Long menuId, Long userId);
+
     Long saveReview(Long userId, Long cafeteriaId, Long menuId, Long mealMenuId, java.time.LocalDate mealDate, String content);
 
     Optional<MenuReviewRow> findActiveReviewById(Long reviewId);
