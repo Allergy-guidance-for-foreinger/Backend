@@ -102,10 +102,14 @@ public class UserPersistenceAdapter implements UserQueryPort {
 
     @Override
     public boolean softDeleteActiveById(Long userId) {
+        boolean deleted = userJpaRepository.softDeleteActiveById(userId) > 0;
+        if (!deleted) {
+            return false;
+        }
         List<Long> impactedReviewIds = findReviewIdsLikedByUser(userId);
         deleteReviewLikesByUserId(userId);
         recalculateReviewCounters(impactedReviewIds);
-        return userJpaRepository.softDeleteActiveById(userId) > 0;
+        return true;
     }
 
     @Override

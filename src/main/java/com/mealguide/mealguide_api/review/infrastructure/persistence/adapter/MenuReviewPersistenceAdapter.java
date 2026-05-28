@@ -88,15 +88,19 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
                 insert into menu_review_anonymous_participant (
                     cafeteria_id, menu_id, user_id, anonymous_no, first_participated_at, created_at
                 )
-                select :cafeteriaId,
-                       :menuId,
-                       :userId,
-                       coalesce(max(anonymous_no), 0) + 1,
-                       now(),
-                       now()
-                from menu_review_anonymous_participant
-                where cafeteria_id = :cafeteriaId
-                  and menu_id = :menuId
+                values (
+                    :cafeteriaId,
+                    :menuId,
+                    :userId,
+                    coalesce((
+                        select max(anonymous_no)
+                        from menu_review_anonymous_participant
+                        where cafeteria_id = :cafeteriaId
+                          and menu_id = :menuId
+                    ), 0) + 1,
+                    now(),
+                    now()
+                )
                 """;
         namedParameterJdbcTemplate.update(insertSql, params);
     }
