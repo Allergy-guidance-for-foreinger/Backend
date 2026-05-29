@@ -11,8 +11,11 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuAnalysisRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuDescriptionRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResultDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuDescriptionResultDto;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuDescriptionResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuImageAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuImageAnalysisResultDto;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonTextTranslationRequest;
@@ -146,6 +149,58 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
         } catch (RestClientException exception) {
             throw new PythonMealClientException(
                     "Python menu translation request failed",
+                    null,
+                    null,
+                    true,
+                    exception
+            );
+        }
+    }
+
+    @Override
+    public PythonMenuDescriptionResponse describeMenus(PythonMenuDescriptionRequest request) {
+        try {
+            PythonMenuDescriptionEnvelope response = restClient.post()
+                    .uri(mealCrawlProperties.getDescriptionPath())
+                    .body(request)
+                    .retrieve()
+                    .body(PythonMenuDescriptionEnvelope.class);
+
+            if (response == null) {
+                throw new ServiceException(ErrorCode.UNEXPECTED_SERVER_ERROR);
+            }
+            if (!response.success()) {
+                throw new PythonMealClientException(
+                        "Python menu description request failed: business failure",
+                        HttpStatus.BAD_GATEWAY.value(),
+                        null,
+                        true,
+                        null
+                );
+            }
+            List<PythonMenuDescriptionResultDto> results = response.data() == null ? List.of() : response.data().results();
+            return new PythonMenuDescriptionResponse(results == null ? List.of() : results);
+        } catch (RestClientResponseException exception) {
+            int status = exception.getStatusCode().value();
+            boolean retryable = isRetryableStatus(status);
+            throw new PythonMealClientException(
+                    "Python menu description request failed: status=" + status,
+                    status,
+                    exception.getResponseBodyAsString(),
+                    retryable,
+                    exception
+            );
+        } catch (ResourceAccessException exception) {
+            throw new PythonMealClientException(
+                    "Python menu description request failed: resource access error",
+                    null,
+                    null,
+                    true,
+                    exception
+            );
+        } catch (RestClientException exception) {
+            throw new PythonMealClientException(
+                    "Python menu description request failed",
                     null,
                     null,
                     true,
@@ -329,6 +384,17 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
 
     private record PythonMenuImageAnalysisEnvelopeData(
             List<PythonMenuImageAnalysisResultDto> results
+    ) {
+    }
+
+    private record PythonMenuDescriptionEnvelope(
+            boolean success,
+            PythonMenuDescriptionEnvelopeData data
+    ) {
+    }
+
+    private record PythonMenuDescriptionEnvelopeData(
+            List<PythonMenuDescriptionResultDto> results
     ) {
     }
 

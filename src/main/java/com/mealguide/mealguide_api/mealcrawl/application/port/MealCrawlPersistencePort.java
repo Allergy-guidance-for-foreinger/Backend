@@ -12,6 +12,8 @@ import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAllergyCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuDescriptionKey;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuDescriptionStatus;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuSpicyLevel;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationStatus;
@@ -45,6 +47,10 @@ public interface MealCrawlPersistencePort {
     boolean existsCafeteriaInSchool(Long cafeteriaId, Long schoolId);
 
     Map<Long, String> findTranslatedMenuNamesByMealMenuIds(Set<Long> mealMenuIds, String langCode);
+
+    default Map<Long, String> findMenuDescriptionsByMealMenuIds(Set<Long> mealMenuIds, String langCode) {
+        return Map.of();
+    }
 
     List<MealMenuIngredientRow> findConfirmedIngredientsByMealMenuIds(Set<Long> mealMenuIds);
 
@@ -260,6 +266,30 @@ public interface MealCrawlPersistencePort {
             Long menuId,
             String langCode,
             MenuTranslationStatus status,
+            String reason,
+            int attemptCount
+    ) {
+    }
+
+    default Set<MenuDescriptionKey> findExistingMenuDescriptionKeys(Set<Long> menuIds, List<String> langCodes) {
+        return Set.of();
+    }
+
+    default void saveMenuDescriptions(Map<MenuDescriptionKey, String> descriptionsByKey) {
+    }
+
+    default List<MenuDescriptionKey> findDescriptionRetryTargetKeys(int limit, int maxAttemptCount) {
+        return List.of();
+    }
+
+    default Map<MenuDescriptionKey, Integer> findLatestDescriptionAttemptCounts(Set<MenuDescriptionKey> keys) {
+        return Map.of();
+    }
+
+    default void saveMenuDescriptionAnalysis(
+            Long menuId,
+            String langCode,
+            MenuDescriptionStatus status,
             String reason,
             int attemptCount
     ) {

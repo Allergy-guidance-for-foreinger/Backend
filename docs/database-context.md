@@ -87,3 +87,11 @@
 - `user_id` is nullable and uses `ON DELETE SET NULL`; withdrawn USER content remains visible as `Deleted user`.
 - MANAGER/ADMIN soft withdrawal keeps `user_id`; while inactive, review display uses `Deleted user`, and after recovery it can show the original anonymous number again.
 - Lookup should read this mapping table directly instead of ranking active review/comment participants on each request.
+
+## 16. Menu description generation and retry tracking (2026-05-28)
+- Added `menu_description` table for generated menu descriptions by `(menu_id, lang_code)`.
+- Added `menu_description_analysis` table for latest generation attempt status by `(menu_id, lang_code)`.
+- Supported description languages are currently `ko` and `en`.
+- Description generation is skipped when `menu_description(menu_id, lang_code)` already exists.
+- Description retry selection uses `menu_description_analysis.status = FAILED`, `attempt_count < max_attempt_count`, and excludes rows already present in `menu_description`.
+- Description text must be at most 300 characters; blank, missing, or over-length results are treated as per-menu failures.

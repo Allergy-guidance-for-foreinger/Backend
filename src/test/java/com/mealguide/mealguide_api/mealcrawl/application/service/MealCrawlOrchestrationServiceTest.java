@@ -62,6 +62,7 @@ class MealCrawlOrchestrationServiceTest {
                 throw new RuntimeException("translation failure");
             }
         };
+        MenuDescriptionFollowUpService descriptionFollowUpService = mock(MenuDescriptionFollowUpService.class);
         IngredientTranslationFollowUpService ingredientTranslationFollowUpService = mock(IngredientTranslationFollowUpService.class);
 
         MealCrawlOrchestrationService orchestrationService = new MealCrawlOrchestrationService(
@@ -71,6 +72,7 @@ class MealCrawlOrchestrationServiceTest {
                 mock(WeeklyMealCacheRefreshService.class),
                 analysisFollowUpService,
                 translationFollowUpService,
+                descriptionFollowUpService,
                 ingredientTranslationFollowUpService
         );
 
@@ -93,6 +95,7 @@ class MealCrawlOrchestrationServiceTest {
                 pythonClient,
                 new com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties()
         );
+        MenuDescriptionFollowUpService descriptionFollowUpService = mock(MenuDescriptionFollowUpService.class);
         IngredientTranslationFollowUpService ingredientTranslationFollowUpService = mock(IngredientTranslationFollowUpService.class);
         WeeklyMealCacheRefreshService cacheRefreshService = mock(WeeklyMealCacheRefreshService.class);
         doThrow(new RuntimeException("redis failure"))
@@ -106,6 +109,7 @@ class MealCrawlOrchestrationServiceTest {
                 cacheRefreshService,
                 analysisFollowUpService,
                 translationFollowUpService,
+                descriptionFollowUpService,
                 ingredientTranslationFollowUpService
         );
 
@@ -133,6 +137,7 @@ class MealCrawlOrchestrationServiceTest {
         MealImportService mealImportService = new MealImportService(persistencePort, new MealCrawlProperties());
         MenuAiAnalysisFollowUpService analysisFollowUpService = mock(MenuAiAnalysisFollowUpService.class);
         MenuTranslationFollowUpService translationFollowUpService = mock(MenuTranslationFollowUpService.class);
+        MenuDescriptionFollowUpService descriptionFollowUpService = mock(MenuDescriptionFollowUpService.class);
         IngredientTranslationFollowUpService ingredientTranslationFollowUpService = mock(IngredientTranslationFollowUpService.class);
 
         MealCrawlOrchestrationService orchestrationService = new MealCrawlOrchestrationService(
@@ -142,6 +147,7 @@ class MealCrawlOrchestrationServiceTest {
                 mock(WeeklyMealCacheRefreshService.class),
                 analysisFollowUpService,
                 translationFollowUpService,
+                descriptionFollowUpService,
                 ingredientTranslationFollowUpService
         );
 

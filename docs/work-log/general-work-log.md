@@ -1851,3 +1851,31 @@ iskLevel only), allergy risk source changed internally.
   - `docs/work-log/general-work-log.md`
 - Remaining follow-ups:
   - Add controller-level request validation tests for invalid `sourceLang`/`targetLang` cases.
+## 2026-05-28 (menu description follow-up and localized detail response)
+- Changed:
+  - Added menu description generation follow-up using Python `/api/v1/python/menus/describe/list`.
+  - Added batch controls for description generation (`descriptionBatchSize`, retry batch size, max attempts) with default batch size 7.
+  - Added description persistence and retry-state APIs for `(menu_id, lang_code)` with current target languages `ko,en`.
+  - Menu detail response now reads `description` using the current user language only; no Korean fallback is applied.
+  - Updated focused service tests and aligned a stale menu-detail risk assertion with the current matched-confidence policy.
+- Reason:
+  - Persist reusable menu descriptions per menu/language and avoid repeated calls for menus already described.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDescriptionFollowUpService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlOrchestrationService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlScheduler.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/*`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/*`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `src/main/resources/application.properties`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDescriptionFollowUpServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlOrchestrationServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlSchedulerTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryServiceTest.java`
+  - `docs/schema.sql`, `docs/database-context.md`, `docs/features/mealcrawl-context.md`
+- DB schema changed: Yes (`menu_description`, `menu_description_analysis`).
+- API behavior changed: Yes, menu detail `description` can now be populated from `menu_description` for the user language.
+- Related docs updated: Yes.
+- Remaining work:
+  - Apply the new schema to local/production PostgreSQL before enabling the follow-up in scheduled runs.
