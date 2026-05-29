@@ -118,6 +118,8 @@ public class MealCrawlProperties {
     public static class MenuImage {
         private long maxFileSizeBytes = 10 * 1024 * 1024;
         private List<String> allowedContentTypes = List.of("image/jpeg", "image/png", "image/webp");
+        private int dailyAnalysisLimit = 2;
+        private String dailyAnalysisLimitZoneId = "Asia/Seoul";
         private Firebase firebase = new Firebase();
     }
 

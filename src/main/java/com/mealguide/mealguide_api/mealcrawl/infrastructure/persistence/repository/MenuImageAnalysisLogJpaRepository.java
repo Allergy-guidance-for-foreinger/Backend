@@ -3,6 +3,12 @@ package com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.reposit
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuImageAnalysisLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface MenuImageAnalysisLogJpaRepository extends JpaRepository<MenuImageAnalysisLog, Long> {
-}
+import java.time.LocalDateTime;
 
+public interface MenuImageAnalysisLogJpaRepository extends JpaRepository<MenuImageAnalysisLog, Long> {
+    long countByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+            Long userId,
+            LocalDateTime startInclusive,
+            LocalDateTime endExclusive
+    );
+}
