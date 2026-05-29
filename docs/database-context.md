@@ -96,3 +96,9 @@
 - Description retry selection uses `menu_description_analysis.status = FAILED`, `attempt_count < max_attempt_count`, and excludes rows already present in `menu_description`.
 - Description text must be at most 500 characters; DB enforces this with `ck_menu_description_description_length`.
 - Blank, missing, or over-length results are treated as per-menu failures.
+
+## 17. Menu image analysis daily usage limit (2026-05-29)
+- Daily usage is counted from `menu_image_analysis_log` by `(user_id, created_at)` using the Korean day boundary (`Asia/Seoul` by default).
+- All created image-analysis logs count regardless of status (`PROCESSING`, `SUCCESS`, `FAILED`).
+- Invalid requests rejected before log creation do not count.
+- Existing index `idx_menu_image_analysis_log_user_created` supports the daily count query.

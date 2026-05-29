@@ -4,6 +4,7 @@ import com.mealguide.mealguide_api.global.auth.security.AuthenticatedUserPrincip
 import com.mealguide.mealguide_api.login.domain.UserRole;
 import com.mealguide.mealguide_api.mealcrawl.application.service.MenuImageAnalysisService;
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuImageAnalysisResponse;
+import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuImageAnalysisUsageResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,11 +16,14 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -77,6 +81,28 @@ class MenuImageAnalysisControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.analysisLogId").value(102))
                 .andExpect(jsonPath("$.data.resultSource").value("LIVE_AI_ANALYSIS"));
+    }
+
+    @Test
+    void authenticatedUsageRequestIsAllowed() throws Exception {
+        when(menuImageAnalysisService.getUsage(1L)).thenReturn(
+                new MenuImageAnalysisUsageResponse(
+                        1L,
+                        2,
+                        1L,
+                        false,
+                        OffsetDateTime.of(2026, 5, 30, 0, 0, 0, 0, ZoneOffset.ofHours(9))
+                )
+        );
+
+        mockMvc.perform(get("/api/v1/menus/analyze-image/usage")
+                        .with(authentication(userAuthentication())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.usedCount").value(1))
+                .andExpect(jsonPath("$.data.limitCount").value(2))
+                .andExpect(jsonPath("$.data.remainingCount").value(1))
+                .andExpect(jsonPath("$.data.limited").value(false))
+                .andExpect(jsonPath("$.data.resetAt").value("2026-05-30T00:00:00+09:00"));
     }
 
     private UsernamePasswordAuthenticationToken userAuthentication() {

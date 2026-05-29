@@ -54,6 +54,7 @@ public enum ErrorCode {
     USER_INACTIVE(UNAUTHORIZED, "USER_022", "탈퇴한 계정입니다. 관리자에게 문의해주세요."),
 
     MEAL_MENU_NOT_FOUND(NOT_FOUND, "MEAL_001", "Meal menu not found."),
+    MENU_IMAGE_ANALYSIS_LIMIT_EXCEEDED(TOO_MANY_REQUESTS, "MEAL_002", "음식 사진 분석은 하루 2회까지 가능합니다."),
     REVIEW_NOT_FOUND(NOT_FOUND, "REVIEW_001", "Review not found."),
     COMMENT_NOT_FOUND(NOT_FOUND, "COMMENT_001", "Comment not found."),
     REVIEW_FORBIDDEN(FORBIDDEN, "REVIEW_002", "No permission for this review."),

@@ -5,6 +5,7 @@ import com.mealguide.mealguide_api.global.base.dto.ResponseBody;
 import com.mealguide.mealguide_api.global.base.dto.ResponseUtils;
 import com.mealguide.mealguide_api.mealcrawl.application.service.MenuImageAnalysisService;
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuImageAnalysisResponse;
+import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuImageAnalysisUsageResponse;
 import com.mealguide.mealguide_api.mealcrawl.presentation.swagger.MenuImageAnalysisApi;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -28,5 +29,12 @@ public class MenuImageAnalysisController implements MenuImageAnalysisApi {
         MenuImageAnalysisResponse response = menuImageAnalysisService.analyze(currentUserId, image);
         return ResponseEntity.ok(ResponseUtils.createSuccessResponse(response));
     }
-}
 
+    @GetMapping("/menus/analyze-image/usage")
+    public ResponseEntity<ResponseBody<MenuImageAnalysisUsageResponse>> getUsage(
+            @CurrentUserId Long currentUserId
+    ) {
+        MenuImageAnalysisUsageResponse response = menuImageAnalysisService.getUsage(currentUserId);
+        return ResponseEntity.ok(ResponseUtils.createSuccessResponse(response));
+    }
+}

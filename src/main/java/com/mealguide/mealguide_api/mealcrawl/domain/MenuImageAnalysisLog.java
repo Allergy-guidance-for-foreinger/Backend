@@ -60,10 +60,14 @@ public class MenuImageAnalysisLog {
     private LocalDateTime createdAt;
 
     public static MenuImageAnalysisLog createProcessing(Long userId) {
+        return createProcessing(userId, LocalDateTime.now());
+    }
+
+    public static MenuImageAnalysisLog createProcessing(Long userId, LocalDateTime createdAt) {
         MenuImageAnalysisLog log = new MenuImageAnalysisLog();
         log.userId = userId;
         log.status = MenuImageAnalysisStatus.PROCESSING;
-        log.createdAt = LocalDateTime.now();
+        log.createdAt = createdAt;
         return log;
     }
 

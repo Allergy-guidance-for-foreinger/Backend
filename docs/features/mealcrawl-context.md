@@ -138,6 +138,18 @@
 - Review/comment soft delete and user withdrawal do not reuse an already assigned anonymous number.
 - Withdrawn users are displayed as `Deleted user`; USER hard withdrawal sets review/comment `user_id` to null, while MANAGER/ADMIN soft withdrawal displays `Deleted user` until account recovery.
 
+## 16. Menu Image Analysis Daily Usage Limit (2026-05-29)
+- `POST /api/v1/menus/analyze-image` is limited per user by Korean calendar day.
+- Limit policy uses `mealguide.mealcrawl.menu-image.daily-analysis-limit` with default `2`.
+- Day boundary uses `mealguide.mealcrawl.menu-image.daily-analysis-limit-zone-id` with default `Asia/Seoul`.
+- Usage count is based on `menu_image_analysis_log.created_at` for the current user:
+  - `created_at >= today 00:00`
+  - `created_at < tomorrow 00:00`
+- All created logs count regardless of status (`PROCESSING`, `SUCCESS`, `FAILED`).
+- Invalid image requests blocked before log creation do not count.
+- `GET /api/v1/menus/analyze-image/usage` returns `usedCount`, `limitCount`, `remainingCount`, `limited`, and `resetAt` for client button state.
+- The analyze API still performs the same count check server-side and returns a rate-limit error when the daily limit is exhausted.
+
 ## 2026-05-15 AI analysis retry policy update
 - 00:00 crawl/import flow remains unchanged, but AI follow-up now runs in batches (mealguide.mealcrawl.ai-analysis-batch-size, default 5).
 - AI target selection still excludes already analyzed SUCCESS menus.

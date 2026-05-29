@@ -6,6 +6,41 @@
 
 ## 최근 공통 작업
 
+### 2026-05-29 (menu image analysis daily usage limit)
+- What changed:
+  - Added authenticated usage lookup API `GET /api/v1/menus/analyze-image/usage`.
+  - Added per-user daily image analysis limit enforcement to `POST /api/v1/menus/analyze-image`.
+  - Count policy uses `menu_image_analysis_log.created_at` in the configured day boundary (`Asia/Seoul` default).
+  - Added configurable limit properties with default `2`:
+    - `mealguide.mealcrawl.menu-image.daily-analysis-limit`
+    - `mealguide.mealcrawl.menu-image.daily-analysis-limit-zone-id`
+  - Added `MEAL_002` rate-limit error with HTTP 429.
+  - Added service/controller tests for usage response and limit blocking.
+- Why:
+  - Food photo analysis consumes Gemini API tokens, so each user should be limited to two analysis attempts per Korean calendar day while still exposing usage state to the app UI.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/global/base/exception/ErrorCode.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuImageAnalysisService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/config/MealCrawlProperties.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MenuImageAnalysisLogJpaRepository.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/controller/MenuImageAnalysisController.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/dto/response/MenuImageAnalysisUsageResponse.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/swagger/MenuImageAnalysisApi.java`
+  - `src/main/resources/application.properties`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuImageAnalysisServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/presentation/controller/MenuImageAnalysisControllerSecurityTest.java`
+  - `docs/database-context.md`
+  - `docs/features/mealcrawl-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No (existing `idx_menu_image_analysis_log_user_created` supports the count query).
+- API behavior changed: Yes (`GET /api/v1/menus/analyze-image/usage` added; image analysis can return 429 after two daily attempts).
+- Related docs updated:
+  - `docs/database-context.md`
+  - `docs/features/mealcrawl-context.md`
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - If future clients can send concurrent requests, add a per-user short lock or atomic usage table.
+
 ### 2026-05-29 (menu description follow-up success-rate logging fix)
 - What changed:
   - Changed menu description follow-up end-log failure counting so batch API failures contribute failed menu count, not only failed batch count.
