@@ -174,7 +174,7 @@ public class PythonMealClientAdapter implements PythonMealClientPort {
                         "Python menu description request failed: business failure",
                         HttpStatus.BAD_GATEWAY.value(),
                         null,
-                        true,
+                        false,
                         null
                 );
             }

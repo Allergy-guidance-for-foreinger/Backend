@@ -123,6 +123,7 @@ public class MenuDescriptionFollowUpService {
         int skippedMissingResponse = 0;
         int skippedExistingKey = 0;
         int batchFailureCount = 0;
+        int batchFailedMenuCount = 0;
         int batchSize = retryMode ? mealCrawlProperties.getDescriptionRetryBatchSize() : mealCrawlProperties.getDescriptionBatchSize();
         Map<MenuDescriptionKey, String> descriptionsToSave = new LinkedHashMap<>();
         Set<MenuDescriptionKey> successfulKeys = new HashSet<>();
@@ -144,6 +145,7 @@ public class MenuDescriptionFollowUpService {
                     );
                     if (response == null) {
                         batchFailureCount++;
+                        batchFailedMenuCount += batchTargets.size();
                         saveBatchFailures(batchTargets, langCode, "Description response is null", retryMode, latestAttemptCounts);
                         log.warn(
                                 "event=FAIL stage=description_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} langCode={} batchStart={} batchSize={} message=null-description-response",
@@ -154,6 +156,7 @@ public class MenuDescriptionFollowUpService {
                     results = response.results() == null ? List.of() : response.results();
                 } catch (PythonMealClientException exception) {
                     batchFailureCount++;
+                    batchFailedMenuCount += batchTargets.size();
                     saveBatchFailures(batchTargets, langCode, buildBatchFailureReason(exception), retryMode, latestAttemptCounts);
                     log.warn(
                             "event=FAIL stage=description_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} langCode={} batchStart={} batchSize={} status={} message={}",
@@ -163,6 +166,7 @@ public class MenuDescriptionFollowUpService {
                     continue;
                 } catch (Exception exception) {
                     batchFailureCount++;
+                    batchFailedMenuCount += batchTargets.size();
                     saveBatchFailures(batchTargets, langCode, "Description batch failed", retryMode, latestAttemptCounts);
                     log.warn(
                             "event=FAIL stage=description_followup_batch runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} langCode={} batchStart={} batchSize={} message={}",
@@ -193,7 +197,7 @@ public class MenuDescriptionFollowUpService {
                     }
                     if (description.length() > MAX_DESCRIPTION_LENGTH) {
                         skippedTooLongDescription++;
-                        saveDescriptionFailure(key, "Description exceeds 300 characters", retryMode, latestAttemptCounts);
+                        saveDescriptionFailure(key, "Description exceeds " + MAX_DESCRIPTION_LENGTH + "characters", retryMode, latestAttemptCounts);
                         continue;
                     }
                     descriptionsToSave.put(key, description);
@@ -222,13 +226,13 @@ public class MenuDescriptionFollowUpService {
             );
         }
         long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
-        int failCount = skippedInvalidResult + skippedBlankDescription + skippedTooLongDescription + skippedMissingResponse + skippedExistingKey + batchFailureCount;
+        int failCount = skippedInvalidResult + skippedBlankDescription + skippedTooLongDescription + skippedMissingResponse + skippedExistingKey + batchFailedMenuCount;
         int successRate = savedCount + failCount == 0 ? 100 : (savedCount * 100) / (savedCount + failCount);
         log.info(
-                "event=END stage=description_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} responseResultCount={} savedCount={} skippedInvalidResultCount={} skippedBlankDescriptionCount={} skippedTooLongDescriptionCount={} skippedMissingResponseCount={} skippedExistingKeyCount={} batchFailureCount={} failCount={} successRate={} durationMs={} result={}",
+                "event=END stage=description_followup runId={} schoolId={} cafeteriaId={} weekStartDate={} retryMode={} responseResultCount={} savedCount={} skippedInvalidResultCount={} skippedBlankDescriptionCount={} skippedTooLongDescriptionCount={} skippedMissingResponseCount={} skippedExistingKeyCount={} batchFailureCount={} batchFailedMenuCount={} failCount={} successRate={} durationMs={} result={}",
                 runId, schoolId, cafeteriaId, weekStartDate, retryMode, responseResultCount, savedCount,
                 skippedInvalidResult, skippedBlankDescription, skippedTooLongDescription, skippedMissingResponse, skippedExistingKey,
-                batchFailureCount, failCount, successRate, durationMs, failCount == 0 ? "SUCCESS" : "PARTIAL_SUCCESS"
+                batchFailureCount, batchFailedMenuCount, failCount, successRate, durationMs, failCount == 0 ? "SUCCESS" : "PARTIAL_SUCCESS"
         );
     }
 

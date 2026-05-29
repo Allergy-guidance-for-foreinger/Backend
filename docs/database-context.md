@@ -94,4 +94,5 @@
 - Supported description languages are currently `ko` and `en`.
 - Description generation is skipped when `menu_description(menu_id, lang_code)` already exists.
 - Description retry selection uses `menu_description_analysis.status = FAILED`, `attempt_count < max_attempt_count`, and excludes rows already present in `menu_description`.
-- Description text must be at most 300 characters; blank, missing, or over-length results are treated as per-menu failures.
+- Description text must be at most 300 characters; DB enforces this with `ck_menu_description_description_length`.
+- Blank, missing, or over-length results are treated as per-menu failures.

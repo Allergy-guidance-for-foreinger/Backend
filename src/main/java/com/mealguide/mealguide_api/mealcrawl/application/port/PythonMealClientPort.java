@@ -23,7 +23,7 @@ public interface PythonMealClientPort {
     PythonMenuTranslationResponse translateMenus(PythonMenuTranslationRequest request);
 
     default PythonMenuDescriptionResponse describeMenus(PythonMenuDescriptionRequest request) {
-        return new PythonMenuDescriptionResponse(java.util.List.of());
+        throw new UnsupportedOperationException("describeMenus must be implemented");
     }
 
     PythonMenuImageAnalysisResponse analyzeImage(MultipartFile image, String langCode);

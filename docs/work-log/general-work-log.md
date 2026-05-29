@@ -6,6 +6,41 @@
 
 ## 최근 공통 작업
 
+### 2026-05-29 (menu description follow-up success-rate logging fix)
+- What changed:
+  - Changed menu description follow-up end-log failure counting so batch API failures contribute failed menu count, not only failed batch count.
+  - Kept `batchFailureCount` as a separate batch-level metric and added `batchFailedMenuCount` for menu-level success-rate calculation.
+  - Corrected the description length limit constant from 500 to the documented/tested 300 characters.
+  - Added DB schema reference check constraint `ck_menu_description_description_length` to enforce `menu_description.description` length at 300 characters.
+  - Aligned Python menu description `success=false` business failure handling with other Python business failures by marking it non-retryable.
+  - Changed description-related `MealCrawlPersistencePort` default methods from silent empty/no-op behavior to fail-fast `UnsupportedOperationException`.
+  - Changed `PythonMealClientPort.describeMenus` default implementation from silent empty response to fail-fast `UnsupportedOperationException`.
+  - Added a focused test for mixed batch failure/success logging.
+- Why:
+  - Success-rate logs should use one consistent unit: menu result count.
+  - Description validation should match the existing 300-character business rule.
+  - The DB schema should protect the same description length contract for any future write path.
+  - Business failure responses should not be classified as retryable transport failures.
+  - Required description persistence/query methods should not silently disable the feature when an adapter implementation is missing.
+  - Required Python description client integration should not look like a normal empty result when missing.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/PythonMealClientPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDescriptionFollowUpService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDescriptionFollowUpServiceTest.java`
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: Yes (`menu_description.description` check constraint).
+- API behavior changed: No
+- Related docs updated:
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Existing development/production DBs need a matching `ALTER TABLE menu_description ADD CONSTRAINT ck_menu_description_description_length CHECK (char_length(description) <= 300);` after cleaning any over-length rows.
+
 ### 2026-05-28 (review anonymous participant persistence and deleted user display)
 - What changed:
   - Added persistent review anonymous participant mapping policy using `menu_review_anonymous_participant`.

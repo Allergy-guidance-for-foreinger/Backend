@@ -332,7 +332,9 @@ CREATE TABLE menu_description (
     CONSTRAINT fk_menu_description_language
         FOREIGN KEY (lang_code) REFERENCES language(code),
     CONSTRAINT uk_menu_description_menu_lang
-        UNIQUE (menu_id, lang_code)
+        UNIQUE (menu_id, lang_code),
+    CONSTRAINT ck_menu_description_description_length
+        CHECK (char_length(description) <= 500)
 );
 
 CREATE TABLE menu_description_analysis (

@@ -49,7 +49,7 @@ public interface MealCrawlPersistencePort {
     Map<Long, String> findTranslatedMenuNamesByMealMenuIds(Set<Long> mealMenuIds, String langCode);
 
     default Map<Long, String> findMenuDescriptionsByMealMenuIds(Set<Long> mealMenuIds, String langCode) {
-        return Map.of();
+        throw new UnsupportedOperationException("findMenuDescriptionsByMealMenuIds must be implemented");
     }
 
     List<MealMenuIngredientRow> findConfirmedIngredientsByMealMenuIds(Set<Long> mealMenuIds);
@@ -272,18 +272,19 @@ public interface MealCrawlPersistencePort {
     }
 
     default Set<MenuDescriptionKey> findExistingMenuDescriptionKeys(Set<Long> menuIds, List<String> langCodes) {
-        return Set.of();
+        throw new UnsupportedOperationException("findExistingMenuDescriptionKeys must be implemented");
     }
 
     default void saveMenuDescriptions(Map<MenuDescriptionKey, String> descriptionsByKey) {
+        throw new UnsupportedOperationException("saveMenuDescriptions must be implemented");
     }
 
     default List<MenuDescriptionKey> findDescriptionRetryTargetKeys(int limit, int maxAttemptCount) {
-        return List.of();
+        throw new UnsupportedOperationException("findDescriptionRetryTargetKeys must be implemented");
     }
 
     default Map<MenuDescriptionKey, Integer> findLatestDescriptionAttemptCounts(Set<MenuDescriptionKey> keys) {
-        return Map.of();
+        throw new UnsupportedOperationException("findLatestDescriptionAttemptCounts must be implemented");
     }
 
     default void saveMenuDescriptionAnalysis(
@@ -293,6 +294,7 @@ public interface MealCrawlPersistencePort {
             String reason,
             int attemptCount
     ) {
+        throw new UnsupportedOperationException("saveMenuDescriptionAnalysis must be implemented");
     }
 
     default List<IngredientTranslationTarget> findMissingIngredientTranslationTargets(
