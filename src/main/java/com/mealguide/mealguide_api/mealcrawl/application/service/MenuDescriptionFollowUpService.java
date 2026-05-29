@@ -197,7 +197,7 @@ public class MenuDescriptionFollowUpService {
                     }
                     if (description.length() > MAX_DESCRIPTION_LENGTH) {
                         skippedTooLongDescription++;
-                        saveDescriptionFailure(key, "Description exceeds " + MAX_DESCRIPTION_LENGTH + "characters", retryMode, latestAttemptCounts);
+                        saveDescriptionFailure(key, "Description exceeds " + MAX_DESCRIPTION_LENGTH + " characters", retryMode, latestAttemptCounts);
                         continue;
                     }
                     descriptionsToSave.put(key, description);

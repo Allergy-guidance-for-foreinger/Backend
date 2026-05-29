@@ -100,7 +100,7 @@
 - 현재 설명 대상 언어는 `ko`, `en`이다.
 - 결과는 `menu_description(menu_id, lang_code)`에 저장한다.
 - `menu_description`에 이미 있는 `(menu_id, lang_code)`는 다시 요청하지 않는다.
-- 실패/누락/빈 값/300자 초과 결과는 해당 메뉴-언어만 실패로 기록한다.
+- 실패/누락/빈 값/500자 초과 결과는 해당 메뉴-언어만 실패로 기록한다.
 - 재시도 상태는 `menu_description_analysis`에 `(menu_id, lang_code)` 기준으로 update 저장한다.
 - 설명 실패는 meal import 성공을 실패로 바꾸면 안 된다.
 

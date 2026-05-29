@@ -73,7 +73,7 @@ class MenuDescriptionFollowUpServiceTest {
         when(pythonClientPort.describeMenus(any())).thenReturn(new PythonMenuDescriptionResponse(List.of(
                 new PythonMenuDescriptionResultDto(1L, "valid description"),
                 new PythonMenuDescriptionResultDto(2L, " "),
-                new PythonMenuDescriptionResultDto(3L, "x".repeat(301))
+                new PythonMenuDescriptionResultDto(3L, "x".repeat(501))
         )));
 
         MenuDescriptionFollowUpService service = new MenuDescriptionFollowUpService(persistencePort, pythonClientPort, properties);
@@ -83,7 +83,7 @@ class MenuDescriptionFollowUpServiceTest {
                 saved.size() == 1 && "valid description".equals(saved.get(new MenuDescriptionKey(1L, "en")))
         ));
         verify(persistencePort).saveMenuDescriptionAnalysis(2L, "en", MenuDescriptionStatus.FAILED, "Blank description", 1);
-        verify(persistencePort).saveMenuDescriptionAnalysis(3L, "en", MenuDescriptionStatus.FAILED, "Description exceeds 300 characters", 1);
+        verify(persistencePort).saveMenuDescriptionAnalysis(3L, "en", MenuDescriptionStatus.FAILED, "Description exceeds 500 characters", 1);
         verify(persistencePort, atLeastOnce()).saveMenuDescriptionAnalysis(1L, "en", MenuDescriptionStatus.SUCCESS, null, 1);
     }
 
