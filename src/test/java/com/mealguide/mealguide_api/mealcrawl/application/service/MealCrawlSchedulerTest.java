@@ -23,6 +23,7 @@ class MealCrawlSchedulerTest {
         MealCrawlOrchestrationService orchestrationService = mock(MealCrawlOrchestrationService.class);
         MenuAiAnalysisFollowUpService followUpService = mock(MenuAiAnalysisFollowUpService.class);
         MenuTranslationFollowUpService translationFollowUpService = mock(MenuTranslationFollowUpService.class);
+        MenuDescriptionFollowUpService descriptionFollowUpService = mock(MenuDescriptionFollowUpService.class);
 
         MealCrawlScheduler scheduler = new MealCrawlScheduler(
                 properties,
@@ -30,7 +31,8 @@ class MealCrawlSchedulerTest {
                 targetService,
                 orchestrationService,
                 followUpService,
-                translationFollowUpService
+                translationFollowUpService,
+                descriptionFollowUpService
         );
 
         scheduler.runAiRetry();
@@ -38,6 +40,7 @@ class MealCrawlSchedulerTest {
         verify(lockPort).tryAcquireLock();
         verify(followUpService).processRetryPending(org.mockito.ArgumentMatchers.anyString());
         verify(translationFollowUpService).processRetryPending(org.mockito.ArgumentMatchers.anyString());
+        verify(descriptionFollowUpService).processRetryPending(org.mockito.ArgumentMatchers.anyString());
         verify(lockPort).releaseLock();
     }
 
@@ -55,7 +58,8 @@ class MealCrawlSchedulerTest {
                 mock(MealCrawlTargetService.class),
                 mock(MealCrawlOrchestrationService.class),
                 mock(MenuAiAnalysisFollowUpService.class),
-                mock(MenuTranslationFollowUpService.class)
+                mock(MenuTranslationFollowUpService.class),
+                mock(MenuDescriptionFollowUpService.class)
         );
 
         scheduler.runAiRetry();

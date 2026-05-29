@@ -22,6 +22,8 @@ import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiAnalysisAllergy;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiAnalysisIngredient;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAllergyCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuDescriptionKey;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuDescriptionStatus;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuSpicyLevel;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslation;
@@ -193,6 +195,35 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                         rs.getString("translated_name")
                 ));
         return translatedMenuNames;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, String> findMenuDescriptionsByMealMenuIds(Set<Long> mealMenuIds, String langCode) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty() || langCode == null || langCode.isBlank()) {
+            return Map.of();
+        }
+
+        String sql = """
+                select mm.id as meal_menu_id,
+                       md.description
+                from meal_menu mm
+                join menu_description md on md.menu_id = mm.menu_id
+                where mm.id in (:mealMenuIds)
+                  and md.lang_code = :langCode
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("mealMenuIds", mealMenuIds)
+                .addValue("langCode", normalizeLanguageCode(langCode));
+
+        Map<Long, String> descriptions = new HashMap<>();
+        namedParameterJdbcTemplate.query(sql, params, (org.springframework.jdbc.core.RowCallbackHandler) rs ->
+                descriptions.put(
+                        rs.getLong("meal_menu_id"),
+                        rs.getString("description")
+                ));
+        return descriptions;
     }
 
     @Override
@@ -1368,6 +1399,150 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 .addValue("attemptCount", attemptCount)
                 .addValue("createdAt", LocalDateTime.now());
         namedParameterJdbcTemplate.update(insertSql, insertParams);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<MenuDescriptionKey> findExistingMenuDescriptionKeys(Set<Long> menuIds, List<String> langCodes) {
+        if (menuIds == null || menuIds.isEmpty() || langCodes == null || langCodes.isEmpty()) {
+            return Set.of();
+        }
+        String sql = """
+                select md.menu_id, md.lang_code
+                from menu_description md
+                where md.menu_id in (:menuIds)
+                  and md.lang_code in (:langCodes)
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("menuIds", menuIds)
+                .addValue("langCodes", langCodes);
+        return new HashSet<>(namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MenuDescriptionKey(
+                rs.getLong("menu_id"),
+                rs.getString("lang_code")
+        )));
+    }
+
+    @Override
+    @Transactional
+    public void saveMenuDescriptions(Map<MenuDescriptionKey, String> descriptionsByKey) {
+        if (descriptionsByKey == null || descriptionsByKey.isEmpty()) {
+            return;
+        }
+        String sql = """
+                insert into menu_description (
+                    menu_id, lang_code, description, is_auto_generated, created_at, updated_at
+                ) values (
+                    :menuId, :langCode, :description, true, :createdAt, :updatedAt
+                )
+                on conflict (menu_id, lang_code) do update
+                   set description = excluded.description,
+                       is_auto_generated = excluded.is_auto_generated,
+                       updated_at = excluded.updated_at
+                """;
+        LocalDateTime now = LocalDateTime.now();
+        for (Map.Entry<MenuDescriptionKey, String> entry : descriptionsByKey.entrySet()) {
+            MenuDescriptionKey key = entry.getKey();
+            if (key == null || key.menuId() == null || key.langCode() == null || key.langCode().isBlank()
+                    || entry.getValue() == null || entry.getValue().isBlank()) {
+                continue;
+            }
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("menuId", key.menuId())
+                    .addValue("langCode", normalizeLanguageCode(key.langCode()))
+                    .addValue("description", entry.getValue().trim())
+                    .addValue("createdAt", now)
+                    .addValue("updatedAt", now);
+            namedParameterJdbcTemplate.update(sql, params);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MenuDescriptionKey> findDescriptionRetryTargetKeys(int limit, int maxAttemptCount) {
+        if (limit <= 0 || maxAttemptCount <= 0) {
+            return List.of();
+        }
+        String sql = """
+                select mda.menu_id, mda.lang_code
+                from menu_description_analysis mda
+                left join menu_description md
+                  on md.menu_id = mda.menu_id
+                 and md.lang_code = mda.lang_code
+                where mda.status = :failedStatus
+                  and mda.attempt_count < :maxAttempt
+                  and md.id is null
+                order by mda.menu_id asc, mda.lang_code asc
+                limit :limit
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("failedStatus", MenuDescriptionStatus.FAILED.name())
+                .addValue("maxAttempt", maxAttemptCount)
+                .addValue("limit", limit);
+        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MenuDescriptionKey(
+                rs.getLong("menu_id"),
+                rs.getString("lang_code")
+        ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<MenuDescriptionKey, Integer> findLatestDescriptionAttemptCounts(Set<MenuDescriptionKey> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return Map.of();
+        }
+        Set<MenuDescriptionKey> requestedKeys = Set.copyOf(keys);
+        List<Long> menuIds = keys.stream().map(MenuDescriptionKey::menuId).distinct().toList();
+        List<String> langCodes = keys.stream().map(MenuDescriptionKey::langCode).distinct().toList();
+        String sql = """
+                select mda.menu_id, mda.lang_code, mda.attempt_count
+                from menu_description_analysis mda
+                where mda.menu_id in (:menuIds)
+                  and mda.lang_code in (:langCodes)
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("menuIds", menuIds)
+                .addValue("langCodes", langCodes);
+        Map<MenuDescriptionKey, Integer> latestAttemptCounts = new HashMap<>();
+        namedParameterJdbcTemplate.query(sql, params, (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+            MenuDescriptionKey key = new MenuDescriptionKey(rs.getLong("menu_id"), rs.getString("lang_code"));
+            if (requestedKeys.contains(key)) {
+                latestAttemptCounts.put(key, rs.getInt("attempt_count"));
+            }
+        });
+        return latestAttemptCounts;
+    }
+
+    @Override
+    @Transactional
+    public void saveMenuDescriptionAnalysis(
+            Long menuId,
+            String langCode,
+            MenuDescriptionStatus status,
+            String reason,
+            int attemptCount
+    ) {
+        String sql = """
+                insert into menu_description_analysis (
+                    menu_id, lang_code, status, reason, attempt_count, created_at, updated_at
+                ) values (
+                    :menuId, :langCode, :status, :reason, :attemptCount, :createdAt, :updatedAt
+                )
+                on conflict (menu_id, lang_code) do update
+                   set status = excluded.status,
+                       reason = excluded.reason,
+                       attempt_count = excluded.attempt_count,
+                       updated_at = excluded.updated_at
+                """;
+        LocalDateTime now = LocalDateTime.now();
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("menuId", menuId)
+                .addValue("langCode", normalizeLanguageCode(langCode))
+                .addValue("status", status.name())
+                .addValue("reason", reason)
+                .addValue("attemptCount", attemptCount)
+                .addValue("createdAt", now)
+                .addValue("updatedAt", now);
+        namedParameterJdbcTemplate.update(sql, params);
     }
 
     private String normalizeLanguageCode(String languageCode) {

@@ -23,6 +23,7 @@ public class MealCrawlProperties {
     private String analysisPath = "/api/v1/menus/analyze";
     private String imageAnalysisPath = "/api/v1/python/menus/analyze-image";
     private String translationPath = "/api/v1/menus/translate";
+    private String descriptionPath = "/api/v1/python/menus/describe/list";
     private String textTranslationPath = "/api/v1/translations";
     private String ingredientTranslationPath = "/api/v1/python/translations/list";
     private long weeklyMealCacheTtlSeconds = 86400L;
@@ -32,11 +33,15 @@ public class MealCrawlProperties {
     private int translationBatchSize = 10;
     private Integer translationRetryBatchSize;
     private int translationMaxAttemptCount = 3;
+    private int descriptionBatchSize = 7;
+    private Integer descriptionRetryBatchSize;
+    private int descriptionMaxAttemptCount = 3;
     private int ingredientTranslationBatchSize = 10;
     private int ingredientTranslationMaxBatchesPerRun = 5;
     private MenuImage menuImage = new MenuImage();
 
     private List<String> translationTargetLanguages = List.of("en");
+    private List<String> descriptionTargetLanguages = List.of("ko", "en");
     private RiskPolicy riskPolicy = new RiskPolicy();
 
     public int getAiAnalysisBatchSize() {
@@ -67,6 +72,21 @@ public class MealCrawlProperties {
 
     public int getTranslationMaxAttemptCount() {
         return translationMaxAttemptCount > 0 ? translationMaxAttemptCount : 3;
+    }
+
+    public int getDescriptionBatchSize() {
+        return descriptionBatchSize > 0 ? descriptionBatchSize : 7;
+    }
+
+    public int getDescriptionRetryBatchSize() {
+        if (descriptionRetryBatchSize == null || descriptionRetryBatchSize <= 0) {
+            return getDescriptionBatchSize();
+        }
+        return descriptionRetryBatchSize;
+    }
+
+    public int getDescriptionMaxAttemptCount() {
+        return descriptionMaxAttemptCount > 0 ? descriptionMaxAttemptCount : 3;
     }
 
     public int getIngredientTranslationBatchSize() {

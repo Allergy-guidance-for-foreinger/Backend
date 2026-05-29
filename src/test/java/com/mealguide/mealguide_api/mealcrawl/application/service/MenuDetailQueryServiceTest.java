@@ -79,6 +79,8 @@ class MenuDetailQueryServiceTest {
         ));
         when(persistencePort.findTranslatedMenuNamesByMealMenuIds(Set.of(20L, 10L), "en"))
                 .thenReturn(java.util.Map.of(10L, "Menu-10-en", 20L, "Menu-20-en"));
+        when(persistencePort.findMenuDescriptionsByMealMenuIds(Set.of(20L, 10L), "en"))
+                .thenReturn(java.util.Map.of(20L, "Menu-20 description"));
         when(persistencePort.findConfirmedIngredientsForMenuDetails(Set.of(20L, 10L), "en"))
                 .thenReturn(List.of(
                         new MealMenuIngredientRow(10L, "PORK", "Pork"),
@@ -110,6 +112,8 @@ class MenuDetailQueryServiceTest {
         assertThat(response.menus().get(0).like().likedByMe()).isTrue();
         assertThat(response.menus().get(1).like().count()).isEqualTo(2L);
         assertThat(response.menus().get(0).review().count()).isEqualTo(7L);
+        assertThat(response.menus().get(0).description()).isEqualTo("Menu-20 description");
+        assertThat(response.menus().get(1).description()).isNull();
     }
 
     @Test
@@ -179,7 +183,7 @@ class MenuDetailQueryServiceTest {
         MenuDetailResponse first = response.menus().get(0);
         MenuDetailResponse second = response.menus().get(1);
         assertThat(first.matchedAllergies()).hasSize(1);
-        assertThat(first.matchedAllergies().get(0).riskLevel()).isEqualTo("SAFE");
+        assertThat(first.matchedAllergies().get(0).riskLevel()).isEqualTo("DANGER");
         assertThat(second.matchedAllergies()).isEmpty();
     }
 
@@ -199,6 +203,8 @@ class MenuDetailQueryServiceTest {
         ));
         when(persistencePort.findTranslatedMenuNamesByMealMenuIds(Set.of(10L), "en"))
                 .thenReturn(java.util.Map.of(10L, "Menu-10-en"));
+        when(persistencePort.findMenuDescriptionsByMealMenuIds(Set.of(10L), "en"))
+                .thenReturn(java.util.Map.of(10L, "English description"));
         when(persistencePort.findConfirmedIngredientsForMenuDetails(Set.of(10L), "en"))
                 .thenReturn(List.of(new MealMenuIngredientRow(10L, "RICE", "Rice")));
         when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("en"))).thenReturn(List.of());
@@ -216,6 +222,7 @@ class MenuDetailQueryServiceTest {
 
         assertThat(response.mealMenuId()).isEqualTo(10L);
         assertThat(response.menuName()).isEqualTo("Menu-10-en");
+        assertThat(response.description()).isEqualTo("English description");
         assertThat(response.like().count()).isEqualTo(5L);
         assertThat(response.like().likedByMe()).isTrue();
         assertThat(response.review().count()).isEqualTo(3L);

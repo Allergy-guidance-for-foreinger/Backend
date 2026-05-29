@@ -6,6 +6,41 @@
 
 ## 최근 공통 작업
 
+### 2026-05-29 (menu description follow-up success-rate logging fix)
+- What changed:
+  - Changed menu description follow-up end-log failure counting so batch API failures contribute failed menu count, not only failed batch count.
+  - Kept `batchFailureCount` as a separate batch-level metric and added `batchFailedMenuCount` for menu-level success-rate calculation.
+  - Kept the description length limit policy at 500 characters.
+  - Added DB schema reference check constraint `ck_menu_description_description_length` to enforce `menu_description.description` length at 500 characters.
+  - Aligned Python menu description `success=false` business failure handling with other Python business failures by marking it non-retryable.
+  - Changed description-related `MealCrawlPersistencePort` default methods from silent empty/no-op behavior to fail-fast `UnsupportedOperationException`.
+  - Changed `PythonMealClientPort.describeMenus` default implementation from silent empty response to fail-fast `UnsupportedOperationException`.
+  - Added a focused test for mixed batch failure/success logging.
+- Why:
+  - Success-rate logs should use one consistent unit: menu result count.
+  - Description validation should match the 500-character business rule.
+  - The DB schema should protect the same description length contract for any future write path.
+  - Business failure responses should not be classified as retryable transport failures.
+  - Required description persistence/query methods should not silently disable the feature when an adapter implementation is missing.
+  - Required Python description client integration should not look like a normal empty result when missing.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/PythonMealClientPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDescriptionFollowUpService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/PythonMealClientAdapter.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDescriptionFollowUpServiceTest.java`
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: Yes (`menu_description.description` check constraint).
+- API behavior changed: No
+- Related docs updated:
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Existing development/production DBs need a matching `ALTER TABLE menu_description ADD CONSTRAINT ck_menu_description_description_length CHECK (char_length(description) <= 500);` after cleaning any over-length rows.
+
 ### 2026-05-28 (review anonymous participant persistence and deleted user display)
 - What changed:
   - Added persistent review anonymous participant mapping policy using `menu_review_anonymous_participant`.
@@ -1851,3 +1886,31 @@ iskLevel only), allergy risk source changed internally.
   - `docs/work-log/general-work-log.md`
 - Remaining follow-ups:
   - Add controller-level request validation tests for invalid `sourceLang`/`targetLang` cases.
+## 2026-05-28 (menu description follow-up and localized detail response)
+- Changed:
+  - Added menu description generation follow-up using Python `/api/v1/python/menus/describe/list`.
+  - Added batch controls for description generation (`descriptionBatchSize`, retry batch size, max attempts) with default batch size 7.
+  - Added description persistence and retry-state APIs for `(menu_id, lang_code)` with current target languages `ko,en`.
+  - Menu detail response now reads `description` using the current user language only; no Korean fallback is applied.
+  - Updated focused service tests and aligned a stale menu-detail risk assertion with the current matched-confidence policy.
+- Reason:
+  - Persist reusable menu descriptions per menu/language and avoid repeated calls for menus already described.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDescriptionFollowUpService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlOrchestrationService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlScheduler.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/*`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/client/*`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `src/main/resources/application.properties`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDescriptionFollowUpServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlOrchestrationServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlSchedulerTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryServiceTest.java`
+  - `docs/schema.sql`, `docs/database-context.md`, `docs/features/mealcrawl-context.md`
+- DB schema changed: Yes (`menu_description`, `menu_description_analysis`).
+- API behavior changed: Yes, menu detail `description` can now be populated from `menu_description` for the user language.
+- Related docs updated: Yes.
+- Remaining work:
+  - Apply the new schema to local/production PostgreSQL before enabling the follow-up in scheduled runs.

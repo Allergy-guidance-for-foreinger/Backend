@@ -6,6 +6,8 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.P
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuTranslationResponse;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonMenuDescriptionRequest;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuDescriptionResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.response.PythonMenuImageAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonTextTranslationRequest;
 import com.mealguide.mealguide_api.mealcrawl.infrastructure.client.dto.request.PythonIngredientTranslationRequest;
@@ -19,6 +21,10 @@ public interface PythonMealClientPort {
     PythonMenuAnalysisResponse analyzeMenus(PythonMenuAnalysisRequest request);
 
     PythonMenuTranslationResponse translateMenus(PythonMenuTranslationRequest request);
+
+    default PythonMenuDescriptionResponse describeMenus(PythonMenuDescriptionRequest request) {
+        throw new UnsupportedOperationException("describeMenus must be implemented");
+    }
 
     PythonMenuImageAnalysisResponse analyzeImage(MultipartFile image, String langCode);
 

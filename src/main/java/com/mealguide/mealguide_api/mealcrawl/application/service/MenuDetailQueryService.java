@@ -76,6 +76,10 @@ public class MenuDetailQueryService {
 
         String languageCode = preference.languageCode();
         Map<Long, String> translatedMenuNames = mealCrawlPersistencePort.findTranslatedMenuNamesByMealMenuIds(targetIds, languageCode);
+        Map<Long, String> menuDescriptions = mealCrawlPersistencePort.findMenuDescriptionsByMealMenuIds(targetIds, languageCode);
+        if (menuDescriptions == null) {
+            menuDescriptions = Map.of();
+        }
         Map<Long, IngredientSelection> ingredientSelections = resolveIngredients(targetIds, languageCode);
 
         Map<Long, List<MealMenuMatchedAllergyRow>> matchedRowsByMealMenuId = mealCrawlPersistencePort
@@ -143,7 +147,7 @@ public class MenuDetailQueryService {
             menus.add(new MenuDetailResponse(
                     detail.mealMenuId(),
                     menuName,
-                    null,
+                    menuDescriptions.get(mealMenuId),
                     detail.cornerName(),
                     detail.displayOrder(),
                     detail.spicyLevel(),

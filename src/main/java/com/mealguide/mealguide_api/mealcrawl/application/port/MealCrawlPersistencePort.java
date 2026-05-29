@@ -12,6 +12,8 @@ import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAllergyCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuDescriptionKey;
+import com.mealguide.mealguide_api.mealcrawl.domain.MenuDescriptionStatus;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuSpicyLevel;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationKey;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuTranslationStatus;
@@ -45,6 +47,10 @@ public interface MealCrawlPersistencePort {
     boolean existsCafeteriaInSchool(Long cafeteriaId, Long schoolId);
 
     Map<Long, String> findTranslatedMenuNamesByMealMenuIds(Set<Long> mealMenuIds, String langCode);
+
+    default Map<Long, String> findMenuDescriptionsByMealMenuIds(Set<Long> mealMenuIds, String langCode) {
+        throw new UnsupportedOperationException("findMenuDescriptionsByMealMenuIds must be implemented");
+    }
 
     List<MealMenuIngredientRow> findConfirmedIngredientsByMealMenuIds(Set<Long> mealMenuIds);
 
@@ -263,6 +269,32 @@ public interface MealCrawlPersistencePort {
             String reason,
             int attemptCount
     ) {
+    }
+
+    default Set<MenuDescriptionKey> findExistingMenuDescriptionKeys(Set<Long> menuIds, List<String> langCodes) {
+        throw new UnsupportedOperationException("findExistingMenuDescriptionKeys must be implemented");
+    }
+
+    default void saveMenuDescriptions(Map<MenuDescriptionKey, String> descriptionsByKey) {
+        throw new UnsupportedOperationException("saveMenuDescriptions must be implemented");
+    }
+
+    default List<MenuDescriptionKey> findDescriptionRetryTargetKeys(int limit, int maxAttemptCount) {
+        throw new UnsupportedOperationException("findDescriptionRetryTargetKeys must be implemented");
+    }
+
+    default Map<MenuDescriptionKey, Integer> findLatestDescriptionAttemptCounts(Set<MenuDescriptionKey> keys) {
+        throw new UnsupportedOperationException("findLatestDescriptionAttemptCounts must be implemented");
+    }
+
+    default void saveMenuDescriptionAnalysis(
+            Long menuId,
+            String langCode,
+            MenuDescriptionStatus status,
+            String reason,
+            int attemptCount
+    ) {
+        throw new UnsupportedOperationException("saveMenuDescriptionAnalysis must be implemented");
     }
 
     default List<IngredientTranslationTarget> findMissingIngredientTranslationTargets(
