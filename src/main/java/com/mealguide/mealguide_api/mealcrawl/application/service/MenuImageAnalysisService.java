@@ -21,6 +21,7 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.persistence.reposito
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuImageAnalysisResponse;
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuImageAnalysisUsageResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -37,9 +39,13 @@ import java.util.*;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MenuImageAnalysisService {
+    private static final ZoneId DEFAULT_DAILY_LIMIT_ZONE_ID = ZoneId.of("Asia/Seoul");
+
     private final MealUserPreferencePort mealUserPreferencePort;
     private final MenuImageAnalysisLogJpaRepository logRepository;
+    private final MenuImageAnalysisUsageReservationService usageReservationService;
     private final MenuImageStoragePort menuImageStoragePort;
     private final PythonMealClientPort pythonMealClientPort;
     private final MenuJpaRepository menuJpaRepository;
@@ -55,9 +61,13 @@ public class MenuImageAnalysisService {
         String lang = normalizeLanguageCode(preference.languageCode());
 
         validateFileOrFail(image);
-        validateDailyLimit(userId);
 
-        MenuImageAnalysisLog log = createProcessingLog(userId);
+        UsageWindow usageWindow = todayUsageWindow();
+        MenuImageAnalysisLog log = usageReservationService.reserve(
+                userId,
+                usageWindow.startInclusive(),
+                usageWindow.endExclusive()
+        );
         String storagePath = uploadOrFail(log, userId, image);
         saveStoragePath(log.getId(), storagePath);
 
@@ -435,13 +445,6 @@ public class MenuImageAnalysisService {
         }
     }
 
-    private void validateDailyLimit(Long userId) {
-        MenuImageAnalysisUsageResponse usage = getUsage(userId);
-        if (usage.limited()) {
-            throw new ServiceException(ErrorCode.MENU_IMAGE_ANALYSIS_LIMIT_EXCEEDED);
-        }
-    }
-
     private UsageWindow todayUsageWindow() {
         ZoneId zoneId = resolveDailyLimitZoneId();
         ZonedDateTime start = ZonedDateTime.now(zoneId).toLocalDate().atStartOfDay(zoneId);
@@ -456,22 +459,19 @@ public class MenuImageAnalysisService {
     private ZoneId resolveDailyLimitZoneId() {
         String zoneId = properties.getMenuImage().getDailyAnalysisLimitZoneId();
         if (zoneId == null || zoneId.isBlank()) {
-            return ZoneId.of("Asia/Seoul");
+            return DEFAULT_DAILY_LIMIT_ZONE_ID;
         }
-        return ZoneId.of(zoneId.trim());
+        try {
+            return ZoneId.of(zoneId.trim());
+        } catch (DateTimeException e) {
+            log.warn("Invalid menu image daily limit zone id: {}. Fallback to Asia/Seoul.", zoneId);
+            return DEFAULT_DAILY_LIMIT_ZONE_ID;
+        }
     }
 
     private int dailyAnalysisLimit() {
         int limit = properties.getMenuImage().getDailyAnalysisLimit();
         return limit > 0 ? limit : 2;
-    }
-
-    @Transactional
-    protected MenuImageAnalysisLog createProcessingLog(Long userId) {
-        return logRepository.save(MenuImageAnalysisLog.createProcessing(
-                userId,
-                LocalDateTime.now(resolveDailyLimitZoneId())
-        ));
     }
 
     @Transactional

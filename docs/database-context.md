@@ -102,3 +102,4 @@
 - All created image-analysis logs count regardless of status (`PROCESSING`, `SUCCESS`, `FAILED`).
 - Invalid requests rejected before log creation do not count.
 - Existing index `idx_menu_image_analysis_log_user_created` supports the daily count query.
+- Analyze request reservation uses a per-user PostgreSQL transaction advisory lock around daily count + `PROCESSING` log creation to avoid concurrent count bypass.

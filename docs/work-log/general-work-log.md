@@ -11,6 +11,7 @@
   - Added authenticated usage lookup API `GET /api/v1/menus/analyze-image/usage`.
   - Added per-user daily image analysis limit enforcement to `POST /api/v1/menus/analyze-image`.
   - Count policy uses `menu_image_analysis_log.created_at` in the configured day boundary (`Asia/Seoul` default).
+  - Added a short per-user PostgreSQL transaction advisory lock around daily count + `PROCESSING` log creation.
   - Added configurable limit properties with default `2`:
     - `mealguide.mealcrawl.menu-image.daily-analysis-limit`
     - `mealguide.mealcrawl.menu-image.daily-analysis-limit-zone-id`
@@ -21,6 +22,7 @@
 - Affected files:
   - `src/main/java/com/mealguide/mealguide_api/global/base/exception/ErrorCode.java`
   - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuImageAnalysisService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuImageAnalysisUsageReservationService.java`
   - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/config/MealCrawlProperties.java`
   - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/repository/MenuImageAnalysisLogJpaRepository.java`
   - `src/main/java/com/mealguide/mealguide_api/mealcrawl/presentation/controller/MenuImageAnalysisController.java`
@@ -39,7 +41,7 @@
   - `docs/features/mealcrawl-context.md`
   - `docs/work-log/general-work-log.md`
 - Remaining follow-ups:
-  - If future clients can send concurrent requests, add a per-user short lock or atomic usage table.
+  - If usage policies expand by feature tier or event, consider a dedicated usage table.
 
 ### 2026-05-29 (menu description follow-up success-rate logging fix)
 - What changed:

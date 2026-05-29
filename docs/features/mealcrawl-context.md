@@ -149,6 +149,8 @@
 - Invalid image requests blocked before log creation do not count.
 - `GET /api/v1/menus/analyze-image/usage` returns `usedCount`, `limitCount`, `remainingCount`, `limited`, and `resetAt` for client button state.
 - The analyze API still performs the same count check server-side and returns a rate-limit error when the daily limit is exhausted.
+- Analyze request reservation uses a short PostgreSQL transaction advisory lock per user to make count + log creation atomic.
+- The advisory lock is released before Firebase upload and Python/Gemini calls, so external API latency is not kept inside the lock.
 
 ## 2026-05-15 AI analysis retry policy update
 - 00:00 crawl/import flow remains unchanged, but AI follow-up now runs in batches (mealguide.mealcrawl.ai-analysis-batch-size, default 5).
