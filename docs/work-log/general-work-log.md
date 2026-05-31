@@ -6,6 +6,27 @@
 
 ## 최근 공통 작업
 
+### 2026-05-31 (weekend crawl target date policy)
+- What changed:
+  - Changed scheduled meal crawl target date calculation to request operating days only.
+  - Weekday base dates now request that week's Monday through Friday.
+  - Saturday/Sunday base dates now request the next week's Monday through Friday instead of the already-ended week.
+  - Added focused tests for weekday, Saturday, and Sunday behavior, including a month-boundary Saturday case.
+- Why:
+  - Cafeterias do not operate on weekends, so weekend scheduler runs should prepare the upcoming operating week instead of re-requesting the past week.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlTargetService.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MealCrawlTargetServiceTest.java`
+  - `docs/features/mealcrawl-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No public API contract change; internal Java-to-Python crawl date range now uses operating-week Monday-Friday.
+- Related docs updated:
+  - `docs/features/mealcrawl-context.md`
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Verify Python crawler handles date ranges that cross calendar-month boundaries.
+
 ### 2026-05-29 (menu image analysis daily usage limit)
 - What changed:
   - Added authenticated usage lookup API `GET /api/v1/menus/analyze-image/usage`.

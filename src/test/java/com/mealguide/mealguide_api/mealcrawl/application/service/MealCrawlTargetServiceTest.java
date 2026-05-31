@@ -15,7 +15,7 @@ import static org.mockito.Mockito.when;
 class MealCrawlTargetServiceTest {
 
     @Test
-    void resolveWeeklyTargetsNormalizesStartDateToMonday() {
+    void resolveWeeklyTargetsUsesCurrentMondayToFridayOnWeekday() {
         MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
         when(persistencePort.findCrawlTargets()).thenReturn(List.of(
                 new CrawlTargetSource(1L, 10L, "School", "Main", "http://source")
@@ -27,6 +27,38 @@ class MealCrawlTargetServiceTest {
 
         assertThat(targets).hasSize(1);
         assertThat(targets.get(0).startDate()).isEqualTo(LocalDate.of(2026, 4, 20));
-        assertThat(targets.get(0).endDate()).isEqualTo(LocalDate.of(2026, 4, 26));
+        assertThat(targets.get(0).endDate()).isEqualTo(LocalDate.of(2026, 4, 24));
+    }
+
+    @Test
+    void resolveWeeklyTargetsUsesNextMondayToFridayOnSaturday() {
+        MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
+        when(persistencePort.findCrawlTargets()).thenReturn(List.of(
+                new CrawlTargetSource(1L, 10L, "School", "Main", "http://source")
+        ));
+
+        MealCrawlTargetService service = new MealCrawlTargetService(persistencePort);
+
+        List<MealCrawlTarget> targets = service.resolveWeeklyTargets(LocalDate.of(2026, 5, 30));
+
+        assertThat(targets).hasSize(1);
+        assertThat(targets.get(0).startDate()).isEqualTo(LocalDate.of(2026, 6, 1));
+        assertThat(targets.get(0).endDate()).isEqualTo(LocalDate.of(2026, 6, 5));
+    }
+
+    @Test
+    void resolveWeeklyTargetsUsesNextMondayToFridayOnSunday() {
+        MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
+        when(persistencePort.findCrawlTargets()).thenReturn(List.of(
+                new CrawlTargetSource(1L, 10L, "School", "Main", "http://source")
+        ));
+
+        MealCrawlTargetService service = new MealCrawlTargetService(persistencePort);
+
+        List<MealCrawlTarget> targets = service.resolveWeeklyTargets(LocalDate.of(2026, 5, 31));
+
+        assertThat(targets).hasSize(1);
+        assertThat(targets.get(0).startDate()).isEqualTo(LocalDate.of(2026, 6, 1));
+        assertThat(targets.get(0).endDate()).isEqualTo(LocalDate.of(2026, 6, 5));
     }
 }
