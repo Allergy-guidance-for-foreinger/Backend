@@ -48,7 +48,7 @@ public class MealCrawlTargetService {
         if (dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY) {
             return baseDate.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
         }
-        return baseDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        return WeekStartDateNormalizer.normalize(baseDate);
     }
 }
 

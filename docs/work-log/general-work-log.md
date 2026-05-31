@@ -11,7 +11,7 @@
   - Changed scheduled meal crawl target date calculation to request operating days only.
   - Weekday base dates now request that week's Monday through Friday.
   - Saturday/Sunday base dates now request the next week's Monday through Friday instead of the already-ended week.
-  - Added focused tests for weekday, Saturday, Sunday, and month-boundary weekend behavior.
+  - Added focused tests for weekday, Saturday, and Sunday behavior, including a month-boundary Saturday case.
 - Why:
   - Cafeterias do not operate on weekends, so weekend scheduler runs should prepare the upcoming operating week instead of re-requesting the past week.
 - Affected files:
