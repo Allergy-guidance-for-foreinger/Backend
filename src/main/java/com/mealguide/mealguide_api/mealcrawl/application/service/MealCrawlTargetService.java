@@ -7,7 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 
 @Service
@@ -18,8 +20,8 @@ public class MealCrawlTargetService {
 
     @Transactional(readOnly = true)
     public List<MealCrawlTarget> resolveWeeklyTargets(LocalDate baseDate) {
-        LocalDate startDate = WeekStartDateNormalizer.normalize(baseDate);
-        LocalDate endDate = startDate.plusDays(6);
+        LocalDate startDate = resolveOperatingWeekStartDate(baseDate);
+        LocalDate endDate = startDate.plusDays(4);
 
         return mealCrawlPersistencePort.findCrawlTargets().stream()
                 .map(source -> toTarget(source, startDate, endDate))
@@ -36,6 +38,17 @@ public class MealCrawlTargetService {
                 startDate,
                 endDate
         );
+    }
+
+    private LocalDate resolveOperatingWeekStartDate(LocalDate baseDate) {
+        if (baseDate == null) {
+            throw new IllegalArgumentException("baseDate must not be null");
+        }
+        DayOfWeek dayOfWeek = baseDate.getDayOfWeek();
+        if (dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY) {
+            return baseDate.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        }
+        return baseDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
     }
 }
 
