@@ -8,7 +8,8 @@
 ### 인증/계정
 - Google ID token 기반 로그인 유지
 - 최초 로그인 자동 회원가입 흐름 유지(`users` + `user_oauth_accounts`)
-- `users.email` nullable 제약을 고려해 email 단독 조회 의존 금지
+- Google 계정 식별은 `user_oauth_accounts.provider + provider_user_id` 기준으로 처리
+- 이메일은 `users.email_encrypted`/`email_hash`로 저장하고 email 단독 로그인 조회는 사용하지 않음
 - 활성 사용자(`ACTIVE`) 중심 조회 규칙 강화
 
 ### 토큰/보안
@@ -25,6 +26,50 @@
 ## 참고 문서
 - 기능 맥락: `docs/features/login-context.md`
 - 공통 규칙: `docs/project-context.md`, `docs/database-context.md`
+
+### 2026-06-07 (user name 제거 및 email 암호화 저장 전환)
+- What changed:
+  - `users.name` 저장을 제거하고 인증 principal에서 email/name 보관을 중단했다.
+  - `users.email` 평문 저장을 `email_encrypted` + `email_hash`로 전환했다.
+  - 이메일 암호화는 AES-GCM, 조회용 해시는 HMAC-SHA256을 사용하도록 공통 crypto 서비스를 추가했다.
+  - `user_oauth_accounts.provider_email` 저장과 email fallback 조회를 제거했다.
+  - Google 로그인 식별은 `provider = GOOGLE` + `provider_user_id` 기준만 사용한다.
+- Why:
+  - 개인정보 최소 수집 원칙에 맞춰 사용자 이름 저장을 중단하고, 문의 대응에 필요한 이메일은 평문이 아닌 복호화 가능한 암호문으로 저장하기 위해.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/global/security/crypto/UserEmailCryptoService.java`
+  - `src/main/java/com/mealguide/mealguide_api/global/auth/domain/AuthenticatedUser.java`
+  - `src/main/java/com/mealguide/mealguide_api/global/auth/security/AuthenticatedUserPrincipal.java`
+  - `src/main/java/com/mealguide/mealguide_api/login/domain/User.java`
+  - `src/main/java/com/mealguide/mealguide_api/login/domain/UserOauthAccount.java`
+  - `src/main/java/com/mealguide/mealguide_api/login/application/port/UserQueryPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/login/application/service/LoginService.java`
+  - `src/main/java/com/mealguide/mealguide_api/login/infrastructure/persistence/repository/UserOauthAccountJpaRepository.java`
+  - `src/main/java/com/mealguide/mealguide_api/login/infrastructure/persistence/adapter/UserPersistenceAdapter.java`
+  - `src/main/resources/application.properties`
+  - `src/test/resources/application.properties`
+  - `src/test/java/com/mealguide/mealguide_api/global/security/crypto/UserEmailCryptoServiceTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/login/domain/UserTest.java`
+  - `src/test/java/com/mealguide/mealguide_api/login/application/service/LoginServiceTest.java`
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/features/login-context.md`
+  - `docs/work-log/login-work-log.md`
+- DB schema changed: Yes
+  - Added `users.email_encrypted`, `users.email_hash`, `idx_users_email_hash`.
+  - Removed `users.email`, `users.name`, `uk_users_email`, `user_oauth_accounts.provider_email`, and provider email index.
+- API behavior changed:
+  - External auth response shape is unchanged.
+  - Internal `Principal.getName()` now returns `userId` instead of email fallback.
+  - Google email fallback account lookup is removed.
+- Related docs updated:
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/features/login-context.md`
+  - `docs/work-log/login-work-log.md`
+- Remaining follow-ups:
+  - 운영 DB 마이그레이션에서 기존 `users.email` 값을 `email_encrypted`/`email_hash`로 backfill한 뒤 평문 컬럼을 제거해야 한다.
+  - 운영 환경에는 `USER_EMAIL_ENCRYPTION_KEY`, `USER_EMAIL_HASH_KEY`, 선택적으로 `USER_EMAIL_KEY_ID`를 주입해야 한다.
 
 ### 2026-05-28 (withdrawal keeps review/comment content visible)
 - What changed:

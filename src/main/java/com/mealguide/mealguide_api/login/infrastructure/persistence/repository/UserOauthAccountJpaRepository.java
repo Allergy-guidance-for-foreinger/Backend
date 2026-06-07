@@ -16,21 +16,9 @@ public interface UserOauthAccountJpaRepository extends JpaRepository<UserOauthAc
             UserStatus status
     );
 
-    Optional<UserOauthAccount> findFirstByProviderAndProviderEmailAndUserDeletedAtIsNullAndUserStatus(
-            String provider,
-            String providerEmail,
-            UserStatus status
-    );
-
     boolean existsByProviderAndProviderUserIdAndUserStatus(
             String provider,
             String providerUserId,
-            UserStatus status
-    );
-
-    boolean existsByProviderAndProviderEmailAndUserStatus(
-            String provider,
-            String providerEmail,
             UserStatus status
     );
 

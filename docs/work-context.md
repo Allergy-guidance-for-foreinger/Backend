@@ -6,6 +6,13 @@
 
 ## 2. 최근 작업 요약
 
+### 2026-06-07
+- 로그인 사용자 개인정보 저장 정책을 변경했다.
+  - `users.name` 저장 중단
+  - `users.email` 평문 저장을 `email_encrypted`/`email_hash`로 전환
+  - `user_oauth_accounts.provider_email` 저장 및 email fallback 조회 제거
+  - 상세 내역은 `docs/work-log/login-work-log.md`에 기록
+
 ### 2026-04-28
 - dev/prod 공통 모니터링 구조(Prometheus, Grafana)를 compose에 추가했다.
 - dev/prod별 scrape/alert 강도를 분리한 Prometheus 설정 파일을 추가했다.

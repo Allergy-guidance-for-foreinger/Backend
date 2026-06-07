@@ -1,5 +1,6 @@
 package com.mealguide.mealguide_api.login.infrastructure.persistence.adapter;
 
+import com.mealguide.mealguide_api.global.security.crypto.UserEmailCryptoService;
 import com.mealguide.mealguide_api.login.domain.User;
 import com.mealguide.mealguide_api.login.domain.UserOauthAccount;
 import com.mealguide.mealguide_api.login.domain.UserRole;
@@ -26,40 +27,20 @@ public class UserPersistenceAdapter implements UserQueryPort {
     private final UserJpaRepository userJpaRepository;
     private final UserOauthAccountJpaRepository userOauthAccountJpaRepository;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final UserEmailCryptoService userEmailCryptoService;
 
     @Override
-    public Optional<User> findByGoogleAccount(String providerUserId, String providerEmail) {
-        Optional<User> userByProviderSubject = userOauthAccountJpaRepository
-                .findByProviderAndProviderUserIdAndUserDeletedAtIsNullAndUserStatus(GOOGLE_PROVIDER, providerUserId, ACTIVE_STATUS)
-                .map(oauthAccount -> oauthAccount.getUser());
-
-        if (userByProviderSubject.isPresent() || providerEmail == null || providerEmail.isBlank()) {
-            return userByProviderSubject;
-        }
-
+    public Optional<User> findByGoogleAccount(String providerUserId) {
         return userOauthAccountJpaRepository
-                .findFirstByProviderAndProviderEmailAndUserDeletedAtIsNullAndUserStatus(GOOGLE_PROVIDER, providerEmail, ACTIVE_STATUS)
+                .findByProviderAndProviderUserIdAndUserDeletedAtIsNullAndUserStatus(GOOGLE_PROVIDER, providerUserId, ACTIVE_STATUS)
                 .map(oauthAccount -> oauthAccount.getUser());
     }
 
     @Override
-    public boolean existsInactiveGoogleAccount(String providerUserId, String providerEmail) {
-        boolean existsBySubject = userOauthAccountJpaRepository.existsByProviderAndProviderUserIdAndUserStatus(
+    public boolean existsInactiveGoogleAccount(String providerUserId) {
+        return userOauthAccountJpaRepository.existsByProviderAndProviderUserIdAndUserStatus(
                 GOOGLE_PROVIDER,
                 providerUserId,
-                INACTIVE_STATUS
-        );
-        if (existsBySubject) {
-            return true;
-        }
-
-        if (providerEmail == null || providerEmail.isBlank()) {
-            return false;
-        }
-
-        return userOauthAccountJpaRepository.existsByProviderAndProviderEmailAndUserStatus(
-                GOOGLE_PROVIDER,
-                providerEmail,
                 INACTIVE_STATUS
         );
     }
@@ -124,9 +105,12 @@ public class UserPersistenceAdapter implements UserQueryPort {
     }
 
     @Override
-    public User createGoogleUser(String providerUserId, String providerEmail, String name) {
-        User savedUser = userJpaRepository.save(User.createForFirstGoogleLogin(providerEmail, name));
-        userOauthAccountJpaRepository.save(UserOauthAccount.createGoogleAccount(savedUser, providerUserId, providerEmail));
+    public User createGoogleUser(String providerUserId, String providerEmail) {
+        User savedUser = userJpaRepository.save(User.createForFirstGoogleLogin(
+                userEmailCryptoService.encryptEmail(providerEmail),
+                userEmailCryptoService.hashEmail(providerEmail)
+        ));
+        userOauthAccountJpaRepository.save(UserOauthAccount.createGoogleAccount(savedUser, providerUserId));
         return savedUser;
     }
 

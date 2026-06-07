@@ -57,7 +57,7 @@ class LoginServiceTest {
 
         when(googleIdTokenVerifierPort.verify("google-id-token"))
                 .thenReturn(new GoogleUserInfo("google-sub", "user@test.com", "Meal Guide", true));
-        when(userQueryPort.findByGoogleAccount("google-sub", "user@test.com")).thenReturn(Optional.of(user));
+        when(userQueryPort.findByGoogleAccount("google-sub")).thenReturn(Optional.of(user));
         when(tokenProviderPort.generateAccessToken(any())).thenReturn("access-token");
         when(tokenProviderPort.generateRefreshToken(any())).thenReturn("refresh-token");
 
@@ -76,8 +76,8 @@ class LoginServiceTest {
 
         when(googleIdTokenVerifierPort.verify("google-id-token"))
                 .thenReturn(new GoogleUserInfo("google-sub", "missing@test.com", "Meal Guide", true));
-        when(userQueryPort.findByGoogleAccount("google-sub", "missing@test.com")).thenReturn(Optional.empty());
-        when(userQueryPort.createGoogleUser("google-sub", "missing@test.com", "Meal Guide")).thenReturn(createdUser);
+        when(userQueryPort.findByGoogleAccount("google-sub")).thenReturn(Optional.empty());
+        when(userQueryPort.createGoogleUser("google-sub", "missing@test.com")).thenReturn(createdUser);
         when(tokenProviderPort.generateAccessToken(any())).thenReturn("access-token");
         when(tokenProviderPort.generateRefreshToken(any())).thenReturn("refresh-token");
 
@@ -95,15 +95,15 @@ class LoginServiceTest {
 
         when(googleIdTokenVerifierPort.verify("google-id-token"))
                 .thenReturn(new GoogleUserInfo("google-sub", "inactive@test.com", "Meal Guide", true));
-        when(userQueryPort.findByGoogleAccount("google-sub", "inactive@test.com")).thenReturn(Optional.empty());
-        when(userQueryPort.existsInactiveGoogleAccount("google-sub", "inactive@test.com")).thenReturn(true);
+        when(userQueryPort.findByGoogleAccount("google-sub")).thenReturn(Optional.empty());
+        when(userQueryPort.existsInactiveGoogleAccount("google-sub")).thenReturn(true);
 
         assertThatThrownBy(() -> loginService.login("google-id-token", deviceId))
                 .isInstanceOf(ServiceException.class)
                 .extracting(exception -> ((ServiceException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.USER_INACTIVE);
 
-        verify(userQueryPort, never()).createGoogleUser(any(), any(), any());
+        verify(userQueryPort, never()).createGoogleUser(any(), any());
     }
 
     @Test
@@ -224,8 +224,8 @@ class LoginServiceTest {
         User user = BeanUtils.instantiateClass(User.class);
         ReflectionTestUtils.setField(user, "id", id);
         ReflectionTestUtils.setField(user, "schoolId", 100L);
-        ReflectionTestUtils.setField(user, "email", email);
-        ReflectionTestUtils.setField(user, "name", "Meal Guide");
+        ReflectionTestUtils.setField(user, "emailEncrypted", "encrypted:" + email);
+        ReflectionTestUtils.setField(user, "emailHash", "hashed:" + email);
         ReflectionTestUtils.setField(user, "status", UserStatus.ACTIVE);
         ReflectionTestUtils.setField(user, "role", role);
         ReflectionTestUtils.setField(user, "onboardingCompleted", onboardingCompleted);

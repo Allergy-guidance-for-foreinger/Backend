@@ -11,8 +11,6 @@ import java.util.List;
 
 public record AuthenticatedUserPrincipal(
         Long userId,
-        String email,
-        String name,
         UserRole role,
         String deviceId,
         List<? extends GrantedAuthority> authorities
@@ -21,8 +19,6 @@ public record AuthenticatedUserPrincipal(
     public static AuthenticatedUserPrincipal from(AuthenticatedUser authenticatedUser) {
         return new AuthenticatedUserPrincipal(
                 authenticatedUser.userId(),
-                authenticatedUser.email(),
-                authenticatedUser.name(),
                 authenticatedUser.role(),
                 authenticatedUser.deviceId(),
                 List.of(new SimpleGrantedAuthority(toAuthority(authenticatedUser.role())))
@@ -33,8 +29,6 @@ public record AuthenticatedUserPrincipal(
         return new AuthenticatedUserPrincipal(
                 userId,
                 null,
-                null,
-                null,
                 deviceId,
                 Collections.emptyList()
         );
@@ -43,8 +37,6 @@ public record AuthenticatedUserPrincipal(
     public static AuthenticatedUserPrincipal authenticated(Long userId, String deviceId, UserRole role) {
         return new AuthenticatedUserPrincipal(
                 userId,
-                null,
-                null,
                 role,
                 deviceId,
                 List.of(new SimpleGrantedAuthority(toAuthority(role)))
@@ -60,7 +52,7 @@ public record AuthenticatedUserPrincipal(
 
     @Override
     public String getName() {
-        return email != null ? email : String.valueOf(userId);
+        return String.valueOf(userId);
     }
 }
 

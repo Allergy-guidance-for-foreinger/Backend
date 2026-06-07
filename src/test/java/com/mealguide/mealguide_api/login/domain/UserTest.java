@@ -3,21 +3,36 @@ package com.mealguide.mealguide_api.login.domain;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class UserTest {
 
     @Test
     void createForFirstGoogleLoginMatchesUsersSchemaDefaults() {
-        User user = User.createForFirstGoogleLogin("user@test.com", "Meal Guide");
+        User user = User.createForFirstGoogleLogin("encrypted-email", "hashed-email");
 
         assertThat(user.getSchoolId()).isNull();
-        assertThat(user.getEmail()).isEqualTo("user@test.com");
-        assertThat(user.getName()).isEqualTo("Meal Guide");
+        assertThat(user.getEmailEncrypted()).isEqualTo("encrypted-email");
+        assertThat(user.getEmailHash()).isEqualTo("hashed-email");
         assertThat(user.getLanguageCode()).isNull();
         assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
         assertThat(user.getRole()).isEqualTo(UserRole.USER);
         assertThat(user.isOnboardingCompleted()).isFalse();
         assertThat(user.getDeletedAt()).isNull();
+    }
+
+    @Test
+    void createForFirstGoogleLoginRejectsBlankEmailEncrypted() {
+        assertThatThrownBy(() -> User.createForFirstGoogleLogin(" ", "hashed-email"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("emailEncrypted must not be blank");
+    }
+
+    @Test
+    void createForFirstGoogleLoginRejectsBlankEmailHash() {
+        assertThatThrownBy(() -> User.createForFirstGoogleLogin("encrypted-email", " "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("emailHash must not be blank");
     }
 }
 
