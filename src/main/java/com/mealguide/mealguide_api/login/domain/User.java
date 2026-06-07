@@ -63,6 +63,13 @@ public class User extends BaseEntity {
     }
 
     public static User createForFirstGoogleLogin(String emailEncrypted, String emailHash) {
+        if (emailEncrypted == null || emailEncrypted.isBlank()) {
+            throw new IllegalArgumentException("emailEncrypted must not be blank");
+        }
+        if (emailHash == null || emailHash.isBlank()) {
+            throw new IllegalArgumentException("emailHash must not be blank");
+        }
+
         User user = new User();
         user.schoolId = null;
         user.emailEncrypted = emailEncrypted;

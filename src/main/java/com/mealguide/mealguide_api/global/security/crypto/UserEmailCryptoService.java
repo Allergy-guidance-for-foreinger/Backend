@@ -103,8 +103,8 @@ public class UserEmailCryptoService {
             Cipher cipher = Cipher.getInstance(AES_GCM_TRANSFORMATION);
             cipher.init(Cipher.DECRYPT_MODE, encryptionKey, new GCMParameterSpec(GCM_TAG_BITS, iv));
             return new String(cipher.doFinal(ciphertextAndTag), StandardCharsets.UTF_8);
-        } catch (GeneralSecurityException exception) {
-            throw new IllegalStateException("email decryption failed", exception);
+        } catch (GeneralSecurityException | RuntimeException exception) {
+            throw new IllegalArgumentException("email decryption failed", exception);
         }
     }
 

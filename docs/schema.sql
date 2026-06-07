@@ -130,6 +130,8 @@ CREATE TABLE users (
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     deleted_at TIMESTAMP,
+    CONSTRAINT uk_users_email_hash
+        UNIQUE (email_hash),
     CONSTRAINT fk_users_school
         FOREIGN KEY (school_id) REFERENCES school(id),
     CONSTRAINT fk_users_language
@@ -568,9 +570,6 @@ CREATE INDEX idx_users_school_id
 
 CREATE INDEX idx_users_language_code
     ON users (language_code);
-
-CREATE INDEX idx_users_email_hash
-    ON users (email_hash);
 
 CREATE INDEX idx_user_oauth_accounts_user_id
     ON user_oauth_accounts (user_id);

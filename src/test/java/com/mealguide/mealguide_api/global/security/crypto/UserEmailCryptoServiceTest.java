@@ -3,6 +3,7 @@ package com.mealguide.mealguide_api.global.security.crypto;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class UserEmailCryptoServiceTest {
 
@@ -37,5 +38,19 @@ class UserEmailCryptoServiceTest {
 
         assertThat(first).isEqualTo(second);
         assertThat(first).hasSize(64);
+    }
+
+    @Test
+    void decryptEmailWrapsMalformedPayload() {
+        assertThatThrownBy(() -> userEmailCryptoService.decryptEmail("not-base64"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("email decryption failed");
+    }
+
+    @Test
+    void decryptEmailWrapsTruncatedPayload() {
+        assertThatThrownBy(() -> userEmailCryptoService.decryptEmail("AQ=="))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("email decryption failed");
     }
 }
