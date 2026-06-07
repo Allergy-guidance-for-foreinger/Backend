@@ -39,15 +39,14 @@ public class LoginService {
             throw new ServiceException(ErrorCode.GOOGLE_EMAIL_NOT_VERIFIED);
         }
 
-        User user = userQueryPort.findByGoogleAccount(googleUserInfo.subject(), googleUserInfo.email())
+        User user = userQueryPort.findByGoogleAccount(googleUserInfo.subject())
                 .orElseGet(() -> {
-                    if (userQueryPort.existsInactiveGoogleAccount(googleUserInfo.subject(), googleUserInfo.email())) {
+                    if (userQueryPort.existsInactiveGoogleAccount(googleUserInfo.subject())) {
                         throw new ServiceException(ErrorCode.USER_INACTIVE);
                     }
                     return userQueryPort.createGoogleUser(
                             googleUserInfo.subject(),
-                            googleUserInfo.email(),
-                            googleUserInfo.name()
+                            googleUserInfo.email()
                     );
                 });
 
@@ -63,8 +62,6 @@ public class LoginService {
 
         AuthenticatedUser authenticatedUser = new AuthenticatedUser(
                 tokenClaims.userId(),
-                null,
-                null,
                 role,
                 tokenClaims.deviceId()
         );

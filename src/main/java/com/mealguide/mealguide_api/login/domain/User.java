@@ -32,11 +32,11 @@ public class User extends BaseEntity {
     @Column(name = "school_id")
     private Long schoolId;
 
-    @Column(length = 255)
-    private String email;
+    @Column(name = "email_encrypted", columnDefinition = "TEXT")
+    private String emailEncrypted;
 
-    @Column(nullable = false, length = 100)
-    private String name;
+    @Column(name = "email_hash", length = 64)
+    private String emailHash;
 
     @Column(name = "country_code", length = 10)
     private String countryCode;
@@ -62,11 +62,11 @@ public class User extends BaseEntity {
         return status == UserStatus.INACTIVE;
     }
 
-    public static User createForFirstGoogleLogin(String email, String name) {
+    public static User createForFirstGoogleLogin(String emailEncrypted, String emailHash) {
         User user = new User();
         user.schoolId = null;
-        user.email = email;
-        user.name = (name == null || name.isBlank()) ? email : name;
+        user.emailEncrypted = emailEncrypted;
+        user.emailHash = emailHash;
         user.countryCode = null;
         user.languageCode = null;
         user.status = UserStatus.ACTIVE;

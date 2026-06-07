@@ -34,19 +34,23 @@
   - `user_oauth_accounts`
 - 핵심 컬럼
   - `users.id` (identity)
-  - `users.email` (nullable)
+  - `users.email_encrypted` (nullable, AES-GCM 암호문)
+  - `users.email_hash` (nullable, HMAC-SHA256 조회용 해시)
   - `users.status`, `users.role`, `users.deleted_at`
   - `user_oauth_accounts.id` (identity)
-  - `user_oauth_accounts.user_id`, `provider`, `provider_user_id`, `provider_email`
+  - `user_oauth_accounts.user_id`, `provider`, `provider_user_id`
 - 조회/저장 규칙
   - 인증 조회 대상은 `ACTIVE` 사용자만 포함한다.
 - `users.deleted_at` 또는 `status = INACTIVE` 사용자는 일반 인증 조회에서 제외한다.
 - Google 로그인 시 동일 계정의 `INACTIVE` 사용자가 존재하면 신규 계정을 생성하지 않고 로그인 실패 처리한다(관리자 복구 필요).
-  - `users.email`이 nullable이므로 email 단독 조회에 의존하지 않는다.
-  - Google 계정 매핑은 `user_oauth_accounts` 기준으로 처리한다.
+  - Google 계정 매핑은 `user_oauth_accounts.provider = GOOGLE` + `provider_user_id` 기준으로 처리한다.
+  - 로그인 식별에서 email fallback은 사용하지 않는다.
+  - Google 이메일은 문의 대응용으로 `users.email_encrypted`에 암호화 저장하고, 조회가 필요한 경우 `users.email_hash`를 사용한다.
+  - 사용자 이름은 저장하지 않는다.
   - 최초 로그인 자동 회원가입은 `users` + `user_oauth_accounts`를 함께 생성한다.
 - 주의 사항
   - `users.id`, `user_oauth_accounts.id`는 PostgreSQL identity column 기준이어야 한다.
+  - 이메일 암호화 키(`USER_EMAIL_ENCRYPTION_KEY`)와 해시 키(`USER_EMAIL_HASH_KEY`)는 Base64 인코딩된 32바이트 값이어야 한다.
 
 ## 5. API 규칙
 - 외부 API 경로
@@ -77,6 +81,7 @@
 - Google ID token 검증에 성공해야 한다.
 - Google 계정은 `provider = GOOGLE`, `provider_user_id = Google subject` 기준으로 식별한다.
 - 연결된 계정이 없으면 `users`와 `user_oauth_accounts`를 함께 생성한다.
+- 최초 가입 시 Google 이메일은 평문 저장하지 않고 암호문/해시로 저장하며, Google 이름은 저장하지 않는다.
 - 단, 동일 Google 계정의 `INACTIVE` 사용자가 있으면 로그인 실패(`USER_INACTIVE`)를 반환한다.
 - 로그인 성공 시 access token과 refresh token을 발급하고, refresh token은 Redis에 저장한다.
 

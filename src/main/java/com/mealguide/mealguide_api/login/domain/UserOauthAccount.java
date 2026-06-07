@@ -34,15 +34,11 @@ public class UserOauthAccount extends BaseEntity {
     @Column(name = "provider_user_id", nullable = false, length = 255)
     private String providerUserId;
 
-    @Column(name = "provider_email", length = 255)
-    private String providerEmail;
-
-    public static UserOauthAccount createGoogleAccount(User user, String providerUserId, String providerEmail) {
+    public static UserOauthAccount createGoogleAccount(User user, String providerUserId) {
         UserOauthAccount oauthAccount = new UserOauthAccount();
         oauthAccount.user = user;
         oauthAccount.provider = "GOOGLE";
         oauthAccount.providerUserId = providerUserId;
-        oauthAccount.providerEmail = providerEmail;
         return oauthAccount;
     }
 }
