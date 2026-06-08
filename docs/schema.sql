@@ -592,6 +592,9 @@ CREATE INDEX idx_menu_ai_analysis_menu_id
 CREATE INDEX idx_menu_ai_analysis_menu_status_analyzed_at
     ON menu_ai_analysis (menu_id, status, analyzed_at);
 
+CREATE INDEX idx_menu_ai_analysis_menu_status_latest
+    ON menu_ai_analysis (menu_id, status, (coalesce(analyzed_at, created_at)) DESC, id DESC);
+
 CREATE INDEX idx_meal_menu_confirmed_ingredient_ingredient_code
     ON meal_menu_confirmed_ingredient (ingredient_code);
 
@@ -660,6 +663,10 @@ CREATE INDEX idx_menu_like_user
 
 CREATE INDEX idx_menu_review_target_created
     ON menu_review (cafeteria_id, menu_id, created_at DESC, id DESC);
+
+CREATE INDEX idx_menu_review_target_active_list
+    ON menu_review (cafeteria_id, menu_id, meal_date DESC NULLS LAST, like_count DESC, created_at DESC, id DESC)
+    WHERE deleted_at IS NULL;
 
 CREATE INDEX idx_menu_review_user_created
     ON menu_review (user_id, created_at DESC);

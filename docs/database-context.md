@@ -111,3 +111,9 @@
 - `users.email_hash` stores HMAC-SHA256 of the normalized email for lookup without plaintext comparison.
 - `user_oauth_accounts.provider_email` is removed; login identifies Google accounts by `provider + provider_user_id`.
 - Email fallback login lookup is not used.
+
+## 19. Read API load-test index support (2026-06-08)
+- Added schema reference indexes for mixed read API load tests:
+  - `idx_menu_review_target_active_list` supports review list filtering and ordering by `(cafeteria_id, menu_id, meal_date, like_count, created_at, id)` for active rows only.
+  - `idx_menu_ai_analysis_menu_status_latest` supports latest successful AI analysis lookups ordered by `coalesce(analyzed_at, created_at), id`.
+- Purpose: reduce rows scanned and DB connection usage time for menu detail, weekly meal risk, and review list reads under concurrent traffic.
