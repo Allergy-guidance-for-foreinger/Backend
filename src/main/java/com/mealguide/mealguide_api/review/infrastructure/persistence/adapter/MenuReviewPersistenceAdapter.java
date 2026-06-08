@@ -117,7 +117,7 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
     @Transactional(readOnly = true)
     public Optional<MenuReviewRow> findActiveReviewById(Long reviewId) {
         String sql = """
-                select mr.id as review_id, mr.user_id, null as writer_name,
+                select mr.id as review_id, mr.user_id, cast(null as varchar) as writer_name,
                        (mr.user_id is null or u.id is null or u.status <> 'ACTIVE' or u.deleted_at is not null) as writer_deleted,
                        mr.cafeteria_id, mr.menu_id, mr.meal_menu_id, mr.meal_date,
                        mr.content, mr.like_count, mr.comment_count, mr.created_at, mr.updated_at
@@ -245,7 +245,7 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
     @Transactional(readOnly = true)
     public List<MenuReviewRow> findReviewPage(Long cafeteriaId, Long menuId, int page, int size) {
         String sql = """
-                select mr.id as review_id, mr.user_id, null as writer_name,
+                select mr.id as review_id, mr.user_id, cast(null as varchar) as writer_name,
                        (mr.user_id is null or u.id is null or u.status <> 'ACTIVE' or u.deleted_at is not null) as writer_deleted,
                        mr.cafeteria_id, mr.menu_id, mr.meal_menu_id, mr.meal_date,
                        mr.content, mr.like_count, mr.comment_count, mr.created_at, mr.updated_at
@@ -379,7 +379,7 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
     @Transactional(readOnly = true)
     public List<MenuReviewCommentRow> findCommentPage(Long reviewId, int page, int size) {
         String sql = """
-                select c.id as comment_id, c.review_id, c.user_id, null as writer_name,
+                select c.id as comment_id, c.review_id, c.user_id, cast(null as varchar) as writer_name,
                        (c.user_id is null or u.id is null or u.status <> 'ACTIVE' or u.deleted_at is not null) as writer_deleted,
                        c.content, c.created_at, c.updated_at
                 from menu_review_comment c
@@ -428,7 +428,7 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
     @Transactional(readOnly = true)
     public Optional<MenuReviewCommentRow> findActiveCommentById(Long commentId) {
         String sql = """
-                select c.id as comment_id, c.review_id, c.user_id, null as writer_name,
+                select c.id as comment_id, c.review_id, c.user_id, cast(null as varchar) as writer_name,
                        (c.user_id is null or u.id is null or u.status <> 'ACTIVE' or u.deleted_at is not null) as writer_deleted,
                        c.content, c.created_at, c.updated_at
                 from menu_review_comment c
