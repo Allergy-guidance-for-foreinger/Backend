@@ -6,6 +6,22 @@
 
 ## 최근 공통 작업
 
+### 2026-06-08 (review query users.name reference cleanup)
+- What changed:
+  - Removed remaining `users.name` SQL references from review/comment read queries.
+  - Kept the existing `writer_name` row alias as `null` for mapper compatibility because review display names are resolved from anonymous participant mappings.
+- Why:
+  - `users.name` was removed by the user email privacy storage change, but review queries still selected `u.name`, causing PostgreSQL `column u.name does not exist` errors during review lookup.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/review/infrastructure/persistence/adapter/MenuReviewPersistenceAdapter.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No intended contract change; review/comment writers continue to display as `Anonymous N` or `Deleted user`.
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Consider removing unused `writerName` fields from review row DTOs in a separate cleanup.
+
 ### 2026-05-31 (weekend crawl target date policy)
 - What changed:
   - Changed scheduled meal crawl target date calculation to request operating days only.
