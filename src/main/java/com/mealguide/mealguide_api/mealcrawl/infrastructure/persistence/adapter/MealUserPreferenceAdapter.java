@@ -69,12 +69,17 @@ public class MealUserPreferenceAdapter implements MealUserPreferencePort {
         if (sqlArray == null) {
             return List.of();
         }
-        Object array = sqlArray.getArray();
-        if (!(array instanceof Object[] values)) {
-            return List.of();
+        try {
+            Object array = sqlArray.getArray();
+            if (!(array instanceof Object[] values)) {
+                return List.of();
+            }
+            return Arrays.stream(values)
+                    .filter(value -> value != null)
+                    .map(Object::toString)
+                    .toList();
+        } finally {
+            sqlArray.free();
         }
-        return Arrays.stream(values)
-                .map(String.class::cast)
-                .toList();
     }
 }
