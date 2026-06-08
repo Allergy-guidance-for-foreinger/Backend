@@ -6,6 +6,30 @@
 
 ## 최근 공통 작업
 
+### 2026-06-08 (read API DB connection pressure first-pass optimization)
+- What changed:
+  - Changed current meal preference loading from three separate queries (active user, allergy codes, religious codes) to one JDBC query with correlated aggregate subqueries.
+  - Added `@Transactional(readOnly = true)` to the combined current meal preference lookup.
+  - Added schema reference indexes for review list active-row ordering and latest successful menu AI analysis lookup.
+- Why:
+  - Mixed read load tests showed HikariCP active connections pinned at max with pending connection growth, while single-query latency and CPU were not the primary bottleneck.
+  - Weekly meal, menu detail, and cafeteria list reads all load current user meal preferences, so reducing this common path lowers per-request DB acquire count.
+  - Menu detail and weekly risk assembly repeatedly resolve latest successful AI analysis, and review list reads sort active target rows by meal date, like count, and recency.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealUserPreferenceAdapter.java`
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: Yes (index reference additions only; existing deployments need matching `CREATE INDEX` migration before runtime benefit).
+- API behavior changed: No intended contract change.
+- Related docs updated:
+  - `docs/schema.sql`
+  - `docs/database-context.md`
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Re-run the 40 RPS and 50 RPS k6 scenarios and compare Hikari acquire/usage time before increasing pool size.
+  - Consider a dedicated migration file if the project adopts a migration tool.
+
 ### 2026-06-08 (review query users.name reference cleanup)
 - What changed:
   - Removed remaining `users.name` SQL references from review/comment read queries.
