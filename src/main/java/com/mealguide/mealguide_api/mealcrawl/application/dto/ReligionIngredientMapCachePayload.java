@@ -9,7 +9,15 @@ public record ReligionIngredientMapCachePayload(
         Map<String, List<RestrictionData>> restrictionsByIngredientCode
 ) {
     public ReligionIngredientMapCachePayload {
-        restrictionsByIngredientCode = restrictionsByIngredientCode == null ? Map.of() : Map.copyOf(restrictionsByIngredientCode);
+        if (restrictionsByIngredientCode == null || restrictionsByIngredientCode.isEmpty()) {
+            restrictionsByIngredientCode = Map.of();
+        } else {
+            Map<String, List<RestrictionData>> copied = new LinkedHashMap<>();
+            for (Map.Entry<String, List<RestrictionData>> entry : restrictionsByIngredientCode.entrySet()) {
+                copied.put(entry.getKey(), entry.getValue() == null ? List.of() : List.copyOf(entry.getValue()));
+            }
+            restrictionsByIngredientCode = Map.copyOf(copied);
+        }
     }
 
     public static ReligionIngredientMapCachePayload from(List<ReligionIngredientMappingRow> rows) {

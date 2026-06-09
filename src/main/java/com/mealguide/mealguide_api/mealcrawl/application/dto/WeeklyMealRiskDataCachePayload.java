@@ -10,7 +10,15 @@ public record WeeklyMealRiskDataCachePayload(
 ) {
     public WeeklyMealRiskDataCachePayload {
         ingredientsByMealMenuId = ingredientsByMealMenuId == null ? Map.of() : Map.copyOf(ingredientsByMealMenuId);
-        allergiesByMealMenuId = allergiesByMealMenuId == null ? Map.of() : Map.copyOf(allergiesByMealMenuId);
+        if (allergiesByMealMenuId == null || allergiesByMealMenuId.isEmpty()) {
+            allergiesByMealMenuId = Map.of();
+        } else {
+            Map<Long, List<AllergyData>> copied = new java.util.LinkedHashMap<>();
+            for (Map.Entry<Long, List<AllergyData>> entry : allergiesByMealMenuId.entrySet()) {
+                copied.put(entry.getKey(), entry.getValue() == null ? List.of() : List.copyOf(entry.getValue()));
+            }
+            allergiesByMealMenuId = Map.copyOf(copied);
+        }
     }
 
     public record IngredientData(
