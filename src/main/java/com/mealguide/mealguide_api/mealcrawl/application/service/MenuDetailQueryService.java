@@ -311,7 +311,14 @@ public class MenuDetailQueryService {
             List<String> religiousCodes,
             String languageCode
     ) {
-        if (religiousCodes == null || religiousCodes.isEmpty()) {
+        if (religiousCodes == null || religiousCodes.isEmpty() || riskDataById == null || riskDataById.isEmpty()) {
+            return Map.of();
+        }
+        boolean hasIngredientCodes = riskDataById.values().stream()
+                .anyMatch(riskData -> riskData != null
+                        && riskData.ingredients() != null
+                        && riskData.ingredients().stream().anyMatch(ingredient -> ingredient != null && ingredient.code() != null));
+        if (!hasIngredientCodes) {
             return Map.of();
         }
         Set<String> selectedReligiousCodes = new HashSet<>(religiousCodes);
