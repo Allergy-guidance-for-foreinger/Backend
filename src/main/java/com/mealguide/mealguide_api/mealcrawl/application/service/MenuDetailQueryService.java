@@ -328,6 +328,9 @@ public class MenuDetailQueryService {
             }
             Map<String, String> ingredientNamesByCode = findIngredientNamesByCode(baseById.get(mealMenuId));
             for (MenuDetailRiskDataCachePayload.IngredientData ingredient : riskData.ingredients()) {
+                if (ingredient.code() == null) {
+                    continue;
+                }
                 List<ReligionIngredientMapCachePayload.RestrictionData> restrictions =
                         religionMap.restrictionsByIngredientCode().getOrDefault(ingredient.code(), List.of());
                 for (ReligionIngredientMapCachePayload.RestrictionData restriction : restrictions) {
