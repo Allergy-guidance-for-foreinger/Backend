@@ -17,6 +17,11 @@ public record MenuDetailBaseCachePayload(
         List<IngredientData> ingredients,
         List<AllergyData> allergies
 ) {
+    public MenuDetailBaseCachePayload {
+        ingredients = ingredients == null ? List.of() : List.copyOf(ingredients);
+        allergies = allergies == null ? List.of() : List.copyOf(allergies);
+    }
+
     public record IngredientData(
             String code,
             String name,

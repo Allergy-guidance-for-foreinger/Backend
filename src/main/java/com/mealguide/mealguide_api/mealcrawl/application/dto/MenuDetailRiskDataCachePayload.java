@@ -8,6 +8,11 @@ public record MenuDetailRiskDataCachePayload(
         List<IngredientData> ingredients,
         List<AllergyData> allergies
 ) {
+    public MenuDetailRiskDataCachePayload {
+        ingredients = ingredients == null ? List.of() : List.copyOf(ingredients);
+        allergies = allergies == null ? List.of() : List.copyOf(allergies);
+    }
+
     public record IngredientData(
             String code,
             BigDecimal confidence

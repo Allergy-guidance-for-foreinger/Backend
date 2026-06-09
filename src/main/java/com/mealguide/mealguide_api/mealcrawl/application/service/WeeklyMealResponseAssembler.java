@@ -348,26 +348,7 @@ public class WeeklyMealResponseAssembler {
     }
 
     private ReligionIngredientMapCachePayload loadReligionIngredientMapFromDb() {
-        Map<String, List<ReligionIngredientMapCachePayload.RestrictionData>> map = new HashMap<>();
-        for (ReligionIngredientMappingRow row : listOrEmpty(mealCrawlPersistencePort.findReligionIngredientMappings())) {
-            map.computeIfAbsent(row.ingredientCode(), unused -> new ArrayList<>())
-                    .add(new ReligionIngredientMapCachePayload.RestrictionData(
-                            row.restrictionCode(),
-                            buildNamesByLangCode(row)
-                    ));
-        }
-        return new ReligionIngredientMapCachePayload(map);
-    }
-
-    private Map<String, String> buildNamesByLangCode(ReligionIngredientMappingRow row) {
-        Map<String, String> names = new HashMap<>();
-        if (row.koreanName() != null) {
-            names.put("ko", row.koreanName());
-        }
-        if (row.englishName() != null) {
-            names.put("en", row.englishName());
-        }
-        return names;
+        return ReligionIngredientMapCachePayload.from(mealCrawlPersistencePort.findReligionIngredientMappings());
     }
 
     private Duration readCacheTtl() {
