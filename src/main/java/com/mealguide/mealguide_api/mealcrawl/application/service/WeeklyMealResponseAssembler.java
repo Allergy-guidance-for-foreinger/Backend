@@ -65,8 +65,9 @@ public class WeeklyMealResponseAssembler {
         Set<Long> aiMealMenuIds = aiByMealMenuId.keySet();
 
         Set<Long> mealMenuIdsWithAllergyRisk = findMealMenuIdsWithAllergyRisk(riskData, preference.allergyCodes());
+        Set<String> weeklyIngredientCodes = extractIngredientCodes(riskData);
         Map<String, List<RestrictionIngredientRow>> religionIngredientIndex = indexRestrictionIngredientsByIngredientCode(
-                findReligiousRestrictionIngredients(preference.religiousCodes())
+                findReligiousRestrictionIngredients(preference.religiousCodes(), weeklyIngredientCodes)
         );
 
         Map<Long, WeeklyMealResponse.MenuRiskResponse> riskByMealMenuId = new HashMap<>();
@@ -315,8 +316,24 @@ public class WeeklyMealResponseAssembler {
         return result;
     }
 
-    private List<RestrictionIngredientRow> findReligiousRestrictionIngredients(List<String> religiousCodes) {
-        if (religiousCodes == null || religiousCodes.isEmpty()) {
+    private Set<String> extractIngredientCodes(WeeklyMealRiskDataCachePayload riskData) {
+        if (riskData.ingredientsByMealMenuId() == null || riskData.ingredientsByMealMenuId().isEmpty()) {
+            return Set.of();
+        }
+        Set<String> ingredientCodes = new HashSet<>();
+        for (WeeklyMealRiskDataCachePayload.IngredientData data : riskData.ingredientsByMealMenuId().values()) {
+            if (data != null && data.ingredientCodes() != null) {
+                ingredientCodes.addAll(data.ingredientCodes());
+            }
+        }
+        return ingredientCodes;
+    }
+
+    private List<RestrictionIngredientRow> findReligiousRestrictionIngredients(
+            List<String> religiousCodes,
+            Set<String> ingredientCodes
+    ) {
+        if (religiousCodes == null || religiousCodes.isEmpty() || ingredientCodes == null || ingredientCodes.isEmpty()) {
             return List.of();
         }
         Set<String> selectedCodes = new HashSet<>(religiousCodes);
@@ -330,10 +347,12 @@ public class WeeklyMealResponseAssembler {
         if (religionMap.restrictionsByIngredientCode() == null) {
             return rows;
         }
-        religionMap.restrictionsByIngredientCode().forEach((ingredientCode, restrictions) -> {
-            if (restrictions == null) {
-                return;
+        for (String ingredientCode : ingredientCodes) {
+            if (ingredientCode == null) {
+                continue;
             }
+            List<ReligionIngredientMapCachePayload.RestrictionData> restrictions =
+                    religionMap.restrictionsByIngredientCode().getOrDefault(ingredientCode, List.of());
             for (ReligionIngredientMapCachePayload.RestrictionData restriction : restrictions) {
                 if (selectedCodes.contains(restriction.restrictionCode())) {
                     rows.add(new RestrictionIngredientRow(
@@ -343,7 +362,7 @@ public class WeeklyMealResponseAssembler {
                     ));
                 }
             }
-        });
+        }
         return rows;
     }
 

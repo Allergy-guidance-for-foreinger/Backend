@@ -81,7 +81,7 @@ public class MenuDetailQueryService {
 
         Map<Long, MenuDetailRiskDataCachePayload> riskDataById = loadMenuDetailRiskData(targetIds);
         Map<Long, List<MealMenuReligiousMatchRow>> religiousMatchesByMealMenuId =
-                buildReligiousMatches(baseById, riskDataById, preference.religiousCodes(), languageCode);
+                buildReligiousMatches(riskDataById, preference.religiousCodes(), languageCode);
         Map<Long, MenuLikeTarget> likeTargetsByMealMenuId = new LinkedHashMap<>();
         for (MenuDetailBaseCachePayload detailRow : baseById.values()) {
             likeTargetsByMealMenuId.put(
@@ -185,7 +185,9 @@ public class MenuDetailQueryService {
                         (existing, ignored) -> existing,
                         LinkedHashMap::new
                 ));
-        Map<Long, String> translatedMenuNames = mealCrawlPersistencePort.findTranslatedMenuNamesByMealMenuIds(mealMenuIds, languageCode);
+        Map<Long, String> translatedMenuNames = "ko".equals(languageCode)
+                ? Map.of()
+                : mealCrawlPersistencePort.findTranslatedMenuNamesByMealMenuIds(mealMenuIds, languageCode);
         if (translatedMenuNames == null) {
             translatedMenuNames = Map.of();
         }
@@ -307,7 +309,6 @@ public class MenuDetailQueryService {
     }
 
     private Map<Long, List<MealMenuReligiousMatchRow>> buildReligiousMatches(
-            Map<Long, MenuDetailBaseCachePayload> baseById,
             Map<Long, MenuDetailRiskDataCachePayload> riskDataById,
             List<String> religiousCodes,
             String languageCode
@@ -326,7 +327,6 @@ public class MenuDetailQueryService {
             if (riskData == null || riskData.ingredients() == null) {
                 return;
             }
-            Map<String, String> ingredientNamesByCode = findIngredientNamesByCode(baseById.get(mealMenuId));
             for (MenuDetailRiskDataCachePayload.IngredientData ingredient : riskData.ingredients()) {
                 if (ingredient.code() == null) {
                     continue;
@@ -339,7 +339,7 @@ public class MenuDetailQueryService {
                                 .add(new MealMenuReligiousMatchRow(
                                         mealMenuId,
                                         ingredient.code(),
-                                        ingredientNamesByCode.getOrDefault(ingredient.code(), ingredient.code()),
+                                        ingredient.code(),
                                         ingredient.confidence(),
                                         restriction.restrictionCode(),
                                         resolveRestrictionName(restriction, languageCode)
@@ -348,19 +348,6 @@ public class MenuDetailQueryService {
                 }
             }
         });
-        return result;
-    }
-
-    private Map<String, String> findIngredientNamesByCode(MenuDetailBaseCachePayload base) {
-        if (base == null || base.ingredients() == null || base.ingredients().isEmpty()) {
-            return Map.of();
-        }
-        Map<String, String> result = new LinkedHashMap<>();
-        for (MenuDetailBaseCachePayload.IngredientData ingredient : base.ingredients()) {
-            if (ingredient.code() != null && ingredient.name() != null) {
-                result.putIfAbsent(ingredient.code(), ingredient.name());
-            }
-        }
         return result;
     }
 
