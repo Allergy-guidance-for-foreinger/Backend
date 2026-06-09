@@ -5,25 +5,32 @@ import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.CurrentUserMealPreference;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientRow;
-import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuMatchedAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuReligiousMatchRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailBaseCachePayload;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRiskDataCachePayload;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.ReligionIngredientMapCachePayload;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.ReligionIngredientMappingRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealUserPreferencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MenuLikePort;
+import com.mealguide.mealguide_api.mealcrawl.application.port.MenuReadCachePort;
 import com.mealguide.mealguide_api.review.application.port.MenuReviewPort;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuLikeTarget;
+import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProperties;
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuDetailBatchResponse;
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.MenuDetailResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -40,8 +47,10 @@ public class MenuDetailQueryService {
 
     private final MealUserPreferencePort mealUserPreferencePort;
     private final MealCrawlPersistencePort mealCrawlPersistencePort;
+    private final MenuReadCachePort menuReadCachePort;
     private final MenuLikePort menuLikePort;
     private final MenuReviewPort menuReviewPort;
+    private final MealCrawlProperties mealCrawlProperties;
     private final RiskLevelPolicyResolver riskLevelPolicyResolver;
 
     public MenuDetailResponse getMenuDetail(Long userId, Long mealMenuId) {
@@ -57,45 +66,23 @@ public class MenuDetailQueryService {
         }
 
         Set<Long> targetIds = new LinkedHashSet<>(normalizedIds);
-        Map<Long, MenuDetailRow> detailsById = mealCrawlPersistencePort.findMenuDetailsByMealMenuIds(targetIds).stream()
-                .collect(Collectors.toMap(
-                        MenuDetailRow::mealMenuId,
-                        row -> row,
-                        (existing, ignored) -> existing,
-                        LinkedHashMap::new
-                ));
-        if (detailsById.size() != targetIds.size()) {
+        String languageCode = normalizeLanguageCode(preference.languageCode());
+        Map<Long, MenuDetailBaseCachePayload> baseById = loadMenuDetailBases(targetIds, languageCode);
+        if (baseById.size() != targetIds.size()) {
             throw new ServiceException(ErrorCode.BINDING_ERROR);
         }
 
-        boolean hasOtherSchoolMenu = detailsById.values().stream()
+        boolean hasOtherSchoolMenu = baseById.values().stream()
                 .anyMatch(detail -> !preference.schoolId().equals(detail.schoolId()));
         if (hasOtherSchoolMenu) {
             throw new ServiceException(ErrorCode.BINDING_ERROR);
         }
 
-        String languageCode = preference.languageCode();
-        Map<Long, String> translatedMenuNames = mealCrawlPersistencePort.findTranslatedMenuNamesByMealMenuIds(targetIds, languageCode);
-        Map<Long, String> menuDescriptions = mealCrawlPersistencePort.findMenuDescriptionsByMealMenuIds(targetIds, languageCode);
-        if (menuDescriptions == null) {
-            menuDescriptions = Map.of();
-        }
-        Map<Long, IngredientSelection> ingredientSelections = resolveIngredients(targetIds, languageCode);
-
-        Map<Long, List<MealMenuMatchedAllergyRow>> matchedRowsByMealMenuId = mealCrawlPersistencePort
-                .findMatchedAllergiesByMealMenuIds(userId, targetIds, languageCode)
-                .stream()
-                .collect(Collectors.groupingBy(MealMenuMatchedAllergyRow::mealMenuId));
-        Map<Long, List<MealMenuAllergyRow>> allergiesByMealMenuId = mealCrawlPersistencePort
-                .findAllergiesByMealMenuIds(targetIds, languageCode)
-                .stream()
-                .collect(Collectors.groupingBy(MealMenuAllergyRow::mealMenuId));
-        Map<Long, List<MealMenuReligiousMatchRow>> religiousMatchesByMealMenuId = mealCrawlPersistencePort
-                .findReligiousMatchedIngredientsByMealMenuIds(targetIds, preference.religiousCodes(), languageCode)
-                .stream()
-                .collect(Collectors.groupingBy(MealMenuReligiousMatchRow::mealMenuId));
+        Map<Long, MenuDetailRiskDataCachePayload> riskDataById = loadMenuDetailRiskData(targetIds);
+        Map<Long, List<MealMenuReligiousMatchRow>> religiousMatchesByMealMenuId =
+                buildReligiousMatches(riskDataById, preference.religiousCodes(), languageCode);
         Map<Long, MenuLikeTarget> likeTargetsByMealMenuId = new LinkedHashMap<>();
-        for (MenuDetailRow detailRow : detailsById.values()) {
+        for (MenuDetailBaseCachePayload detailRow : baseById.values()) {
             likeTargetsByMealMenuId.put(
                     detailRow.mealMenuId(),
                     new MenuLikeTarget(detailRow.cafeteriaId(), detailRow.menuId())
@@ -107,17 +94,26 @@ public class MenuDetailQueryService {
         Map<MenuLikeTarget, Long> reviewCountByTarget = menuReviewPort.countActiveReviewsByTargets(likeTargets);
 
         List<MenuDetailResponse> menus = new ArrayList<>(normalizedIds.size());
+        Set<String> userAllergyCodes = new HashSet<>(preference.allergyCodes());
         for (Long mealMenuId : normalizedIds) {
-            MenuDetailRow detail = detailsById.get(mealMenuId);
-            IngredientSelection ingredientSelection =
-                    ingredientSelections.getOrDefault(mealMenuId, new IngredientSelection(null, List.of()));
+            MenuDetailBaseCachePayload detail = baseById.get(mealMenuId);
+            IngredientSelection ingredientSelection = new IngredientSelection(
+                    riskDataById.get(mealMenuId) == null ? null : riskDataById.get(mealMenuId).ingredientSource(),
+                    detail.ingredients().stream()
+                            .map(ingredient -> new MenuDetailResponse.IngredientResponse(
+                                    ingredient.code(),
+                                    ingredient.name(),
+                                    ingredient.source()
+                            ))
+                            .toList()
+            );
 
-            List<MenuDetailResponse.MatchedAllergyResponse> matchedAllergies = matchedRowsByMealMenuId
-                    .getOrDefault(mealMenuId, List.of())
+            List<MenuDetailResponse.MatchedAllergyResponse> matchedAllergies = detail.allergies()
                     .stream()
+                    .filter(row -> userAllergyCodes.contains(row.code()))
                     .map(row -> new MenuDetailResponse.MatchedAllergyResponse(
-                            row.allergyCode(),
-                            row.allergyName(),
+                            row.code(),
+                            row.name(),
                             riskLevelPolicyResolver.resolveAllergy(
                                     true,
                                     row.confidence() == null ? MATCHED_CONFIDENCE : row.confidence()
@@ -125,12 +121,10 @@ public class MenuDetailQueryService {
                             row.confidence()
                     ))
                     .toList();
-            List<MenuDetailResponse.AllergyResponse> allergies = allergiesByMealMenuId
-                    .getOrDefault(mealMenuId, List.of())
-                    .stream()
+            List<MenuDetailResponse.AllergyResponse> allergies = detail.allergies().stream()
                     .map(row -> new MenuDetailResponse.AllergyResponse(
-                            row.allergyCode(),
-                            row.allergyName(),
+                            row.code(),
+                            row.name(),
                             SOURCE_AI
                     ))
                     .toList();
@@ -139,19 +133,18 @@ public class MenuDetailQueryService {
                             ingredientSelection,
                             religiousMatchesByMealMenuId.getOrDefault(mealMenuId, List.of())
                     );
-            String menuName = translatedMenuNames.getOrDefault(mealMenuId, detail.menuName());
             MenuLikeTarget likeTarget = likeTargetsByMealMenuId.get(mealMenuId);
             long likeCount = likeCountByTarget.getOrDefault(likeTarget, 0L);
             boolean likedByMe = likedTargetsByUser.contains(likeTarget);
 
             menus.add(new MenuDetailResponse(
                     detail.mealMenuId(),
-                    menuName,
-                    menuDescriptions.get(mealMenuId),
+                    detail.menuName(),
+                    detail.description(),
                     detail.cornerName(),
                     detail.displayOrder(),
                     detail.spicyLevel(),
-                    AI_STATUS_SUCCESS.equals(detail.aiAnalysisStatus()),
+                    detail.aiAnalyzed(),
                     allergies,
                     matchedAllergies,
                     ingredientSelection.ingredients(),
@@ -161,6 +154,215 @@ public class MenuDetailQueryService {
             ));
         }
         return new MenuDetailBatchResponse(menus);
+    }
+
+    private Map<Long, MenuDetailBaseCachePayload> loadMenuDetailBases(Set<Long> mealMenuIds, String languageCode) {
+        Map<Long, MenuDetailBaseCachePayload> result = new LinkedHashMap<>();
+        Set<Long> missing = new LinkedHashSet<>();
+        for (Long mealMenuId : mealMenuIds) {
+            menuReadCachePort.findMenuDetailBase(mealMenuId, languageCode)
+                    .ifPresentOrElse(
+                            payload -> result.put(mealMenuId, payload),
+                            () -> missing.add(mealMenuId)
+                    );
+        }
+        if (!missing.isEmpty()) {
+            Map<Long, MenuDetailBaseCachePayload> loaded = loadMenuDetailBasesFromDb(missing, languageCode);
+            loaded.forEach((mealMenuId, payload) -> {
+                result.put(mealMenuId, payload);
+                menuReadCachePort.upsertMenuDetailBase(mealMenuId, languageCode, payload, readCacheTtl());
+            });
+        }
+        return result;
+    }
+
+    private Map<Long, MenuDetailBaseCachePayload> loadMenuDetailBasesFromDb(Set<Long> mealMenuIds, String languageCode) {
+        Map<Long, MenuDetailRow> detailsById = mealCrawlPersistencePort.findMenuDetailsByMealMenuIds(mealMenuIds).stream()
+                .collect(Collectors.toMap(
+                        MenuDetailRow::mealMenuId,
+                        row -> row,
+                        (existing, ignored) -> existing,
+                        LinkedHashMap::new
+                ));
+        Map<Long, String> translatedMenuNames = mealCrawlPersistencePort.findTranslatedMenuNamesByMealMenuIds(mealMenuIds, languageCode);
+        Map<Long, String> menuDescriptions = mealCrawlPersistencePort.findMenuDescriptionsByMealMenuIds(mealMenuIds, languageCode);
+        if (menuDescriptions == null) {
+            menuDescriptions = Map.of();
+        }
+        Map<Long, String> descriptionsByMealMenuId = menuDescriptions;
+        Map<Long, IngredientSelection> ingredientSelections = resolveIngredients(mealMenuIds, languageCode);
+        Map<Long, List<MealMenuAllergyRow>> allergiesByMealMenuId = listOrEmpty(mealCrawlPersistencePort
+                .findAllergiesByMealMenuIds(mealMenuIds, languageCode))
+                .stream()
+                .collect(Collectors.groupingBy(MealMenuAllergyRow::mealMenuId));
+
+        Map<Long, MenuDetailBaseCachePayload> result = new LinkedHashMap<>();
+        detailsById.forEach((mealMenuId, detail) -> {
+            IngredientSelection ingredients = ingredientSelections.getOrDefault(mealMenuId, new IngredientSelection(null, List.of()));
+            result.put(mealMenuId, new MenuDetailBaseCachePayload(
+                    detail.mealMenuId(),
+                    detail.cafeteriaId(),
+                    detail.menuId(),
+                    detail.schoolId(),
+                    translatedMenuNames.getOrDefault(mealMenuId, detail.menuName()),
+                    descriptionsByMealMenuId.get(mealMenuId),
+                    detail.cornerName(),
+                    detail.displayOrder(),
+                    detail.spicyLevel(),
+                    AI_STATUS_SUCCESS.equals(detail.aiAnalysisStatus()),
+                    ingredients.ingredients().stream()
+                            .map(ingredient -> new MenuDetailBaseCachePayload.IngredientData(
+                                    ingredient.code(),
+                                    ingredient.name(),
+                                    ingredient.source()
+                            ))
+                            .toList(),
+                    allergiesByMealMenuId.getOrDefault(mealMenuId, List.of()).stream()
+                            .map(allergy -> new MenuDetailBaseCachePayload.AllergyData(
+                                    allergy.allergyCode(),
+                                    allergy.allergyName(),
+                                    allergy.confidence()
+                            ))
+                            .toList()
+            ));
+        });
+        return result;
+    }
+
+    private Map<Long, MenuDetailRiskDataCachePayload> loadMenuDetailRiskData(Set<Long> mealMenuIds) {
+        Map<Long, MenuDetailRiskDataCachePayload> result = new LinkedHashMap<>();
+        Set<Long> missing = new LinkedHashSet<>();
+        for (Long mealMenuId : mealMenuIds) {
+            menuReadCachePort.findMenuDetailRiskData(mealMenuId)
+                    .ifPresentOrElse(
+                            payload -> result.put(mealMenuId, payload),
+                            () -> missing.add(mealMenuId)
+                    );
+        }
+        if (!missing.isEmpty()) {
+            Map<Long, MenuDetailRiskDataCachePayload> loaded = loadMenuDetailRiskDataFromDb(missing);
+            loaded.forEach((mealMenuId, payload) -> {
+                result.put(mealMenuId, payload);
+                menuReadCachePort.upsertMenuDetailRiskData(mealMenuId, payload, readCacheTtl());
+            });
+        }
+        return result;
+    }
+
+    private Map<Long, MenuDetailRiskDataCachePayload> loadMenuDetailRiskDataFromDb(Set<Long> mealMenuIds) {
+        Map<Long, IngredientSelection> ingredientSelections = resolveIngredients(mealMenuIds, "ko");
+        List<MealMenuAllergyRow> allergyRows = listOrEmpty(mealCrawlPersistencePort.findAllergiesByMealMenuIds(mealMenuIds, "ko"));
+        Set<String> allReligiousCodes = loadReligionIngredientMap().restrictionsByIngredientCode().values().stream()
+                .flatMap(List::stream)
+                .map(ReligionIngredientMapCachePayload.RestrictionData::restrictionCode)
+                .collect(Collectors.toSet());
+        Map<Long, Map<String, BigDecimal>> religiousConfidenceByMealMenuId = new LinkedHashMap<>();
+        if (!allReligiousCodes.isEmpty()) {
+            for (MealMenuReligiousMatchRow row : listOrEmpty(mealCrawlPersistencePort.findReligiousMatchedIngredientsByMealMenuIds(
+                    mealMenuIds,
+                    List.copyOf(allReligiousCodes),
+                    "ko"
+            ))) {
+                religiousConfidenceByMealMenuId
+                        .computeIfAbsent(row.mealMenuId(), unused -> new LinkedHashMap<>())
+                        .putIfAbsent(row.ingredientCode(), row.confidence());
+            }
+        }
+        Map<Long, List<MealMenuAllergyRow>> allergiesByMealMenuId = allergyRows.stream()
+                .collect(Collectors.groupingBy(MealMenuAllergyRow::mealMenuId));
+
+        Map<Long, MenuDetailRiskDataCachePayload> result = new LinkedHashMap<>();
+        for (Long mealMenuId : mealMenuIds) {
+            IngredientSelection selection = ingredientSelections.getOrDefault(mealMenuId, new IngredientSelection(null, List.of()));
+            Map<String, BigDecimal> confidenceByIngredient = religiousConfidenceByMealMenuId.getOrDefault(mealMenuId, Map.of());
+            result.put(mealMenuId, new MenuDetailRiskDataCachePayload(
+                    selection.source(),
+                    selection.ingredients().stream()
+                            .map(ingredient -> new MenuDetailRiskDataCachePayload.IngredientData(
+                                    ingredient.code(),
+                                    confidenceByIngredient.get(ingredient.code())
+                            ))
+                            .toList(),
+                    allergiesByMealMenuId.getOrDefault(mealMenuId, List.of()).stream()
+                            .map(allergy -> new MenuDetailRiskDataCachePayload.AllergyData(
+                                    allergy.allergyCode(),
+                                    allergy.confidence()
+                            ))
+                            .toList()
+            ));
+        }
+        return result;
+    }
+
+    private Map<Long, List<MealMenuReligiousMatchRow>> buildReligiousMatches(
+            Map<Long, MenuDetailRiskDataCachePayload> riskDataById,
+            List<String> religiousCodes,
+            String languageCode
+    ) {
+        if (religiousCodes == null || religiousCodes.isEmpty()) {
+            return Map.of();
+        }
+        Set<String> selectedReligiousCodes = new HashSet<>(religiousCodes);
+        ReligionIngredientMapCachePayload religionMap = loadReligionIngredientMap();
+        Map<Long, List<MealMenuReligiousMatchRow>> result = new LinkedHashMap<>();
+        if (religionMap.restrictionsByIngredientCode() == null) {
+            return result;
+        }
+
+        riskDataById.forEach((mealMenuId, riskData) -> {
+            if (riskData == null || riskData.ingredients() == null) {
+                return;
+            }
+            for (MenuDetailRiskDataCachePayload.IngredientData ingredient : riskData.ingredients()) {
+                List<ReligionIngredientMapCachePayload.RestrictionData> restrictions =
+                        religionMap.restrictionsByIngredientCode().getOrDefault(ingredient.code(), List.of());
+                for (ReligionIngredientMapCachePayload.RestrictionData restriction : restrictions) {
+                    if (selectedReligiousCodes.contains(restriction.restrictionCode())) {
+                        result.computeIfAbsent(mealMenuId, unused -> new ArrayList<>())
+                                .add(new MealMenuReligiousMatchRow(
+                                        mealMenuId,
+                                        ingredient.code(),
+                                        ingredient.code(),
+                                        ingredient.confidence(),
+                                        restriction.restrictionCode(),
+                                        resolveRestrictionName(restriction, languageCode)
+                                ));
+                    }
+                }
+            }
+        });
+        return result;
+    }
+
+    private ReligionIngredientMapCachePayload loadReligionIngredientMap() {
+        return menuReadCachePort.findReligionIngredientMap()
+                .orElseGet(() -> {
+                    ReligionIngredientMapCachePayload loaded = loadReligionIngredientMapFromDb();
+                    menuReadCachePort.upsertReligionIngredientMap(loaded, readCacheTtl());
+                    return loaded;
+                });
+    }
+
+    private ReligionIngredientMapCachePayload loadReligionIngredientMapFromDb() {
+        Map<String, List<ReligionIngredientMapCachePayload.RestrictionData>> map = new LinkedHashMap<>();
+        for (ReligionIngredientMappingRow row : mealCrawlPersistencePort.findReligionIngredientMappings()) {
+            map.computeIfAbsent(row.ingredientCode(), unused -> new ArrayList<>())
+                    .add(new ReligionIngredientMapCachePayload.RestrictionData(
+                            row.restrictionCode(),
+                            Map.of("ko", row.koreanName(), "en", row.englishName())
+                    ));
+        }
+        return new ReligionIngredientMapCachePayload(map);
+    }
+
+    private String resolveRestrictionName(ReligionIngredientMapCachePayload.RestrictionData restriction, String languageCode) {
+        if (restriction.namesByLangCode() == null || restriction.namesByLangCode().isEmpty()) {
+            return restriction.restrictionCode();
+        }
+        return restriction.namesByLangCode().getOrDefault(
+                normalizeLanguageCode(languageCode),
+                restriction.namesByLangCode().getOrDefault("ko", restriction.restrictionCode())
+        );
     }
 
     private List<Long> normalizeMealMenuIds(List<Long> mealMenuIds) {
@@ -181,8 +383,8 @@ public class MenuDetailQueryService {
     }
 
     private Map<Long, IngredientSelection> resolveIngredients(Set<Long> mealMenuIds, String languageCode) {
-        Map<Long, List<MenuDetailResponse.IngredientResponse>> confirmedByMenuId = mealCrawlPersistencePort
-                .findConfirmedIngredientsForMenuDetails(mealMenuIds, languageCode)
+        Map<Long, List<MenuDetailResponse.IngredientResponse>> confirmedByMenuId = listOrEmpty(mealCrawlPersistencePort
+                .findConfirmedIngredientsForMenuDetails(mealMenuIds, languageCode))
                 .stream()
                 .collect(Collectors.groupingBy(
                         MealMenuIngredientRow::mealMenuId,
@@ -208,8 +410,8 @@ public class MenuDetailQueryService {
         }
 
         if (!unresolvedMenuIds.isEmpty()) {
-            Map<Long, List<MenuDetailResponse.IngredientResponse>> aiByMenuId = mealCrawlPersistencePort
-                    .findAiIngredientsForMenuDetails(unresolvedMenuIds, languageCode)
+            Map<Long, List<MenuDetailResponse.IngredientResponse>> aiByMenuId = listOrEmpty(mealCrawlPersistencePort
+                    .findAiIngredientsForMenuDetails(unresolvedMenuIds, languageCode))
                     .stream()
                     .collect(Collectors.groupingBy(
                             MealMenuIngredientRow::mealMenuId,
@@ -270,6 +472,21 @@ public class MenuDetailQueryService {
                     );
                 })
                 .toList();
+    }
+
+    private String normalizeLanguageCode(String languageCode) {
+        if (languageCode == null || languageCode.isBlank()) {
+            return "ko";
+        }
+        return languageCode.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private Duration readCacheTtl() {
+        return Duration.ofSeconds(mealCrawlProperties.getReadCacheTtlSeconds());
+    }
+
+    private <T> List<T> listOrEmpty(List<T> values) {
+        return values == null ? List.of() : values;
     }
 
     private record IngredientSelection(

@@ -42,7 +42,7 @@ public class WeeklyMealQueryService {
                 .orElseGet(() -> loadPayloadFromDbFallback(userId, schoolId, cafeteriaId, normalizedWeekStartDate, redisKey));
         Map<Long, String> translatedMenuNames = resolveTranslatedMenuNames(payload, preference.languageCode());
 
-        log.info(
+        log.debug(
                 "Weekly meal risk evaluation started: userId={}, schoolId={}, cafeteriaId={}, weekStartDate={}, menuCount={}",
                 userId,
                 schoolId,
@@ -53,7 +53,7 @@ public class WeeklyMealQueryService {
 
         try {
             WeeklyMealResponse response = weeklyMealResponseAssembler.assemble(payload, preference, translatedMenuNames);
-            log.info(
+            log.debug(
                     "Weekly meal risk evaluation completed: userId={}, schoolId={}, cafeteriaId={}, weekStartDate={}, menuCount={}",
                     userId,
                     schoolId,
@@ -81,7 +81,7 @@ public class WeeklyMealQueryService {
         try {
             Optional<String> cached = weeklyMealCachePort.findWeeklyMealCache(schoolId, cafeteriaId, weekStartDate);
             if (cached.isEmpty()) {
-                log.info(
+                log.debug(
                         "Weekly meal cache miss: userId={}, schoolId={}, cafeteriaId={}, weekStartDate={}, redisKey={}",
                         userId, schoolId, cafeteriaId, weekStartDate, redisKey
                 );
@@ -89,7 +89,7 @@ public class WeeklyMealQueryService {
             }
 
             WeeklyMealCachePayload payload = objectMapper.readValue(cached.get(), WeeklyMealCachePayload.class);
-            log.info(
+            log.debug(
                     "Weekly meal cache hit: userId={}, schoolId={}, cafeteriaId={}, weekStartDate={}, redisKey={}",
                     userId, schoolId, cafeteriaId, weekStartDate, redisKey
             );

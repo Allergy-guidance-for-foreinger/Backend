@@ -6,6 +6,37 @@
 
 ## 최근 공통 작업
 
+### 2026-06-09 (weekly/menu detail read API Redis cache first pass)
+- What changed:
+  - Added read API Redis cache port/adapter for weekly risk data, weekly i18n menu names, menu detail base data, menu detail risk data, and religious ingredient mapping.
+  - Kept client response DTO contracts unchanged for weekly meal and menu detail APIs.
+  - Weekly meal risk assembly now uses cached per-week ingredient/allergy data and cached religious ingredient mapping when available, with DB fallback and cache-aside write on miss.
+  - Menu detail lookup now uses per-`mealMenuId` base/risk cache when available, with DB fallback and cache-aside write on miss.
+  - Menu detail matched allergy calculation now reuses loaded allergy data and current user allergy settings instead of running a separate matched-allergy query.
+  - Added `mealguide.mealcrawl.read-cache-ttl-seconds` with default `21600` seconds.
+- Why:
+  - 150 RPS mixed read tests showed Hikari active connections pinned at the pool maximum and pending connection growth without single slow-query dominance.
+  - Redis memory usage was very low, so moving repeated read-side menu/ingredient/allergy/religion data to Redis should reduce DB QPS, rows returned, and DB connection acquire pressure.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/*CachePayload.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MenuReadCachePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/redis/RedisMenuReadCacheAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealResponseAssembler.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/config/MealCrawlProperties.java`
+  - `src/main/resources/application.properties`
+  - related weekly/menu detail service tests
+- DB schema changed: No
+- API behavior changed: No intended contract change.
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Warm up weekly meal and target menu detail APIs before rerunning the 150 RPS k6 scenario.
+  - Compare DB QPS, rows returned/fetched, Hikari acquire/pending, and Redis hit/miss behavior.
+  - Consider short-TTL social count caching and Redis lock-based cache stampede protection only if pressure remains.
+
 ### 2026-06-08 (read API DB connection pressure first-pass optimization)
 - What changed:
   - Changed current meal preference loading from three separate queries (active user, allergy codes, religious codes) to one JDBC query with correlated aggregate subqueries.

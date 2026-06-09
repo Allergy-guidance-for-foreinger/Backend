@@ -27,6 +27,7 @@ public class MealCrawlProperties {
     private String textTranslationPath = "/api/v1/translations";
     private String ingredientTranslationPath = "/api/v1/python/translations/list";
     private long weeklyMealCacheTtlSeconds = 86400L;
+    private long readCacheTtlSeconds = 21600L;
     private int aiAnalysisBatchSize = 10;
     private Integer aiAnalysisRetryBatchSize;
     private int aiAnalysisMaxAttemptCount = 3;
