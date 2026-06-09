@@ -361,10 +361,21 @@ public class MenuDetailQueryService {
             map.computeIfAbsent(row.ingredientCode(), unused -> new ArrayList<>())
                     .add(new ReligionIngredientMapCachePayload.RestrictionData(
                             row.restrictionCode(),
-                            Map.of("ko", row.koreanName(), "en", row.englishName())
+                            buildNamesByLangCode(row)
                     ));
         }
         return new ReligionIngredientMapCachePayload(map);
+    }
+
+    private Map<String, String> buildNamesByLangCode(ReligionIngredientMappingRow row) {
+        Map<String, String> names = new LinkedHashMap<>();
+        if (row.koreanName() != null) {
+            names.put("ko", row.koreanName());
+        }
+        if (row.englishName() != null) {
+            names.put("en", row.englishName());
+        }
+        return names;
     }
 
     private String resolveRestrictionName(ReligionIngredientMapCachePayload.RestrictionData restriction, String languageCode) {
