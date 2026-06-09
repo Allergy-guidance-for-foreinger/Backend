@@ -87,7 +87,7 @@ public class RedisMenuReadCacheAdapter implements MenuReadCachePort {
             if (value == null) {
                 return Optional.empty();
             }
-            return Optional.of(objectMapper.readValue(value, type));
+            return Optional.ofNullable(objectMapper.readValue(value, type));
         } catch (Exception exception) {
             log.warn("Read cache lookup failed. key={}", key, exception);
             return Optional.empty();

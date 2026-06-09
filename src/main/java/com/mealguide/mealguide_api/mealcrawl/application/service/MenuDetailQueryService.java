@@ -42,6 +42,7 @@ public class MenuDetailQueryService {
     private static final String SOURCE_CONFIRMED = "CONFIRMED";
     private static final String SOURCE_AI = "AI";
     private static final String AI_STATUS_SUCCESS = "SUCCESS";
+    private static final String LANGUAGE_INDEPENDENT_LOOKUP_LANG_CODE = "ko";
     private static final int MAX_BATCH_SIZE = 30;
     private static final BigDecimal MATCHED_CONFIDENCE = BigDecimal.ONE;
 
@@ -185,6 +186,10 @@ public class MenuDetailQueryService {
                         LinkedHashMap::new
                 ));
         Map<Long, String> translatedMenuNames = mealCrawlPersistencePort.findTranslatedMenuNamesByMealMenuIds(mealMenuIds, languageCode);
+        if (translatedMenuNames == null) {
+            translatedMenuNames = Map.of();
+        }
+        Map<Long, String> translatedNamesByMealMenuId = translatedMenuNames;
         Map<Long, String> menuDescriptions = mealCrawlPersistencePort.findMenuDescriptionsByMealMenuIds(mealMenuIds, languageCode);
         if (menuDescriptions == null) {
             menuDescriptions = Map.of();
@@ -204,7 +209,7 @@ public class MenuDetailQueryService {
                     detail.cafeteriaId(),
                     detail.menuId(),
                     detail.schoolId(),
-                    translatedMenuNames.getOrDefault(mealMenuId, detail.menuName()),
+                    translatedNamesByMealMenuId.getOrDefault(mealMenuId, detail.menuName()),
                     descriptionsByMealMenuId.get(mealMenuId),
                     detail.cornerName(),
                     detail.displayOrder(),
@@ -250,9 +255,16 @@ public class MenuDetailQueryService {
     }
 
     private Map<Long, MenuDetailRiskDataCachePayload> loadMenuDetailRiskDataFromDb(Set<Long> mealMenuIds) {
-        Map<Long, IngredientSelection> ingredientSelections = resolveIngredients(mealMenuIds, "ko");
-        List<MealMenuAllergyRow> allergyRows = listOrEmpty(mealCrawlPersistencePort.findAllergiesByMealMenuIds(mealMenuIds, "ko"));
-        Set<String> allReligiousCodes = loadReligionIngredientMap().restrictionsByIngredientCode().values().stream()
+        // Risk-data cache is language-independent and stores only codes/source/confidence.
+        // Use Korean as a stable lookup language because display names are cached separately in menu detail base.
+        Map<Long, IngredientSelection> ingredientSelections = resolveIngredients(mealMenuIds, LANGUAGE_INDEPENDENT_LOOKUP_LANG_CODE);
+        List<MealMenuAllergyRow> allergyRows = listOrEmpty(mealCrawlPersistencePort.findAllergiesByMealMenuIds(
+                mealMenuIds,
+                LANGUAGE_INDEPENDENT_LOOKUP_LANG_CODE
+        ));
+        Map<String, List<ReligionIngredientMapCachePayload.RestrictionData>> restrictionsByIngredientCode =
+                loadReligionIngredientMap().restrictionsByIngredientCode();
+        Set<String> allReligiousCodes = restrictionsByIngredientCode == null ? Set.of() : restrictionsByIngredientCode.values().stream()
                 .flatMap(List::stream)
                 .map(ReligionIngredientMapCachePayload.RestrictionData::restrictionCode)
                 .collect(Collectors.toSet());
@@ -261,7 +273,7 @@ public class MenuDetailQueryService {
             for (MealMenuReligiousMatchRow row : listOrEmpty(mealCrawlPersistencePort.findReligiousMatchedIngredientsByMealMenuIds(
                     mealMenuIds,
                     List.copyOf(allReligiousCodes),
-                    "ko"
+                    LANGUAGE_INDEPENDENT_LOOKUP_LANG_CODE
             ))) {
                 religiousConfidenceByMealMenuId
                         .computeIfAbsent(row.mealMenuId(), unused -> new LinkedHashMap<>())

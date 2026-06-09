@@ -225,6 +225,9 @@ public class WeeklyMealResponseAssembler {
                 .map(WeeklyMealI18nCachePayload::menuNamesByMealMenuId)
                 .orElseGet(() -> {
                     Map<Long, String> names = mealCrawlPersistencePort.findTranslatedMenuNamesByMealMenuIds(mealMenuIds, normalizedLanguageCode);
+                    if (names == null) {
+                        names = Map.of();
+                    }
                     menuReadCachePort.upsertWeeklyMealI18n(
                             payload.cafeteriaId(),
                             payload.weekStartDate(),
@@ -247,14 +250,16 @@ public class WeeklyMealResponseAssembler {
 
     private WeeklyMealRiskDataCachePayload loadWeeklyRiskDataFromDb(Set<Long> mealMenuIds) {
         Map<Long, List<MealMenuIngredientRow>> confirmedByMealMenuId = groupByMealMenuId(
-                mealCrawlPersistencePort.findConfirmedIngredientsByMealMenuIds(mealMenuIds)
+                listOrEmpty(mealCrawlPersistencePort.findConfirmedIngredientsByMealMenuIds(mealMenuIds))
         );
         Set<Long> remainingMealMenuIds = new HashSet<>(mealMenuIds);
         remainingMealMenuIds.removeAll(confirmedByMealMenuId.keySet());
         Map<Long, List<MealMenuIngredientRow>> aiByMealMenuId = groupByMealMenuId(
-                mealCrawlPersistencePort.findAiIngredientsByMealMenuIds(remainingMealMenuIds)
+                listOrEmpty(mealCrawlPersistencePort.findAiIngredientsByMealMenuIds(remainingMealMenuIds))
         );
-        List<MealMenuAllergyRow> allergyRows = mealCrawlPersistencePort.findAllergiesByMealMenuIds(mealMenuIds, DEFAULT_LANGUAGE_CODE);
+        List<MealMenuAllergyRow> allergyRows = listOrEmpty(
+                mealCrawlPersistencePort.findAllergiesByMealMenuIds(mealMenuIds, DEFAULT_LANGUAGE_CODE)
+        );
 
         Map<Long, WeeklyMealRiskDataCachePayload.IngredientData> ingredients = new HashMap<>();
         confirmedByMealMenuId.forEach((mealMenuId, rows) -> ingredients.put(
@@ -344,7 +349,7 @@ public class WeeklyMealResponseAssembler {
 
     private ReligionIngredientMapCachePayload loadReligionIngredientMapFromDb() {
         Map<String, List<ReligionIngredientMapCachePayload.RestrictionData>> map = new HashMap<>();
-        for (ReligionIngredientMappingRow row : mealCrawlPersistencePort.findReligionIngredientMappings()) {
+        for (ReligionIngredientMappingRow row : listOrEmpty(mealCrawlPersistencePort.findReligionIngredientMappings())) {
             map.computeIfAbsent(row.ingredientCode(), unused -> new ArrayList<>())
                     .add(new ReligionIngredientMapCachePayload.RestrictionData(
                             row.restrictionCode(),
@@ -356,5 +361,9 @@ public class WeeklyMealResponseAssembler {
 
     private Duration readCacheTtl() {
         return Duration.ofSeconds(mealCrawlProperties.getReadCacheTtlSeconds());
+    }
+
+    private <T> List<T> listOrEmpty(List<T> values) {
+        return values == null ? List.of() : values;
     }
 }

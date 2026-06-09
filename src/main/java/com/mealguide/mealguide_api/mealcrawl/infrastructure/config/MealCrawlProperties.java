@@ -13,6 +13,8 @@ import java.util.List;
 @ConfigurationProperties(prefix = "mealguide.mealcrawl")
 public class MealCrawlProperties {
 
+    private static final long DEFAULT_READ_CACHE_TTL_SECONDS = 21600L;
+
     private boolean schedulerEnabled = false;
     private String schedulerCron = "0 0 4 * * *";
     private String analysisRetryCron = "0 0 1 * * *";
@@ -27,7 +29,7 @@ public class MealCrawlProperties {
     private String textTranslationPath = "/api/v1/translations";
     private String ingredientTranslationPath = "/api/v1/python/translations/list";
     private long weeklyMealCacheTtlSeconds = 86400L;
-    private long readCacheTtlSeconds = 21600L;
+    private long readCacheTtlSeconds = DEFAULT_READ_CACHE_TTL_SECONDS;
     private int aiAnalysisBatchSize = 10;
     private Integer aiAnalysisRetryBatchSize;
     private int aiAnalysisMaxAttemptCount = 3;
@@ -47,6 +49,10 @@ public class MealCrawlProperties {
 
     public int getAiAnalysisBatchSize() {
         return aiAnalysisBatchSize > 0 ? aiAnalysisBatchSize : 10;
+    }
+
+    public long getReadCacheTtlSeconds() {
+        return readCacheTtlSeconds > 0 ? readCacheTtlSeconds : DEFAULT_READ_CACHE_TTL_SECONDS;
     }
 
     public int getAiAnalysisRetryBatchSize() {
