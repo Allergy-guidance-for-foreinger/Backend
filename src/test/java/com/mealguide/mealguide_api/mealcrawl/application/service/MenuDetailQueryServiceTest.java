@@ -237,6 +237,45 @@ class MenuDetailQueryServiceTest {
         assertThat(response.review().count()).isEqualTo(3L);
     }
 
+    @Test
+    void batchTreatsNullUserAllergyCodesAsEmptySet() {
+        MealUserPreferencePort preferencePort = mock(MealUserPreferencePort.class);
+        MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
+        MenuLikePort menuLikePort = mock(MenuLikePort.class);
+        MenuReviewPort menuReviewPort = mock(MenuReviewPort.class);
+        MenuReadCachePort cachePort = defaultCachePort();
+        MenuDetailQueryService service = new MenuDetailQueryService(
+                preferencePort, persistencePort, cachePort, menuLikePort, menuReviewPort, defaultProperties(), defaultRiskResolver()
+        );
+
+        when(preferencePort.getCurrentUserMealPreference(1L))
+                .thenReturn(new CurrentUserMealPreference(1L, 100L, "en", List.of(), null));
+        when(persistencePort.findMenuDetailsByMealMenuIds(Set.of(10L))).thenReturn(List.of(
+                new MenuDetailRow(10L, 1L, 1L, "Menu-10", "A", 1, 1L, "SUCCESS", 100L)
+        ));
+        when(persistencePort.findTranslatedMenuNamesByMealMenuIds(Set.of(10L), "en")).thenReturn(java.util.Map.of());
+        when(persistencePort.findMenuDescriptionsByMealMenuIds(Set.of(10L), "en")).thenReturn(java.util.Map.of());
+        when(persistencePort.findConfirmedIngredientsForMenuDetails(Set.of(10L), "en"))
+                .thenReturn(List.of(new MealMenuIngredientRow(10L, "PORK", "Pork")));
+        when(persistencePort.findConfirmedIngredientsForMenuDetails(Set.of(10L), "ko"))
+                .thenReturn(List.of(new MealMenuIngredientRow(10L, "PORK", "돼지고기")));
+        when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("en"))).thenReturn(List.of());
+        when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("ko"))).thenReturn(List.of());
+        when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L), "en"))
+                .thenReturn(List.of(new MealMenuAllergyRow(10L, "PORK", "Pork", null)));
+        when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L), "ko"))
+                .thenReturn(List.of(new MealMenuAllergyRow(10L, "PORK", "돼지고기", null)));
+        when(menuLikePort.countLikesByTargets(Set.of(new MenuLikeTarget(1L, 1L)))).thenReturn(java.util.Map.of());
+        when(menuLikePort.findLikedTargetsByUser(1L, Set.of(new MenuLikeTarget(1L, 1L)))).thenReturn(Set.of());
+        when(menuReviewPort.countActiveReviewsByTargets(Set.of(new MenuLikeTarget(1L, 1L)))).thenReturn(java.util.Map.of());
+
+        MenuDetailBatchResponse response = service.getMenuDetails(1L, List.of(10L));
+
+        assertThat(response.menus()).hasSize(1);
+        assertThat(response.menus().getFirst().allergies()).hasSize(1);
+        assertThat(response.menus().getFirst().matchedAllergies()).isEmpty();
+    }
+
     private void stubPreference(MealUserPreferencePort preferencePort) {
         when(preferencePort.getCurrentUserMealPreference(1L))
                 .thenReturn(new CurrentUserMealPreference(1L, 100L, "en", List.of("HALAL"), List.of("PORK")));

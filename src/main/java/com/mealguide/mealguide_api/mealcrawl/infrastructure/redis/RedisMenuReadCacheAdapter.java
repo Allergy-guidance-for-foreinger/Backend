@@ -15,8 +15,13 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -58,6 +63,24 @@ public class RedisMenuReadCacheAdapter implements MenuReadCachePort {
     }
 
     @Override
+    public Map<Long, MenuDetailBaseCachePayload> findMenuDetailBases(Set<Long> mealMenuIds, String langCode) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Long> mealMenuIdByKey = new LinkedHashMap<>();
+        List<String> keys = new ArrayList<>(mealMenuIds.size());
+        for (Long mealMenuId : mealMenuIds) {
+            if (mealMenuId == null) {
+                continue;
+            }
+            String key = buildMenuDetailBaseKey(mealMenuId, langCode);
+            keys.add(key);
+            mealMenuIdByKey.put(key, mealMenuId);
+        }
+        return readMany(keys, mealMenuIdByKey, MenuDetailBaseCachePayload.class);
+    }
+
+    @Override
     public void upsertMenuDetailBase(Long mealMenuId, String langCode, MenuDetailBaseCachePayload payload, Duration ttl) {
         write(buildMenuDetailBaseKey(mealMenuId, langCode), payload, ttl);
     }
@@ -65,6 +88,24 @@ public class RedisMenuReadCacheAdapter implements MenuReadCachePort {
     @Override
     public Optional<MenuDetailRiskDataCachePayload> findMenuDetailRiskData(Long mealMenuId) {
         return read(buildMenuDetailRiskKey(mealMenuId), MenuDetailRiskDataCachePayload.class);
+    }
+
+    @Override
+    public Map<Long, MenuDetailRiskDataCachePayload> findMenuDetailRiskData(Set<Long> mealMenuIds) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Long> mealMenuIdByKey = new LinkedHashMap<>();
+        List<String> keys = new ArrayList<>(mealMenuIds.size());
+        for (Long mealMenuId : mealMenuIds) {
+            if (mealMenuId == null) {
+                continue;
+            }
+            String key = buildMenuDetailRiskKey(mealMenuId);
+            keys.add(key);
+            mealMenuIdByKey.put(key, mealMenuId);
+        }
+        return readMany(keys, mealMenuIdByKey, MenuDetailRiskDataCachePayload.class);
     }
 
     @Override
@@ -92,6 +133,42 @@ public class RedisMenuReadCacheAdapter implements MenuReadCachePort {
         } catch (Exception exception) {
             log.warn("Read cache lookup failed. key={}", key, exception);
             return Optional.empty();
+        }
+    }
+
+    private <T> Map<Long, T> readMany(List<String> keys, Map<String, Long> mealMenuIdByKey, Class<T> type) {
+        if (keys == null || keys.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            List<String> values = stringRedisTemplate.opsForValue().multiGet(keys);
+            if (values == null || values.isEmpty()) {
+                return Map.of();
+            }
+            Map<Long, T> result = new LinkedHashMap<>();
+            for (int index = 0; index < keys.size(); index++) {
+                String value = index < values.size() ? values.get(index) : null;
+                if (value == null) {
+                    continue;
+                }
+                String key = keys.get(index);
+                Long mealMenuId = mealMenuIdByKey.get(key);
+                if (mealMenuId == null) {
+                    continue;
+                }
+                try {
+                    T payload = objectMapper.readValue(value, type);
+                    if (payload != null) {
+                        result.put(mealMenuId, payload);
+                    }
+                } catch (Exception exception) {
+                    log.warn("Read cache deserialization failed. key={}", key, exception);
+                }
+            }
+            return result;
+        } catch (Exception exception) {
+            log.warn("Read cache bulk lookup failed. keys={}", keys, exception);
+            return Map.of();
         }
     }
 

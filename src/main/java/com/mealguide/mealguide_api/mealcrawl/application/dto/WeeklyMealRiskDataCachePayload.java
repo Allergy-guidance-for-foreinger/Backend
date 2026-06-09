@@ -27,7 +27,9 @@ public record WeeklyMealRiskDataCachePayload(
             Map<Long, List<AllergyData>> copied = new java.util.LinkedHashMap<>();
             for (Map.Entry<Long, List<AllergyData>> entry : allergiesByMealMenuId.entrySet()) {
                 if (entry.getKey() != null) {
-                    copied.put(entry.getKey(), entry.getValue() == null ? List.of() : List.copyOf(entry.getValue()));
+                    copied.put(entry.getKey(), entry.getValue() == null ? List.of() : entry.getValue().stream()
+                            .filter(Objects::nonNull)
+                            .toList());
                 }
             }
             allergiesByMealMenuId = Map.copyOf(copied);

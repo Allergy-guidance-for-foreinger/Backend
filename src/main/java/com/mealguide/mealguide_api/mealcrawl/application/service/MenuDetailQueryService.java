@@ -95,7 +95,9 @@ public class MenuDetailQueryService {
         Map<MenuLikeTarget, Long> reviewCountByTarget = menuReviewPort.countActiveReviewsByTargets(likeTargets);
 
         List<MenuDetailResponse> menus = new ArrayList<>(normalizedIds.size());
-        Set<String> userAllergyCodes = new HashSet<>(preference.allergyCodes());
+        Set<String> userAllergyCodes = preference.allergyCodes() == null
+                ? Set.of()
+                : new HashSet<>(preference.allergyCodes());
         for (Long mealMenuId : normalizedIds) {
             MenuDetailBaseCachePayload detail = baseById.get(mealMenuId);
             IngredientSelection ingredientSelection = new IngredientSelection(
@@ -159,14 +161,12 @@ public class MenuDetailQueryService {
 
     private Map<Long, MenuDetailBaseCachePayload> loadMenuDetailBases(Set<Long> mealMenuIds, String languageCode) {
         Map<Long, MenuDetailBaseCachePayload> result = new LinkedHashMap<>();
-        Set<Long> missing = new LinkedHashSet<>();
-        for (Long mealMenuId : mealMenuIds) {
-            menuReadCachePort.findMenuDetailBase(mealMenuId, languageCode)
-                    .ifPresentOrElse(
-                            payload -> result.put(mealMenuId, payload),
-                            () -> missing.add(mealMenuId)
-                    );
+        Map<Long, MenuDetailBaseCachePayload> cached = menuReadCachePort.findMenuDetailBases(mealMenuIds, languageCode);
+        if (cached != null) {
+            result.putAll(cached);
         }
+        Set<Long> missing = new LinkedHashSet<>(mealMenuIds);
+        missing.removeAll(result.keySet());
         if (!missing.isEmpty()) {
             Map<Long, MenuDetailBaseCachePayload> loaded = loadMenuDetailBasesFromDb(missing, languageCode);
             loaded.forEach((mealMenuId, payload) -> {
@@ -238,14 +238,12 @@ public class MenuDetailQueryService {
 
     private Map<Long, MenuDetailRiskDataCachePayload> loadMenuDetailRiskData(Set<Long> mealMenuIds) {
         Map<Long, MenuDetailRiskDataCachePayload> result = new LinkedHashMap<>();
-        Set<Long> missing = new LinkedHashSet<>();
-        for (Long mealMenuId : mealMenuIds) {
-            menuReadCachePort.findMenuDetailRiskData(mealMenuId)
-                    .ifPresentOrElse(
-                            payload -> result.put(mealMenuId, payload),
-                            () -> missing.add(mealMenuId)
-                    );
+        Map<Long, MenuDetailRiskDataCachePayload> cached = menuReadCachePort.findMenuDetailRiskData(mealMenuIds);
+        if (cached != null) {
+            result.putAll(cached);
         }
+        Set<Long> missing = new LinkedHashSet<>(mealMenuIds);
+        missing.removeAll(result.keySet());
         if (!missing.isEmpty()) {
             Map<Long, MenuDetailRiskDataCachePayload> loaded = loadMenuDetailRiskDataFromDb(missing);
             loaded.forEach((mealMenuId, payload) -> {

@@ -12,8 +12,10 @@
   - Kept client response DTO contracts unchanged for weekly meal and menu detail APIs.
   - Weekly meal risk assembly now uses cached per-week ingredient/allergy data and cached religious ingredient mapping when available, with DB fallback and cache-aside write on miss.
   - Menu detail lookup now uses per-`mealMenuId` base/risk cache when available, with DB fallback and cache-aside write on miss.
+  - Menu detail base/risk cache reads now use bulk Redis `multiGet` through `MenuReadCachePort` to avoid up to 60 sequential Redis round-trips per batch request.
   - Menu detail matched allergy calculation now reuses loaded allergy data and current user allergy settings instead of running a separate matched-allergy query.
   - Added `mealguide.mealcrawl.read-cache-ttl-seconds` with default `21600` seconds.
+  - Added defensive handling for null user allergy settings in menu detail response assembly and null elements inside weekly allergy cache payload lists.
 - Why:
   - 150 RPS mixed read tests showed Hikari active connections pinned at the pool maximum and pending connection growth without single slow-query dominance.
   - Redis memory usage was very low, so moving repeated read-side menu/ingredient/allergy/religion data to Redis should reduce DB QPS, rows returned, and DB connection acquire pressure.
@@ -28,6 +30,7 @@
   - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/config/MealCrawlProperties.java`
   - `src/main/resources/application.properties`
   - related weekly/menu detail service tests
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryServiceTest.java`
 - DB schema changed: No
 - API behavior changed: No intended contract change.
 - Related docs updated:

@@ -8,7 +8,10 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealRiskDataC
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public interface MenuReadCachePort {
 
@@ -22,9 +25,31 @@ public interface MenuReadCachePort {
 
     Optional<MenuDetailBaseCachePayload> findMenuDetailBase(Long mealMenuId, String langCode);
 
+    default Map<Long, MenuDetailBaseCachePayload> findMenuDetailBases(Set<Long> mealMenuIds, String langCode) {
+        Map<Long, MenuDetailBaseCachePayload> result = new LinkedHashMap<>();
+        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
+            return result;
+        }
+        for (Long mealMenuId : mealMenuIds) {
+            findMenuDetailBase(mealMenuId, langCode).ifPresent(payload -> result.put(mealMenuId, payload));
+        }
+        return result;
+    }
+
     void upsertMenuDetailBase(Long mealMenuId, String langCode, MenuDetailBaseCachePayload payload, Duration ttl);
 
     Optional<MenuDetailRiskDataCachePayload> findMenuDetailRiskData(Long mealMenuId);
+
+    default Map<Long, MenuDetailRiskDataCachePayload> findMenuDetailRiskData(Set<Long> mealMenuIds) {
+        Map<Long, MenuDetailRiskDataCachePayload> result = new LinkedHashMap<>();
+        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
+            return result;
+        }
+        for (Long mealMenuId : mealMenuIds) {
+            findMenuDetailRiskData(mealMenuId).ifPresent(payload -> result.put(mealMenuId, payload));
+        }
+        return result;
+    }
 
     void upsertMenuDetailRiskData(Long mealMenuId, MenuDetailRiskDataCachePayload payload, Duration ttl);
 
