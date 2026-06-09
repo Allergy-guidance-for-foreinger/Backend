@@ -121,6 +121,19 @@ class WeeklyMealResponseAssemblerTest {
     }
 
     @Test
+    void nullMealMenuIdDoesNotFailOnEmptyRiskOrTranslationMaps() {
+        FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
+        WeeklyMealResponseAssembler assembler = assembler(port);
+
+        WeeklyMealResponse response = assembler.assemble(payloadWithNullMealMenuId(), samplePreference());
+
+        WeeklyMealResponse.MenuResponse menu = response.mealSchedules().get(0).menus().get(0);
+        assertThat(menu.mealMenuId()).isNull();
+        assertThat(menu.menuName()).isEqualTo("Unknown Menu");
+        assertThat(menu.risk().riskLevel()).isEqualTo("UNKNOWN");
+    }
+
+    @Test
     void koreanLanguageStillReturnsRiskLevelOnly() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
         port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
@@ -148,6 +161,27 @@ class WeeklyMealResponseAssemblerTest {
                                 1,
                                 2L,
                                 true
+                        ))
+                ))
+        );
+    }
+
+    private WeeklyMealCachePayload payloadWithNullMealMenuId() {
+        return new WeeklyMealCachePayload(
+                1L,
+                10L,
+                LocalDate.of(2026, 4, 20),
+                LocalDate.of(2026, 4, 26),
+                List.of(new WeeklyMealCachePayload.MealScheduleItem(
+                        LocalDate.of(2026, 4, 20),
+                        "LUNCH",
+                        List.of(new WeeklyMealCachePayload.MenuItem(
+                                null,
+                                "Unknown Menu",
+                                "Korean",
+                                1,
+                                2L,
+                                false
                         ))
                 ))
         );

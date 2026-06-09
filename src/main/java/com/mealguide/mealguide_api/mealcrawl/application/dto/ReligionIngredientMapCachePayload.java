@@ -31,7 +31,7 @@ public record ReligionIngredientMapCachePayload(
         }
         Map<String, List<RestrictionData>> map = new LinkedHashMap<>();
         for (ReligionIngredientMappingRow row : rows) {
-            if (row.ingredientCode() == null || row.restrictionCode() == null) {
+            if (row == null || row.ingredientCode() == null || row.restrictionCode() == null) {
                 continue;
             }
             map.computeIfAbsent(row.ingredientCode(), unused -> new ArrayList<>())

@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -55,7 +56,7 @@ public class WeeklyMealResponseAssembler {
     ) {
         Set<Long> mealMenuIds = extractMealMenuIds(payload);
         if (mealMenuIds.isEmpty()) {
-            return toWeeklyMealResponse(payload, translatedMenuNames, Map.of());
+            return toWeeklyMealResponse(payload, translatedMenuNames, Collections.emptyMap());
         }
 
         WeeklyMealRiskDataCachePayload riskData = loadWeeklyRiskData(payload, mealMenuIds);
@@ -188,15 +189,12 @@ public class WeeklyMealResponseAssembler {
                         schedule.menus().stream()
                                 .map(menu -> new WeeklyMealResponse.MenuResponse(
                                         menu.mealMenuId(),
-                                        translatedMenuNamesByMealMenuId.getOrDefault(menu.mealMenuId(), menu.menuName()),
+                                        resolveMenuName(translatedMenuNamesByMealMenuId, menu),
                                         menu.cornerName(),
                                         menu.displayOrder(),
                                         menu.spicyLevel(),
                                         menu.aiAnalyzed(),
-                                        riskByMealMenuId.getOrDefault(
-                                                menu.mealMenuId(),
-                                                new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.UNKNOWN.name())
-                                        )
+                                        resolveMenuRisk(riskByMealMenuId, menu.mealMenuId())
                                 ))
                                 .toList()
                 ))
@@ -209,6 +207,25 @@ public class WeeklyMealResponseAssembler {
                 payload.weekEndDate(),
                 schedules
         );
+    }
+
+    private String resolveMenuName(Map<Long, String> translatedMenuNamesByMealMenuId, WeeklyMealCachePayload.MenuItem menu) {
+        if (menu.mealMenuId() == null || translatedMenuNamesByMealMenuId == null) {
+            return menu.menuName();
+        }
+        return translatedMenuNamesByMealMenuId.getOrDefault(menu.mealMenuId(), menu.menuName());
+    }
+
+    private WeeklyMealResponse.MenuRiskResponse resolveMenuRisk(
+            Map<Long, WeeklyMealResponse.MenuRiskResponse> riskByMealMenuId,
+            Long mealMenuId
+    ) {
+        WeeklyMealResponse.MenuRiskResponse unknownRisk =
+                new WeeklyMealResponse.MenuRiskResponse(MenuRiskLevel.UNKNOWN.name());
+        if (mealMenuId == null || riskByMealMenuId == null) {
+            return unknownRisk;
+        }
+        return riskByMealMenuId.getOrDefault(mealMenuId, unknownRisk);
     }
 
     private Map<Long, String> loadTranslatedMenuNames(WeeklyMealCachePayload payload, Set<Long> mealMenuIds, String languageCode) {

@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -286,7 +287,8 @@ public class MenuDetailQueryService {
         Map<Long, MenuDetailRiskDataCachePayload> result = new LinkedHashMap<>();
         for (Long mealMenuId : mealMenuIds) {
             IngredientSelection selection = ingredientSelections.getOrDefault(mealMenuId, new IngredientSelection(null, List.of()));
-            Map<String, BigDecimal> confidenceByIngredient = religiousConfidenceByMealMenuId.getOrDefault(mealMenuId, Map.of());
+            Map<String, BigDecimal> confidenceByIngredient =
+                    religiousConfidenceByMealMenuId.getOrDefault(mealMenuId, Collections.emptyMap());
             result.put(mealMenuId, new MenuDetailRiskDataCachePayload(
                     selection.source(),
                     selection.ingredients().stream()

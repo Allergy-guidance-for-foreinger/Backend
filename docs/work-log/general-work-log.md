@@ -16,6 +16,8 @@
   - Menu detail matched allergy calculation now reuses loaded allergy data and current user allergy settings instead of running a separate matched-allergy query.
   - Added `mealguide.mealcrawl.read-cache-ttl-seconds` with default `21600` seconds.
   - Added defensive handling for null user allergy settings in menu detail response assembly and null elements inside weekly allergy cache payload lists.
+  - Added defensive weekly meal response assembly for null `mealMenuId` so empty immutable maps are not queried with null keys.
+  - Added defensive menu detail risk-data assembly for null ingredient codes so empty immutable maps are not queried with null keys.
 - Why:
   - 150 RPS mixed read tests showed Hikari active connections pinned at the pool maximum and pending connection growth without single slow-query dominance.
   - Redis memory usage was very low, so moving repeated read-side menu/ingredient/allergy/religion data to Redis should reduce DB QPS, rows returned, and DB connection acquire pressure.
