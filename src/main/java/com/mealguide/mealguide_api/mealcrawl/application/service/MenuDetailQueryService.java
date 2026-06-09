@@ -186,18 +186,12 @@ public class MenuDetailQueryService {
                         (existing, ignored) -> existing,
                         LinkedHashMap::new
                 ));
-        Map<Long, String> translatedMenuNames = "ko".equals(languageCode)
+        Map<Long, String> translatedNamesByMealMenuId = mapOrEmpty("ko".equals(languageCode)
                 ? Map.of()
-                : mealCrawlPersistencePort.findTranslatedMenuNamesByMealMenuIds(mealMenuIds, languageCode);
-        if (translatedMenuNames == null) {
-            translatedMenuNames = Map.of();
-        }
-        Map<Long, String> translatedNamesByMealMenuId = translatedMenuNames;
-        Map<Long, String> menuDescriptions = mealCrawlPersistencePort.findMenuDescriptionsByMealMenuIds(mealMenuIds, languageCode);
-        if (menuDescriptions == null) {
-            menuDescriptions = Map.of();
-        }
-        Map<Long, String> descriptionsByMealMenuId = menuDescriptions;
+                : mealCrawlPersistencePort.findTranslatedMenuNamesByMealMenuIds(mealMenuIds, languageCode));
+        Map<Long, String> descriptionsByMealMenuId = mapOrEmpty(
+                mealCrawlPersistencePort.findMenuDescriptionsByMealMenuIds(mealMenuIds, languageCode)
+        );
         Map<Long, IngredientSelection> ingredientSelections = resolveIngredients(mealMenuIds, languageCode);
         Map<Long, List<MealMenuAllergyRow>> allergiesByMealMenuId = listOrEmpty(mealCrawlPersistencePort
                 .findAllergiesByMealMenuIds(mealMenuIds, languageCode))
@@ -503,6 +497,10 @@ public class MenuDetailQueryService {
 
     private <T> List<T> listOrEmpty(List<T> values) {
         return values == null ? List.of() : values;
+    }
+
+    private <K, V> Map<K, V> mapOrEmpty(Map<K, V> values) {
+        return values == null ? Map.of() : values;
     }
 
     private record IngredientSelection(
