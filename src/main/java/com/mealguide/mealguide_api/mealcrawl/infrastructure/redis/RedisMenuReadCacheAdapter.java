@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.Locale;
 import java.util.Optional;
 
 @Slf4j
@@ -122,7 +123,7 @@ public class RedisMenuReadCacheAdapter implements MenuReadCachePort {
     }
 
     private String normalizeLangCode(String langCode) {
-        return langCode == null || langCode.isBlank() ? "ko" : langCode.trim().toLowerCase();
+        return langCode == null || langCode.isBlank() ? "ko" : langCode.trim().toLowerCase(Locale.ROOT);
     }
 
     private void validateTtl(Duration ttl) {

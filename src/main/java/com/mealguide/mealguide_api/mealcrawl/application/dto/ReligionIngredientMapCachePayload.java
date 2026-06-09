@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public record ReligionIngredientMapCachePayload(
         Map<String, List<RestrictionData>> restrictionsByIngredientCode
@@ -14,7 +15,11 @@ public record ReligionIngredientMapCachePayload(
         } else {
             Map<String, List<RestrictionData>> copied = new LinkedHashMap<>();
             for (Map.Entry<String, List<RestrictionData>> entry : restrictionsByIngredientCode.entrySet()) {
-                copied.put(entry.getKey(), entry.getValue() == null ? List.of() : List.copyOf(entry.getValue()));
+                if (entry.getKey() != null) {
+                    copied.put(entry.getKey(), entry.getValue() == null ? List.of() : entry.getValue().stream()
+                            .filter(Objects::nonNull)
+                            .toList());
+                }
             }
             restrictionsByIngredientCode = Map.copyOf(copied);
         }
@@ -51,7 +56,17 @@ public record ReligionIngredientMapCachePayload(
             Map<String, String> namesByLangCode
     ) {
         public RestrictionData {
-            namesByLangCode = namesByLangCode == null ? Map.of() : Map.copyOf(namesByLangCode);
+            if (namesByLangCode == null || namesByLangCode.isEmpty()) {
+                namesByLangCode = Map.of();
+            } else {
+                Map<String, String> copied = new LinkedHashMap<>();
+                namesByLangCode.forEach((langCode, name) -> {
+                    if (langCode != null && name != null) {
+                        copied.put(langCode, name);
+                    }
+                });
+                namesByLangCode = Map.copyOf(copied);
+            }
         }
     }
 }
