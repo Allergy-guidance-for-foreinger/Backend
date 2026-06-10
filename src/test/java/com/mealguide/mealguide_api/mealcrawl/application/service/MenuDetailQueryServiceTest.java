@@ -262,9 +262,9 @@ class MenuDetailQueryServiceTest {
         when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("en"))).thenReturn(List.of());
         when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("ko"))).thenReturn(List.of());
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L), "en"))
-                .thenReturn(List.of(new MealMenuAllergyRow(10L, "PORK", "Pork", null)));
+                .thenReturn(List.of(new MealMenuAllergyRow(10L, null, "Unknown", null)));
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L), "ko"))
-                .thenReturn(List.of(new MealMenuAllergyRow(10L, "PORK", "돼지고기", null)));
+                .thenReturn(List.of(new MealMenuAllergyRow(10L, null, "알 수 없음", null)));
         when(menuLikePort.countLikesByTargets(Set.of(new MenuLikeTarget(1L, 1L)))).thenReturn(java.util.Map.of());
         when(menuLikePort.findLikedTargetsByUser(1L, Set.of(new MenuLikeTarget(1L, 1L)))).thenReturn(Set.of());
         when(menuReviewPort.countActiveReviewsByTargets(Set.of(new MenuLikeTarget(1L, 1L)))).thenReturn(java.util.Map.of());

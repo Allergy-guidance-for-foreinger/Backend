@@ -6,6 +6,22 @@
 
 ## 최근 공통 작업
 
+### 2026-06-10 (menu detail null allergy code guard)
+- What changed:
+  - Changed menu detail matched-allergy assembly to use a null-safe empty user allergy set when the user has no allergy settings.
+  - Updated the focused menu detail service test so a null menu allergy code with null user allergy settings does not fail matching.
+- Why:
+  - `Set.of().contains(null)` throws `NullPointerException`; a null allergy code from menu detail data could fail the request when the user allergy list is absent.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryService.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryServiceTest.java`
+- DB schema changed: No
+- API behavior changed: No intended contract change; this is defensive null handling.
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - None.
+
 ### 2026-06-09 (weekly/menu detail read API Redis cache first pass)
 - What changed:
   - Added read API Redis cache port/adapter for weekly risk data, weekly i18n menu names, menu detail base data, menu detail risk data, and religious ingredient mapping.

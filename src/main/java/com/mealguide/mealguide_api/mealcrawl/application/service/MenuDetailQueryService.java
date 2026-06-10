@@ -97,7 +97,7 @@ public class MenuDetailQueryService {
 
         List<MenuDetailResponse> menus = new ArrayList<>(normalizedIds.size());
         Set<String> userAllergyCodes = preference.allergyCodes() == null
-                ? Set.of()
+                ? Collections.emptySet()
                 : new HashSet<>(preference.allergyCodes());
         for (Long mealMenuId : normalizedIds) {
             MenuDetailBaseCachePayload detail = baseById.get(mealMenuId);
