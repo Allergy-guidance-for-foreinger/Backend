@@ -9,6 +9,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuReligiousMa
 import com.mealguide.mealguide_api.mealcrawl.application.dto.IngredientTranslationTarget;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.NamedIngredientRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.ReligionIngredientMappingRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCacheRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
@@ -377,6 +378,33 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 rs.getString("restriction_code"),
                 rs.getString("ingredient_code"),
                 rs.getString("ingredient_name")
+        ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReligionIngredientMappingRow> findReligionIngredientMappings() {
+        String sql = """
+                select rfri.ingredient_code,
+                       rfri.religious_food_restriction_code as restriction_code,
+                       coalesce(rfrt_ko.name, rfr.name) as korean_name,
+                       coalesce(rfrt_en.name, rfr.name) as english_name
+                from religious_food_restriction_ingredient rfri
+                join religious_food_restriction rfr
+                  on rfr.code = rfri.religious_food_restriction_code
+                left join religious_food_restriction_translation rfrt_ko
+                  on rfrt_ko.religious_food_restriction_code = rfr.code
+                 and rfrt_ko.lang_code = 'ko'
+                left join religious_food_restriction_translation rfrt_en
+                  on rfrt_en.religious_food_restriction_code = rfr.code
+                 and rfrt_en.lang_code = 'en'
+                order by rfri.ingredient_code, rfri.religious_food_restriction_code
+                """;
+        return namedParameterJdbcTemplate.query(sql, (rs, rowNum) -> new ReligionIngredientMappingRow(
+                rs.getString("ingredient_code"),
+                rs.getString("restriction_code"),
+                rs.getString("korean_name"),
+                rs.getString("english_name")
         ));
     }
 

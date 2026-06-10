@@ -2,11 +2,19 @@ package com.mealguide.mealguide_api.mealcrawl.application.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.CurrentUserMealPreference;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailBaseCachePayload;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRiskDataCachePayload;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.ReligionIngredientMapCachePayload;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.ReligionIngredientMappingRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealI18nCachePayload;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCachePayload;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealCacheRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.WeeklyMealRiskDataCachePayload;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
+import com.mealguide.mealguide_api.mealcrawl.application.port.MenuReadCachePort;
 import com.mealguide.mealguide_api.mealcrawl.domain.CrawlTargetSource;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuAiStatus;
 import com.mealguide.mealguide_api.mealcrawl.domain.MenuIngredientCandidate;
@@ -15,11 +23,13 @@ import com.mealguide.mealguide_api.mealcrawl.infrastructure.config.MealCrawlProp
 import com.mealguide.mealguide_api.mealcrawl.presentation.dto.response.WeeklyMealResponse;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,7 +42,7 @@ class WeeklyMealResponseAssemblerTest {
         port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.allergyRiskMealMenuIds = Set.of(11L);
 
-        WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port, defaultRiskResolver());
+        WeeklyMealResponseAssembler assembler = assembler(port);
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
 
         assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("DANGER");
@@ -44,7 +54,7 @@ class WeeklyMealResponseAssemblerTest {
         port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.religionRestrictions = List.of(new RestrictionIngredientRow("HALAL", "PORK", "Pork"));
 
-        WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port, defaultRiskResolver());
+        WeeklyMealResponseAssembler assembler = assembler(port);
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
 
         assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("DANGER");
@@ -56,7 +66,7 @@ class WeeklyMealResponseAssemblerTest {
         port.aiIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.allergyRiskMealMenuIds = Set.of(11L);
 
-        WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port, defaultRiskResolver());
+        WeeklyMealResponseAssembler assembler = assembler(port);
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
 
         assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("DANGER");
@@ -68,7 +78,7 @@ class WeeklyMealResponseAssemblerTest {
         port.aiIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.religionRestrictions = List.of(new RestrictionIngredientRow("HALAL", "PORK", "Pork"));
 
-        WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port, defaultRiskResolver());
+        WeeklyMealResponseAssembler assembler = assembler(port);
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
 
         assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("DANGER");
@@ -77,7 +87,7 @@ class WeeklyMealResponseAssemblerTest {
     @Test
     void noIngredientInfoReturnsUnknown() {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
-        WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port, defaultRiskResolver());
+        WeeklyMealResponseAssembler assembler = assembler(port);
 
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
 
@@ -89,7 +99,7 @@ class WeeklyMealResponseAssemblerTest {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
         port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "RICE", "Rice"));
 
-        WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port, defaultRiskResolver());
+        WeeklyMealResponseAssembler assembler = assembler(port);
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
 
         WeeklyMealResponse.MenuResponse menu = response.mealSchedules().get(0).menus().get(0);
@@ -104,10 +114,23 @@ class WeeklyMealResponseAssemblerTest {
         FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
         port.translatedMenuNames = Map.of(11L, "Kimchi Stew EN");
 
-        WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port, defaultRiskResolver());
+        WeeklyMealResponseAssembler assembler = assembler(port);
         WeeklyMealResponse response = assembler.assemble(samplePayload(), samplePreference());
 
         assertThat(response.mealSchedules().get(0).menus().get(0).menuName()).isEqualTo("Kimchi Stew EN");
+    }
+
+    @Test
+    void nullMealMenuIdDoesNotFailOnEmptyRiskOrTranslationMaps() {
+        FakeMealCrawlPersistencePort port = new FakeMealCrawlPersistencePort();
+        WeeklyMealResponseAssembler assembler = assembler(port);
+
+        WeeklyMealResponse response = assembler.assemble(payloadWithNullMealMenuId(), samplePreference());
+
+        WeeklyMealResponse.MenuResponse menu = response.mealSchedules().get(0).menus().get(0);
+        assertThat(menu.mealMenuId()).isNull();
+        assertThat(menu.menuName()).isEqualTo("Unknown Menu");
+        assertThat(menu.risk().riskLevel()).isEqualTo("UNKNOWN");
     }
 
     @Test
@@ -116,7 +139,7 @@ class WeeklyMealResponseAssemblerTest {
         port.confirmedIngredients = List.of(new MealMenuIngredientRow(11L, "PORK", "Pork"));
         port.allergyRiskMealMenuIds = Set.of(11L);
 
-        WeeklyMealResponseAssembler assembler = new WeeklyMealResponseAssembler(port, defaultRiskResolver());
+        WeeklyMealResponseAssembler assembler = assembler(port);
         WeeklyMealResponse response = assembler.assemble(samplePayload(), koreanPreference());
 
         assertThat(response.mealSchedules().get(0).menus().get(0).risk().riskLevel()).isEqualTo("DANGER");
@@ -138,6 +161,27 @@ class WeeklyMealResponseAssemblerTest {
                                 1,
                                 2L,
                                 true
+                        ))
+                ))
+        );
+    }
+
+    private WeeklyMealCachePayload payloadWithNullMealMenuId() {
+        return new WeeklyMealCachePayload(
+                1L,
+                10L,
+                LocalDate.of(2026, 4, 20),
+                LocalDate.of(2026, 4, 26),
+                List.of(new WeeklyMealCachePayload.MealScheduleItem(
+                        LocalDate.of(2026, 4, 20),
+                        "LUNCH",
+                        List.of(new WeeklyMealCachePayload.MenuItem(
+                                null,
+                                "Unknown Menu",
+                                "Korean",
+                                1,
+                                2L,
+                                false
                         ))
                 ))
         );
@@ -165,6 +209,15 @@ class WeeklyMealResponseAssemblerTest {
 
     private RiskLevelPolicyResolver defaultRiskResolver() {
         return new RiskLevelPolicyResolver(new MealCrawlProperties());
+    }
+
+    private WeeklyMealResponseAssembler assembler(FakeMealCrawlPersistencePort port) {
+        return new WeeklyMealResponseAssembler(
+                port,
+                new FakeMenuReadCachePort(),
+                new MealCrawlProperties(),
+                defaultRiskResolver()
+        );
     }
 
     private static class FakeMealCrawlPersistencePort implements MealCrawlPersistencePort {
@@ -247,8 +300,22 @@ class WeeklyMealResponseAssemblerTest {
         }
 
         @Override
-        public Set<Long> findMealMenuIdsHavingMatchedAllergies(Long userId, Set<Long> mealMenuIds) {
-            return allergyRiskMealMenuIds;
+        public List<MealMenuAllergyRow> findAllergiesByMealMenuIds(Set<Long> mealMenuIds, String langCode) {
+            return allergyRiskMealMenuIds.stream()
+                    .map(mealMenuId -> new MealMenuAllergyRow(mealMenuId, "PORK", "Pork", null))
+                    .toList();
+        }
+
+        @Override
+        public List<ReligionIngredientMappingRow> findReligionIngredientMappings() {
+            return religionRestrictions.stream()
+                    .map(row -> new ReligionIngredientMappingRow(
+                            row.ingredientCode(),
+                            row.restrictionCode(),
+                            row.ingredientName(),
+                            row.ingredientName()
+                    ))
+                    .toList();
         }
 
         @Override
@@ -281,6 +348,54 @@ class WeeklyMealResponseAssemblerTest {
 
         @Override
         public void saveMenuTranslation(Long menuId, String langCode, String translatedName) {
+        }
+    }
+
+    private static class FakeMenuReadCachePort implements MenuReadCachePort {
+
+        @Override
+        public Optional<WeeklyMealRiskDataCachePayload> findWeeklyMealRiskData(Long cafeteriaId, LocalDate weekStartDate) {
+            return Optional.empty();
+        }
+
+        @Override
+        public void upsertWeeklyMealRiskData(Long cafeteriaId, LocalDate weekStartDate, WeeklyMealRiskDataCachePayload payload, Duration ttl) {
+        }
+
+        @Override
+        public Optional<WeeklyMealI18nCachePayload> findWeeklyMealI18n(Long cafeteriaId, LocalDate weekStartDate, String langCode) {
+            return Optional.empty();
+        }
+
+        @Override
+        public void upsertWeeklyMealI18n(Long cafeteriaId, LocalDate weekStartDate, String langCode, WeeklyMealI18nCachePayload payload, Duration ttl) {
+        }
+
+        @Override
+        public Optional<MenuDetailBaseCachePayload> findMenuDetailBase(Long mealMenuId, String langCode) {
+            return Optional.empty();
+        }
+
+        @Override
+        public void upsertMenuDetailBase(Long mealMenuId, String langCode, MenuDetailBaseCachePayload payload, Duration ttl) {
+        }
+
+        @Override
+        public Optional<MenuDetailRiskDataCachePayload> findMenuDetailRiskData(Long mealMenuId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public void upsertMenuDetailRiskData(Long mealMenuId, MenuDetailRiskDataCachePayload payload, Duration ttl) {
+        }
+
+        @Override
+        public Optional<ReligionIngredientMapCachePayload> findReligionIngredientMap() {
+            return Optional.empty();
+        }
+
+        @Override
+        public void upsertReligionIngredientMap(ReligionIngredientMapCachePayload payload, Duration ttl) {
         }
     }
 }
