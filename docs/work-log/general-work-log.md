@@ -6,6 +6,36 @@
 
 ## 최근 공통 작업
 
+### 2026-07-07 (menu detail religious matching test coverage)
+- What changed:
+  - Added menu detail service test coverage for the current religious matching path based on `findReligionIngredientMappings()` and selected ingredient data.
+- Why:
+  - Guard against regressions where `matchedReligiousIngredients` is no longer built from the mapping-based `buildReligiousMatches()` flow.
+- Affected files:
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - None.
+
+### 2026-07-07 (menu like query lambda cleanup)
+- What changed:
+  - Replaced the explicit `RowCallbackHandler` cast in the menu-like liked-target query with a block lambda.
+- Why:
+  - Resolve the `Set.add()` boolean-return lambda ambiguity without a cast and keep the JDBC callback style consistent with nearby code.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MenuLikePersistenceAdapter.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - None.
+
 ### 2026-07-03 (menu detail DB query consolidation)
 - What changed:
   - Added a selected menu-detail ingredient row query that chooses confirmed ingredients first and falls back to the latest successful AI ingredients in one SQL path.

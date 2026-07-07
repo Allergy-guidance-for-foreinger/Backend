@@ -152,9 +152,9 @@ public class MenuLikePersistenceAdapter implements MenuLikePort {
 
         MapSqlParameterSource params = buildTargetPairParams(targets).addValue("userId", userId);
         Set<MenuLikeTarget> result = new HashSet<>();
-        namedParameterJdbcTemplate.query(sql, params, (org.springframework.jdbc.core.RowCallbackHandler) rs ->
-                result.add(new MenuLikeTarget(rs.getLong("cafeteria_id"), rs.getLong("menu_id")))
-        );
+        namedParameterJdbcTemplate.query(sql, params, rs -> {
+            result.add(new MenuLikeTarget(rs.getLong("cafeteria_id"), rs.getLong("menu_id")));
+        });
         return result;
     }
 

@@ -6,6 +6,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.CurrentUserMealPref
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.ReligionIngredientMappingRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealUserPreferencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MenuLikePort;
@@ -167,8 +168,8 @@ class MenuDetailQueryServiceTest {
                 .thenReturn(List.of(new MealMenuAllergyRow(10L, "PORK", "Pork", null)));
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L, 20L), "ko"))
                 .thenReturn(List.of(new MealMenuAllergyRow(10L, "PORK", "돼지고기", null)));
-        when(persistencePort.findReligiousMatchedIngredientsByMealMenuIds(Set.of(10L, 20L), List.of("HALAL"), "en"))
-                .thenReturn(List.of());
+        when(persistencePort.findReligionIngredientMappings())
+                .thenReturn(List.of(new ReligionIngredientMappingRow("PORK", "HALAL", "할랄", "Halal")));
         when(menuLikePort.countLikesByTargets(Set.of(
                 new MenuLikeTarget(1L, 1L),
                 new MenuLikeTarget(1L, 2L)
@@ -188,7 +189,18 @@ class MenuDetailQueryServiceTest {
         MenuDetailResponse second = response.menus().get(1);
         assertThat(first.matchedAllergies()).hasSize(1);
         assertThat(first.matchedAllergies().get(0).riskLevel()).isEqualTo("DANGER");
+        assertThat(first.matchedReligiousIngredients()).hasSize(1);
+        assertThat(first.matchedReligiousIngredients().getFirst().ingredientCode()).isEqualTo("PORK");
+        assertThat(first.matchedReligiousIngredients().getFirst().ingredientName()).isEqualTo("Pork");
+        assertThat(first.matchedReligiousIngredients().getFirst().matchedReligiousRestrictions()).hasSize(1);
+        assertThat(first.matchedReligiousIngredients().getFirst().matchedReligiousRestrictions().getFirst().religiousRestrictionCode())
+                .isEqualTo("HALAL");
+        assertThat(first.matchedReligiousIngredients().getFirst().matchedReligiousRestrictions().getFirst().religiousRestrictionName())
+                .isEqualTo("Halal");
+        assertThat(first.matchedReligiousIngredients().getFirst().matchedReligiousRestrictions().getFirst().riskLevel())
+                .isEqualTo("DANGER");
         assertThat(second.matchedAllergies()).isEmpty();
+        assertThat(second.matchedReligiousIngredients()).isEmpty();
     }
 
     @Test
