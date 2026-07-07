@@ -239,31 +239,36 @@ public class WeeklyMealResponseAssembler {
         if (DEFAULT_LANGUAGE_CODE.equals(normalizedLanguageCode)) {
             return Map.of();
         }
-        return menuReadCachePort.findWeeklyMealI18n(payload.cafeteriaId(), payload.weekStartDate(), normalizedLanguageCode)
-                .map(WeeklyMealI18nCachePayload::menuNamesByMealMenuId)
-                .orElseGet(() -> {
-                    Map<Long, String> names = mealCrawlPersistencePort.findTranslatedMenuNamesByMealMenuIds(mealMenuIds, normalizedLanguageCode);
-                    if (names == null) {
-                        names = Map.of();
-                    }
-                    menuReadCachePort.upsertWeeklyMealI18n(
-                            payload.cafeteriaId(),
-                            payload.weekStartDate(),
-                            normalizedLanguageCode,
-                            new WeeklyMealI18nCachePayload(names),
-                            readCacheTtl()
-                    );
-                    return names;
-                });
+        // Redis read/write cache is temporarily disabled until the weekly meal query path is optimized first.
+        // return menuReadCachePort.findWeeklyMealI18n(payload.cafeteriaId(), payload.weekStartDate(), normalizedLanguageCode)
+        //         .map(WeeklyMealI18nCachePayload::menuNamesByMealMenuId)
+        //         .orElseGet(() -> {
+        //             Map<Long, String> names = mealCrawlPersistencePort.findTranslatedMenuNamesByMealMenuIds(mealMenuIds, normalizedLanguageCode);
+        //             if (names == null) {
+        //                 names = Map.of();
+        //             }
+        //             menuReadCachePort.upsertWeeklyMealI18n(
+        //                     payload.cafeteriaId(),
+        //                     payload.weekStartDate(),
+        //                     normalizedLanguageCode,
+        //                     new WeeklyMealI18nCachePayload(names),
+        //                     readCacheTtl()
+        //             );
+        //             return names;
+        //         });
+        Map<Long, String> names = mealCrawlPersistencePort.findTranslatedMenuNamesByMealMenuIds(mealMenuIds, normalizedLanguageCode);
+        return names == null ? Map.of() : names;
     }
 
     private WeeklyMealRiskDataCachePayload loadWeeklyRiskData(WeeklyMealCachePayload payload, Set<Long> mealMenuIds) {
-        return menuReadCachePort.findWeeklyMealRiskData(payload.cafeteriaId(), payload.weekStartDate())
-                .orElseGet(() -> {
-                    WeeklyMealRiskDataCachePayload loaded = loadWeeklyRiskDataFromDb(mealMenuIds);
-                    menuReadCachePort.upsertWeeklyMealRiskData(payload.cafeteriaId(), payload.weekStartDate(), loaded, readCacheTtl());
-                    return loaded;
-                });
+        // Redis read/write cache is temporarily disabled until the weekly meal query path is optimized first.
+        // return menuReadCachePort.findWeeklyMealRiskData(payload.cafeteriaId(), payload.weekStartDate())
+        //         .orElseGet(() -> {
+        //             WeeklyMealRiskDataCachePayload loaded = loadWeeklyRiskDataFromDb(mealMenuIds);
+        //             menuReadCachePort.upsertWeeklyMealRiskData(payload.cafeteriaId(), payload.weekStartDate(), loaded, readCacheTtl());
+        //             return loaded;
+        //         });
+        return loadWeeklyRiskDataFromDb(mealMenuIds);
     }
 
     private WeeklyMealRiskDataCachePayload loadWeeklyRiskDataFromDb(Set<Long> mealMenuIds) {
@@ -354,12 +359,14 @@ public class WeeklyMealResponseAssembler {
             return List.of();
         }
         Set<String> selectedCodes = new HashSet<>(religiousCodes);
-        ReligionIngredientMapCachePayload religionMap = menuReadCachePort.findReligionIngredientMap()
-                .orElseGet(() -> {
-                    ReligionIngredientMapCachePayload loaded = loadReligionIngredientMapFromDb();
-                    menuReadCachePort.upsertReligionIngredientMap(loaded, readCacheTtl());
-                    return loaded;
-                });
+        // Redis read/write cache is temporarily disabled until the weekly meal query path is optimized first.
+        // ReligionIngredientMapCachePayload religionMap = menuReadCachePort.findReligionIngredientMap()
+        //         .orElseGet(() -> {
+        //             ReligionIngredientMapCachePayload loaded = loadReligionIngredientMapFromDb();
+        //             menuReadCachePort.upsertReligionIngredientMap(loaded, readCacheTtl());
+        //             return loaded;
+        //         });
+        ReligionIngredientMapCachePayload religionMap = loadReligionIngredientMapFromDb();
         List<RestrictionIngredientRow> rows = new ArrayList<>();
         if (religionMap.restrictionsByIngredientCode() == null) {
             return rows;

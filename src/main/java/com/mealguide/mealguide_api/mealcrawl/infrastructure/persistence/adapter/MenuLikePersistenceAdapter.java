@@ -111,20 +111,22 @@ public class MenuLikePersistenceAdapter implements MenuLikePort {
         }
 
         String sql = """
-                select ml.cafeteria_id, ml.menu_id, count(*) as like_count
-                from menu_like ml
-                where ml.cafeteria_id in (:cafeteriaIds)
-                  and ml.menu_id in (:menuIds)
-                group by ml.cafeteria_id, ml.menu_id
-                """;
+                with targets(cafeteria_id, menu_id) as (
+                    %s
+                )
+                select t.cafeteria_id, t.menu_id, count(ml.id) as like_count
+                from targets t
+                left join menu_like ml
+                  on ml.cafeteria_id = t.cafeteria_id
+                 and ml.menu_id = t.menu_id
+                group by t.cafeteria_id, t.menu_id
+                """.formatted(buildTargetValuesSql(targets));
 
-        MapSqlParameterSource params = buildTargetParams(targets);
+        MapSqlParameterSource params = buildTargetPairParams(targets);
         Map<MenuLikeTarget, Long> result = new HashMap<>();
         namedParameterJdbcTemplate.query(sql, params, rs -> {
             MenuLikeTarget key = new MenuLikeTarget(rs.getLong("cafeteria_id"), rs.getLong("menu_id"));
-            if (targets.contains(key)) {
-                result.put(key, rs.getLong("like_count"));
-            }
+            result.put(key, rs.getLong("like_count"));
         });
         return result;
     }
@@ -137,29 +139,47 @@ public class MenuLikePersistenceAdapter implements MenuLikePort {
         }
 
         String sql = """
-                select ml.cafeteria_id, ml.menu_id
-                from menu_like ml
-                where ml.user_id = :userId
-                  and ml.cafeteria_id in (:cafeteriaIds)
-                  and ml.menu_id in (:menuIds)
-                """;
+                with targets(cafeteria_id, menu_id) as (
+                    %s
+                )
+                select t.cafeteria_id, t.menu_id
+                from targets t
+                join menu_like ml
+                  on ml.cafeteria_id = t.cafeteria_id
+                 and ml.menu_id = t.menu_id
+                 and ml.user_id = :userId
+                """.formatted(buildTargetValuesSql(targets));
 
-        MapSqlParameterSource params = buildTargetParams(targets).addValue("userId", userId);
+        MapSqlParameterSource params = buildTargetPairParams(targets).addValue("userId", userId);
         Set<MenuLikeTarget> result = new HashSet<>();
         namedParameterJdbcTemplate.query(sql, params, rs -> {
-            MenuLikeTarget key = new MenuLikeTarget(rs.getLong("cafeteria_id"), rs.getLong("menu_id"));
-            if (targets.contains(key)) {
-                result.add(key);
-            }
+            result.add(new MenuLikeTarget(rs.getLong("cafeteria_id"), rs.getLong("menu_id")));
         });
         return result;
     }
 
-    private MapSqlParameterSource buildTargetParams(Set<MenuLikeTarget> targets) {
-        List<Long> cafeteriaIds = targets.stream().map(MenuLikeTarget::cafeteriaId).distinct().toList();
-        List<Long> menuIds = targets.stream().map(MenuLikeTarget::menuId).distinct().toList();
-        return new MapSqlParameterSource()
-                .addValue("cafeteriaIds", cafeteriaIds)
-                .addValue("menuIds", menuIds);
+    private String buildTargetValuesSql(Set<MenuLikeTarget> targets) {
+        StringBuilder values = new StringBuilder("values ");
+        int index = 0;
+        for (MenuLikeTarget ignored : targets) {
+            if (index > 0) {
+                values.append(", ");
+            }
+            values.append("(:cafeteriaId").append(index).append(", :menuId").append(index).append(")");
+            index++;
+        }
+        return values.toString();
     }
+
+    private MapSqlParameterSource buildTargetPairParams(Set<MenuLikeTarget> targets) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        int index = 0;
+        for (MenuLikeTarget target : targets) {
+            params.addValue("cafeteriaId" + index, target.cafeteriaId());
+            params.addValue("menuId" + index, target.menuId());
+            index++;
+        }
+        return params;
+    }
+
 }

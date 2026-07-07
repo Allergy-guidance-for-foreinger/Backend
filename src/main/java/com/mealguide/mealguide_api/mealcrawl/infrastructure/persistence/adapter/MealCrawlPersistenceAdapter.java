@@ -7,6 +7,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuMatchedAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuReligiousMatchRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.IngredientTranslationTarget;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.NamedIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.ReligionIngredientMappingRow;
@@ -637,6 +638,85 @@ public class MealCrawlPersistenceAdapter implements MealCrawlPersistencePort {
                 rs.getLong("meal_menu_id"),
                 rs.getString("ingredient_code"),
                 rs.getString("ingredient_name")
+        ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MenuDetailIngredientRow> findSelectedIngredientsForMenuDetails(Set<Long> mealMenuIds, String langCode) {
+        if (mealMenuIds == null || mealMenuIds.isEmpty()) {
+            return List.of();
+        }
+
+        String sql = """
+                with target_meal_menu as (
+                    select mm.id as meal_menu_id, mm.menu_id
+                    from meal_menu mm
+                    where mm.id in (:mealMenuIds)
+                ),
+                confirmed_menu as (
+                    select distinct mmci.meal_menu_id
+                    from meal_menu_confirmed_ingredient mmci
+                    where mmci.meal_menu_id in (:mealMenuIds)
+                ),
+                latest_analysis_id as (
+                    select id, menu_id
+                    from (
+                        select maa.id,
+                               maa.menu_id,
+                               row_number() over (
+                                   partition by maa.menu_id
+                                   order by coalesce(maa.analyzed_at, maa.created_at) desc, maa.id desc
+                               ) as rn
+                        from menu_ai_analysis maa
+                        join target_meal_menu tmm on tmm.menu_id = maa.menu_id
+                        where maa.status = 'SUCCESS'
+                    ) ranked
+                    where ranked.rn = 1
+                ),
+                selected_ingredients as (
+                    select mmci.meal_menu_id,
+                           mmci.ingredient_code,
+                           cast(null as numeric(5,2)) as confidence,
+                           'CONFIRMED' as source
+                    from meal_menu_confirmed_ingredient mmci
+                    where mmci.meal_menu_id in (:mealMenuIds)
+                    union all
+                    select tmm.meal_menu_id,
+                           mai.ingredient_code,
+                           mai.confidence,
+                           'AI' as source
+                    from target_meal_menu tmm
+                    join latest_analysis_id lai on lai.menu_id = tmm.menu_id
+                    join menu_ai_analysis_ingredient mai on mai.menu_ai_analysis_id = lai.id
+                    where not exists (
+                        select 1
+                        from confirmed_menu cm
+                        where cm.meal_menu_id = tmm.meal_menu_id
+                    )
+                )
+                select si.meal_menu_id,
+                       si.ingredient_code,
+                       coalesce(it.name, i.name) as ingredient_name,
+                       si.source,
+                       si.confidence
+                from selected_ingredients si
+                join ingredient i on i.code = si.ingredient_code
+                left join ingredient_translation it
+                  on it.ingredient_code = i.code
+                 and it.lang_code = :langCode
+                order by si.meal_menu_id, si.ingredient_code
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("mealMenuIds", mealMenuIds)
+                .addValue("langCode", normalizeLanguageCode(langCode));
+        return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MenuDetailIngredientRow(
+                rs.getLong("meal_menu_id"),
+                rs.getString("ingredient_code"),
+                rs.getString("ingredient_name"),
+                rs.getString("source"),
+                rs.getBigDecimal("confidence")
         ));
     }
 

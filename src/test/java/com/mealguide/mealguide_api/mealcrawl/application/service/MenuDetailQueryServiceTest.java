@@ -4,8 +4,9 @@ import com.mealguide.mealguide_api.global.base.exception.ErrorCode;
 import com.mealguide.mealguide_api.global.base.exception.ServiceException;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.CurrentUserMealPreference;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuAllergyRow;
-import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuIngredientRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.ReligionIngredientMappingRow;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealCrawlPersistencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MealUserPreferencePort;
 import com.mealguide.mealguide_api.mealcrawl.application.port.MenuLikePort;
@@ -23,8 +24,6 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anySet;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -87,12 +86,11 @@ class MenuDetailQueryServiceTest {
                 .thenReturn(java.util.Map.of(10L, "Menu-10-en", 20L, "Menu-20-en"));
         when(persistencePort.findMenuDescriptionsByMealMenuIds(Set.of(20L, 10L), "en"))
                 .thenReturn(java.util.Map.of(20L, "Menu-20 description"));
-        when(persistencePort.findConfirmedIngredientsForMenuDetails(Set.of(20L, 10L), "en"))
+        when(persistencePort.findSelectedIngredientsForMenuDetails(Set.of(20L, 10L), "en"))
                 .thenReturn(List.of(
-                        new MealMenuIngredientRow(10L, "PORK", "Pork"),
-                        new MealMenuIngredientRow(20L, "RICE", "Rice")
+                        new MenuDetailIngredientRow(10L, "PORK", "Pork", "CONFIRMED", null),
+                        new MenuDetailIngredientRow(20L, "RICE", "Rice", "CONFIRMED", null)
                 ));
-        when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("en"))).thenReturn(List.of());
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(20L, 10L), "en"))
                 .thenReturn(List.of(new MealMenuAllergyRow(10L, "PORK", "Pork", null)));
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(20L, 10L), "ko"))
@@ -161,18 +159,17 @@ class MenuDetailQueryServiceTest {
                 new MenuDetailRow(20L, 1L, 2L, "Menu-20", "B", 2, 2L, "SUCCESS", 100L)
         ));
         when(persistencePort.findTranslatedMenuNamesByMealMenuIds(Set.of(10L, 20L), "en")).thenReturn(java.util.Map.of());
-        when(persistencePort.findConfirmedIngredientsForMenuDetails(Set.of(10L, 20L), "en"))
+        when(persistencePort.findSelectedIngredientsForMenuDetails(Set.of(10L, 20L), "en"))
                 .thenReturn(List.of(
-                        new MealMenuIngredientRow(10L, "PORK", "Pork"),
-                        new MealMenuIngredientRow(20L, "RICE", "Rice")
+                        new MenuDetailIngredientRow(10L, "PORK", "Pork", "CONFIRMED", null),
+                        new MenuDetailIngredientRow(20L, "RICE", "Rice", "CONFIRMED", null)
                 ));
-        when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("en"))).thenReturn(List.of());
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L, 20L), "en"))
                 .thenReturn(List.of(new MealMenuAllergyRow(10L, "PORK", "Pork", null)));
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L, 20L), "ko"))
                 .thenReturn(List.of(new MealMenuAllergyRow(10L, "PORK", "돼지고기", null)));
-        when(persistencePort.findReligiousMatchedIngredientsByMealMenuIds(Set.of(10L, 20L), List.of("HALAL"), "en"))
-                .thenReturn(List.of());
+        when(persistencePort.findReligionIngredientMappings())
+                .thenReturn(List.of(new ReligionIngredientMappingRow("PORK", "HALAL", "할랄", "Halal")));
         when(menuLikePort.countLikesByTargets(Set.of(
                 new MenuLikeTarget(1L, 1L),
                 new MenuLikeTarget(1L, 2L)
@@ -192,7 +189,18 @@ class MenuDetailQueryServiceTest {
         MenuDetailResponse second = response.menus().get(1);
         assertThat(first.matchedAllergies()).hasSize(1);
         assertThat(first.matchedAllergies().get(0).riskLevel()).isEqualTo("DANGER");
+        assertThat(first.matchedReligiousIngredients()).hasSize(1);
+        assertThat(first.matchedReligiousIngredients().getFirst().ingredientCode()).isEqualTo("PORK");
+        assertThat(first.matchedReligiousIngredients().getFirst().ingredientName()).isEqualTo("Pork");
+        assertThat(first.matchedReligiousIngredients().getFirst().matchedReligiousRestrictions()).hasSize(1);
+        assertThat(first.matchedReligiousIngredients().getFirst().matchedReligiousRestrictions().getFirst().religiousRestrictionCode())
+                .isEqualTo("HALAL");
+        assertThat(first.matchedReligiousIngredients().getFirst().matchedReligiousRestrictions().getFirst().religiousRestrictionName())
+                .isEqualTo("Halal");
+        assertThat(first.matchedReligiousIngredients().getFirst().matchedReligiousRestrictions().getFirst().riskLevel())
+                .isEqualTo("DANGER");
         assertThat(second.matchedAllergies()).isEmpty();
+        assertThat(second.matchedReligiousIngredients()).isEmpty();
     }
 
     @Test
@@ -214,9 +222,8 @@ class MenuDetailQueryServiceTest {
                 .thenReturn(java.util.Map.of(10L, "Menu-10-en"));
         when(persistencePort.findMenuDescriptionsByMealMenuIds(Set.of(10L), "en"))
                 .thenReturn(java.util.Map.of(10L, "English description"));
-        when(persistencePort.findConfirmedIngredientsForMenuDetails(Set.of(10L), "en"))
-                .thenReturn(List.of(new MealMenuIngredientRow(10L, "RICE", "Rice")));
-        when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("en"))).thenReturn(List.of());
+        when(persistencePort.findSelectedIngredientsForMenuDetails(Set.of(10L), "en"))
+                .thenReturn(List.of(new MenuDetailIngredientRow(10L, "RICE", "Rice", "CONFIRMED", null)));
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L), "en")).thenReturn(List.of());
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L), "ko")).thenReturn(List.of());
         when(persistencePort.findReligiousMatchedIngredientsByMealMenuIds(Set.of(10L), List.of("HALAL"), "en")).thenReturn(List.of());
@@ -255,12 +262,8 @@ class MenuDetailQueryServiceTest {
         ));
         when(persistencePort.findTranslatedMenuNamesByMealMenuIds(Set.of(10L), "en")).thenReturn(java.util.Map.of());
         when(persistencePort.findMenuDescriptionsByMealMenuIds(Set.of(10L), "en")).thenReturn(java.util.Map.of());
-        when(persistencePort.findConfirmedIngredientsForMenuDetails(Set.of(10L), "en"))
-                .thenReturn(List.of(new MealMenuIngredientRow(10L, "PORK", "Pork")));
-        when(persistencePort.findConfirmedIngredientsForMenuDetails(Set.of(10L), "ko"))
-                .thenReturn(List.of(new MealMenuIngredientRow(10L, "PORK", "돼지고기")));
-        when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("en"))).thenReturn(List.of());
-        when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("ko"))).thenReturn(List.of());
+        when(persistencePort.findSelectedIngredientsForMenuDetails(Set.of(10L), "en"))
+                .thenReturn(List.of(new MenuDetailIngredientRow(10L, "PORK", "Pork", "CONFIRMED", null)));
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L), "en"))
                 .thenReturn(List.of(new MealMenuAllergyRow(10L, null, "Unknown", null)));
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L), "ko"))
@@ -293,12 +296,8 @@ class MenuDetailQueryServiceTest {
         ));
         when(persistencePort.findTranslatedMenuNamesByMealMenuIds(Set.of(10L), "en")).thenReturn(java.util.Map.of());
         when(persistencePort.findMenuDescriptionsByMealMenuIds(Set.of(10L), "en")).thenReturn(java.util.Map.of());
-        when(persistencePort.findConfirmedIngredientsForMenuDetails(Set.of(10L), "en"))
-                .thenReturn(List.of(new MealMenuIngredientRow(10L, null, "Unknown")));
-        when(persistencePort.findConfirmedIngredientsForMenuDetails(Set.of(10L), "ko"))
-                .thenReturn(List.of(new MealMenuIngredientRow(10L, null, "알 수 없음")));
-        when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("en"))).thenReturn(List.of());
-        when(persistencePort.findAiIngredientsForMenuDetails(anySet(), eq("ko"))).thenReturn(List.of());
+        when(persistencePort.findSelectedIngredientsForMenuDetails(Set.of(10L), "en"))
+                .thenReturn(List.of(new MenuDetailIngredientRow(10L, null, "Unknown", "CONFIRMED", null)));
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L), "en")).thenReturn(List.of());
         when(persistencePort.findAllergiesByMealMenuIds(Set.of(10L), "ko")).thenReturn(List.of());
         when(menuLikePort.countLikesByTargets(Set.of(new MenuLikeTarget(1L, 1L)))).thenReturn(java.util.Map.of());

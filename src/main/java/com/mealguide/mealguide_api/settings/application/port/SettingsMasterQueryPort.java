@@ -22,6 +22,8 @@ public interface SettingsMasterQueryPort {
 
     boolean existsReligiousCode(String religiousCode);
 
+    boolean existsAllReligiousCodes(Set<String> religiousCodes);
+
     List<CountryOption> findCountries();
 
     boolean existsCountryCode(String countryCode);
