@@ -38,8 +38,10 @@ public class WeeklyMealQueryService {
         validateCafeteriaBelongsToSchool(cafeteriaId, schoolId);
 
         String redisKey = weeklyMealCachePort.createWeeklyMealCacheKey(schoolId, cafeteriaId, normalizedWeekStartDate);
-        WeeklyMealCachePayload payload = loadPayloadFromCache(userId, schoolId, cafeteriaId, normalizedWeekStartDate, redisKey)
-                .orElseGet(() -> loadPayloadFromDbFallback(userId, schoolId, cafeteriaId, normalizedWeekStartDate, redisKey));
+        // Redis read cache is temporarily disabled until the weekly meal query path is optimized first.
+        // WeeklyMealCachePayload payload = loadPayloadFromCache(userId, schoolId, cafeteriaId, normalizedWeekStartDate, redisKey)
+        //         .orElseGet(() -> loadPayloadFromDbFallback(userId, schoolId, cafeteriaId, normalizedWeekStartDate, redisKey));
+        WeeklyMealCachePayload payload = loadPayloadFromDbFallback(userId, schoolId, cafeteriaId, normalizedWeekStartDate, redisKey);
         Map<Long, String> translatedMenuNames = resolveTranslatedMenuNames(payload, preference.languageCode());
 
         log.debug(
@@ -121,14 +123,15 @@ public class WeeklyMealQueryService {
                 userId, schoolId, cafeteriaId, weekStartDate, redisKey
         );
         WeeklyMealCachePayload payload = weeklyMealCacheRefreshService.loadWeeklyMealCachePayloadFromDb(schoolId, cafeteriaId, weekStartDate);
-        try {
-            weeklyMealCacheRefreshService.upsertWeeklyMealCachePayload(payload);
-        } catch (Exception exception) {
-            log.warn(
-                    "Weekly meal cache write failed during DB fallback: userId={}, schoolId={}, cafeteriaId={}, weekStartDate={}, redisKey={}",
-                    userId, schoolId, cafeteriaId, weekStartDate, redisKey, exception
-            );
-        }
+        // Redis write cache is temporarily disabled until the weekly meal query path is optimized first.
+        // try {
+        //     weeklyMealCacheRefreshService.upsertWeeklyMealCachePayload(payload);
+        // } catch (Exception exception) {
+        //     log.warn(
+        //             "Weekly meal cache write failed during DB fallback: userId={}, schoolId={}, cafeteriaId={}, weekStartDate={}, redisKey={}",
+        //             userId, schoolId, cafeteriaId, weekStartDate, redisKey, exception
+        //     );
+        // }
         return payload;
     }
 

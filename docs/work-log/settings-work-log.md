@@ -266,3 +266,25 @@
   - `UserPreferenceService` now replaces multi religious codes via persistence port.
   - Added persistence queries for `user_religious_food_restriction` read/replace.
   - Fixed country option localization fallback for invalid country code (`XXX` -> stored DB name fallback).
+
+### 2026-07-01 (settings religious code validation query optimization)
+- What changed:
+  - Changed religious restriction code validation in `UserPreferenceService.updateReligion` from per-code `existsByCode` checks to one bulk `countByCodeIn` check.
+  - Added `existsAllReligiousCodes(Set<String>)` to `SettingsMasterQueryPort`.
+  - Added `countByCodeIn(Set<String>)` to `ReligiousFoodRestrictionJpaRepository`.
+  - Updated `SettingsMasterPersistenceAdapter` and `UserPreferenceServiceTest` fake port implementation.
+- Why:
+  - Reduce validation query count for religious multi-select updates from N queries to 1 query without introducing caching or changing API behavior.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/settings/application/port/SettingsMasterQueryPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceService.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/adapter/SettingsMasterPersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/settings/infrastructure/persistence/repository/ReligiousFoodRestrictionJpaRepository.java`
+  - `src/test/java/com/mealguide/mealguide_api/settings/application/service/UserPreferenceServiceTest.java`
+  - `docs/work-log/settings-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/settings-work-log.md`
+- Remaining follow-ups:
+  - Consider master option caching later if option API read load becomes a bottleneck.

@@ -6,6 +6,78 @@
 
 ## 최근 공통 작업
 
+### 2026-07-03 (menu detail DB query consolidation)
+- What changed:
+  - Added a selected menu-detail ingredient row query that chooses confirmed ingredients first and falls back to the latest successful AI ingredients in one SQL path.
+  - Changed menu detail assembly to load base response data and risk data from one DB read bundle instead of separately reloading ingredients/allergies for base and risk.
+  - Reused the same per-request religion ingredient mapping when building matched religious ingredients.
+  - Changed menu-like and review-count batch aggregations from independent `cafeteria_id in (...)` / `menu_id in (...)` filters to exact target-pair CTE joins.
+- Why:
+  - Reduce menu detail DB round trips and repeated latest-AI-analysis scans before reintroducing Redis cache.
+  - Avoid over-broad like/review aggregation scans when multiple `(cafeteria_id, menu_id)` targets are requested together.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/dto/MenuDetailIngredientRow.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/port/MealCrawlPersistencePort.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MealCrawlPersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/infrastructure/persistence/adapter/MenuLikePersistenceAdapter.java`
+  - `src/main/java/com/mealguide/mealguide_api/review/infrastructure/persistence/adapter/MenuReviewPersistenceAdapter.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No intended response contract change.
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Run the same no-cache load scenario and compare SQL count, Hikari acquire/usage time, pending connections, and p95/p99 latency.
+  - Apply the same DB-first review to weekly meal risk/i18n lookup before deciding whether to re-enable Redis read cache.
+
+### 2026-07-01 (review read query consolidation)
+- What changed:
+  - Moved review-list `likedByMe` resolution into the review page SQL by joining `menu_review_like` for the current user.
+  - Moved review-list writer anonymous number resolution into the review page SQL by joining `menu_review_anonymous_participant`.
+  - Moved comment-list writer anonymous number resolution into the comment page SQL by joining `menu_review_anonymous_participant`.
+  - Added `likedByMe` and `anonymousNo` fields to review/comment row DTOs used inside the application layer.
+  - Removed the now-unused `findLikedReviewIds` port/adapter method.
+- Why:
+  - Reduce DB round trips in review read APIs without adding caching, changing API responses, or changing the DB schema.
+  - Review list query count is reduced from target + count + page + liked IDs + anonymous names to target + count + page.
+  - Comment list query count is reduced from review + page + anonymous names + count to review + count + page.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/review/application/dto/MenuReviewRow.java`
+  - `src/main/java/com/mealguide/mealguide_api/review/application/dto/MenuReviewCommentRow.java`
+  - `src/main/java/com/mealguide/mealguide_api/review/application/port/MenuReviewPort.java`
+  - `src/main/java/com/mealguide/mealguide_api/review/application/service/MenuReviewService.java`
+  - `src/main/java/com/mealguide/mealguide_api/review/infrastructure/persistence/adapter/MenuReviewPersistenceAdapter.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuReviewServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Review like/comment write paths still have affected-row count consistency improvements available as a separate task.
+
+### 2026-06-12 (weekly/menu detail Redis read cache temporarily disabled)
+- What changed:
+  - Temporarily disabled Redis cache reads/writes in weekly meal lookup, weekly response risk/i18n assembly, and menu detail base/risk/religion mapping lookup by commenting out the cache call blocks.
+  - Weekly meal and menu detail APIs now use the DB fallback/query path directly while keeping the cache ports/adapters/DTOs in place for later re-enable.
+  - Updated focused service tests to assert the cache-disabled DB fallback behavior.
+- Why:
+  - Query optimization should be completed and verified before relying on Redis caching for weekly meal and menu detail read performance.
+- Affected files:
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealQueryService.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealResponseAssembler.java`
+  - `src/main/java/com/mealguide/mealguide_api/mealcrawl/application/service/MenuDetailQueryService.java`
+  - `src/test/java/com/mealguide/mealguide_api/mealcrawl/application/service/WeeklyMealQueryServiceTest.java`
+  - `docs/work-log/general-work-log.md`
+- DB schema changed: No
+- API behavior changed: No intended response contract change; only Redis cache usage is bypassed.
+- Related docs updated:
+  - `docs/work-log/general-work-log.md`
+- Remaining follow-ups:
+  - Optimize and load-test weekly meal/menu detail DB queries before re-enabling the Redis read cache.
+
 ### 2026-06-10 (menu detail null allergy code guard)
 - What changed:
   - Changed menu detail matched-allergy assembly to use a null-safe empty user allergy set when the user has no allergy settings.

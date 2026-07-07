@@ -77,6 +77,7 @@ class UserPreferenceServiceTest {
         @Override public boolean existsAllAllergyCodes(Set<String> allergyCodes) { return this.allergyCodes.containsAll(allergyCodes); }
         @Override public List<ReligiousRestrictionOption> findReligiousRestrictions(String langCode) { return List.of(); }
         @Override public boolean existsReligiousCode(String religiousCode) { return religiousCodes.contains(religiousCode); }
+        @Override public boolean existsAllReligiousCodes(Set<String> religiousCodes) { return this.religiousCodes.containsAll(religiousCodes); }
         @Override public List<CountryOption> findCountries() { return List.of(); }
         @Override public boolean existsCountryCode(String countryCode) { return countryCodes.contains(countryCode); }
         @Override public List<SchoolOption> findSchools(String langCode) { return List.of(); }

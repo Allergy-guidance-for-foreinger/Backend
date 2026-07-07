@@ -5,6 +5,7 @@ import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuMatchedAllergyRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MealMenuReligiousMatchRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.IngredientTranslationTarget;
+import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.MenuDetailRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.NamedIngredientRow;
 import com.mealguide.mealguide_api.mealcrawl.application.dto.RestrictionIngredientRow;
@@ -92,6 +93,10 @@ public interface MealCrawlPersistencePort {
     }
 
     default List<MealMenuIngredientRow> findAiIngredientsForMenuDetails(Set<Long> mealMenuIds, String langCode) {
+        return List.of();
+    }
+
+    default List<MenuDetailIngredientRow> findSelectedIngredientsForMenuDetails(Set<Long> mealMenuIds, String langCode) {
         return List.of();
     }
 

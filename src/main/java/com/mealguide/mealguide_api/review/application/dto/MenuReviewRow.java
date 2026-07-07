@@ -15,6 +15,8 @@ public record MenuReviewRow(
         String content,
         long likeCount,
         long commentCount,
+        boolean likedByMe,
+        Long anonymousNo,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
