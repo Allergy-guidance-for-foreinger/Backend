@@ -76,8 +76,10 @@ public class UserPreferenceService {
     @Transactional
     public List<String> updateReligion(Long userId, List<String> religiousCodes) {
         List<String> normalizedReligiousCodes = normalizeReligiousCodes(religiousCodes);
-        if (!settingsMasterQueryPort.existsAllReligiousCodes(Set.copyOf(normalizedReligiousCodes))) {
-            throw new ServiceException(ErrorCode.INVALID_RELIGIOUS_CODE);
+        for (String religiousCode : normalizedReligiousCodes) {
+            if (!settingsMasterQueryPort.existsReligiousCode(religiousCode)) {
+                throw new ServiceException(ErrorCode.INVALID_RELIGIOUS_CODE);
+            }
         }
 
         findUser(userId);

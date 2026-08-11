@@ -30,7 +30,9 @@ public interface MenuReviewPort {
 
     Map<Long, String> findAnonymousNamesByMenuTargetAndUserIds(Long cafeteriaId, Long menuId, Set<Long> userIds);
 
-    List<MenuReviewRow> findReviewPage(Long userId, Long cafeteriaId, Long menuId, int page, int size);
+    List<MenuReviewRow> findReviewPage(Long cafeteriaId, Long menuId, int page, int size);
+
+    Set<Long> findLikedReviewIds(Long userId, List<Long> reviewIds);
 
     boolean existsReviewLike(Long reviewId, Long userId);
 
@@ -44,7 +46,7 @@ public interface MenuReviewPort {
 
     Optional<Long> findReviewLikeCount(Long reviewId);
 
-    List<MenuReviewCommentRow> findCommentPage(Long reviewId, Long cafeteriaId, Long menuId, int page, int size);
+    List<MenuReviewCommentRow> findCommentPage(Long reviewId, int page, int size);
 
     long countActiveComments(Long reviewId);
 

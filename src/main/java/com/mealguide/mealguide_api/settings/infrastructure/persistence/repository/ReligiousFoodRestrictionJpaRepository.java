@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Set;
 
 public interface ReligiousFoodRestrictionJpaRepository extends JpaRepository<ReligiousFoodRestriction, String> {
 
@@ -25,7 +24,5 @@ public interface ReligiousFoodRestrictionJpaRepository extends JpaRepository<Rel
     List<ReligiousRestrictionOption> findReligiousRestrictionOptions(@Param("langCode") String langCode);
 
     boolean existsByCode(String code);
-
-    long countByCodeIn(Set<String> codes);
 }
 

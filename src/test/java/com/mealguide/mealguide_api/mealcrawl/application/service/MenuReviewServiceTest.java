@@ -7,7 +7,6 @@ import com.mealguide.mealguide_api.review.application.dto.MenuReviewTargetRow;
 import com.mealguide.mealguide_api.review.application.port.MenuReviewPort;
 import com.mealguide.mealguide_api.review.application.service.MenuReviewService;
 import com.mealguide.mealguide_api.review.presentation.dto.response.MenuReviewListResponse;
-import com.mealguide.mealguide_api.review.presentation.dto.response.ReviewCommentListResponse;
 import com.mealguide.mealguide_api.review.presentation.dto.response.ReviewLikeToggleResponse;
 import org.junit.jupiter.api.Test;
 
@@ -52,10 +51,13 @@ class MenuReviewServiceTest {
         MenuReviewService service = new MenuReviewService(port);
         when(port.findTargetByMealMenuId(10L)).thenReturn(Optional.of(new MenuReviewTargetRow(10L, 1L, 25L, LocalDate.now())));
         when(port.countActiveReviews(1L, 25L)).thenReturn(2L);
-        when(port.findReviewPage(1L, 1L, 25L, 0, 20)).thenReturn(List.of(
-                reviewRow(101L, 2L, 1L, 25L, "a", 3, 1, true, 1L),
-                reviewRow(100L, 3L, 1L, 25L, "b", 1, 0, false, 2L)
+        when(port.findAnonymousNamesByMenuTargetAndUserIds(1L, 25L, Set.of(2L, 3L)))
+                .thenReturn(java.util.Map.of(2L, "Anonymous 1", 3L, "Anonymous 2"));
+        when(port.findReviewPage(1L, 25L, 0, 20)).thenReturn(List.of(
+                reviewRow(101L, 2L, 1L, 25L, "a", 3, 1),
+                reviewRow(100L, 3L, 1L, 25L, "b", 1, 0)
         ));
+        when(port.findLikedReviewIds(1L, List.of(101L, 100L))).thenReturn(Set.of(101L));
 
         MenuReviewListResponse response = service.getReviews(1L, 10L, 0, 20);
 
@@ -74,10 +76,13 @@ class MenuReviewServiceTest {
         MenuReviewService service = new MenuReviewService(port);
         when(port.findTargetByMealMenuId(10L)).thenReturn(Optional.of(new MenuReviewTargetRow(10L, 1L, 25L, LocalDate.now())));
         when(port.countActiveReviews(1L, 25L)).thenReturn(2L);
-        when(port.findReviewPage(1L, 1L, 25L, 0, 20)).thenReturn(List.of(
-                reviewRow(101L, 2L, 1L, 25L, "active", 0, 0, false, 1L),
+        when(port.findAnonymousNamesByMenuTargetAndUserIds(1L, 25L, Set.of(2L)))
+                .thenReturn(java.util.Map.of(2L, "Anonymous 1"));
+        when(port.findReviewPage(1L, 25L, 0, 20)).thenReturn(List.of(
+                reviewRow(101L, 2L, 1L, 25L, "active", 0, 0),
                 deletedReviewRow(100L, 1L, 25L, "deleted")
         ));
+        when(port.findLikedReviewIds(1L, List.of(101L, 100L))).thenReturn(Set.of());
 
         MenuReviewListResponse response = service.getReviews(1L, 10L, 0, 20);
 
@@ -127,7 +132,7 @@ class MenuReviewServiceTest {
                 .thenReturn(java.util.Map.of(1L, "Anonymous 1"));
         when(port.saveComment(10L, 1L, "hello")).thenReturn(5L);
         when(port.findActiveCommentById(5L)).thenReturn(Optional.of(new MenuReviewCommentRow(
-                5L, 10L, 1L, "writer", false, null, "hello", LocalDateTime.now(), LocalDateTime.now()
+                5L, 10L, 1L, "writer", false, "hello", LocalDateTime.now(), LocalDateTime.now()
         )));
 
         service.createComment(1L, 10L, "hello");
@@ -135,48 +140,13 @@ class MenuReviewServiceTest {
         verify(port).incrementReviewCommentCount(10L);
 
         when(port.findActiveCommentById(5L)).thenReturn(Optional.of(new MenuReviewCommentRow(
-                5L, 10L, 1L, "writer", false, null, "hello", LocalDateTime.now(), LocalDateTime.now()
+                5L, 10L, 1L, "writer", false, "hello", LocalDateTime.now(), LocalDateTime.now()
         )));
         service.deleteComment(1L, 10L, 5L);
         verify(port).decrementReviewCommentCount(10L);
     }
 
-    @Test
-    void commentListUsesAnonymousNumberFromPageRows() {
-        MenuReviewPort port = mock(MenuReviewPort.class);
-        MenuReviewService service = new MenuReviewService(port);
-        when(port.findActiveReviewById(10L)).thenReturn(Optional.of(reviewRow(10L, 2L, 1L, 25L, "c", 0, 2)));
-        when(port.findCommentPage(10L, 1L, 25L, 0, 20)).thenReturn(List.of(
-                new MenuReviewCommentRow(5L, 10L, 1L, null, false, 1L, "hello", LocalDateTime.now(), LocalDateTime.now()),
-                new MenuReviewCommentRow(6L, 10L, null, null, true, null, "withdrawn", LocalDateTime.now(), LocalDateTime.now())
-        ));
-        when(port.countActiveComments(10L)).thenReturn(2L);
-
-        ReviewCommentListResponse response = service.getComments(1L, 10L, 0, 20);
-
-        assertThat(response.comments()).hasSize(2);
-        assertThat(response.comments().get(0).writerName()).isEqualTo("Anonymous 1");
-        assertThat(response.comments().get(0).mine()).isTrue();
-        assertThat(response.comments().get(1).writerName()).isEqualTo("Deleted user");
-        assertThat(response.comments().get(1).mine()).isFalse();
-        verify(port).findCommentPage(10L, 1L, 25L, 0, 20);
-    }
-
     private MenuReviewRow reviewRow(Long reviewId, Long userId, Long cafeteriaId, Long menuId, String content, long like, long comment) {
-        return reviewRow(reviewId, userId, cafeteriaId, menuId, content, like, comment, false, null);
-    }
-
-    private MenuReviewRow reviewRow(
-            Long reviewId,
-            Long userId,
-            Long cafeteriaId,
-            Long menuId,
-            String content,
-            long like,
-            long comment,
-            boolean likedByMe,
-            Long anonymousNo
-    ) {
         return new MenuReviewRow(
                 reviewId,
                 userId,
@@ -189,8 +159,6 @@ class MenuReviewServiceTest {
                 content,
                 like,
                 comment,
-                likedByMe,
-                anonymousNo,
                 LocalDateTime.now(),
                 LocalDateTime.now()
         );
@@ -209,8 +177,6 @@ class MenuReviewServiceTest {
                 content,
                 0,
                 0,
-                false,
-                null,
                 LocalDateTime.now(),
                 LocalDateTime.now()
         );

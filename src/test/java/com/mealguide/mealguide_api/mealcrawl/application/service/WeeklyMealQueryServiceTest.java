@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -25,7 +26,7 @@ import static org.mockito.Mockito.when;
 class WeeklyMealQueryServiceTest {
 
     @Test
-    void redisCacheDisabledUsesDbFallbackEvenWhenCachedPayloadExists() throws Exception {
+    void cacheHitUsesCachedPayload() throws Exception {
         MealUserPreferencePort preferencePort = mock(MealUserPreferencePort.class);
         MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
         WeeklyMealCachePort cachePort = mock(WeeklyMealCachePort.class);
@@ -41,8 +42,6 @@ class WeeklyMealQueryServiceTest {
         String serialized = createObjectMapper().writeValueAsString(payload);
         when(cachePort.findWeeklyMealCache(100L, 10L, LocalDate.of(2026, 4, 20)))
                 .thenReturn(Optional.of(serialized));
-        when(cacheRefreshService.loadWeeklyMealCachePayloadFromDb(100L, 10L, LocalDate.of(2026, 4, 20)))
-                .thenReturn(payload);
         when(assembler.resolveTranslatedMenuNames(payload, samplePreference().languageCode()))
                 .thenReturn(Map.of());
         when(assembler.assemble(payload, samplePreference(), Map.of()))
@@ -60,11 +59,11 @@ class WeeklyMealQueryServiceTest {
         WeeklyMealResponse response = service.getWeeklyMeals(1L, 10L, LocalDate.of(2026, 4, 20));
 
         assertThat(response.mealSchedules().get(0).menus().get(0).mealMenuId()).isEqualTo(11L);
-        verify(cacheRefreshService).loadWeeklyMealCachePayloadFromDb(100L, 10L, LocalDate.of(2026, 4, 20));
+        verify(cacheRefreshService, never()).loadWeeklyMealCachePayloadFromDb(any(), any(), any());
     }
 
     @Test
-    void redisCacheDisabledUsesDbFallbackWithoutUpsert() throws Exception {
+    void cacheMissUsesDbFallbackAndUpsert() throws Exception {
         MealUserPreferencePort preferencePort = mock(MealUserPreferencePort.class);
         MealCrawlPersistencePort persistencePort = mock(MealCrawlPersistencePort.class);
         WeeklyMealCachePort cachePort = mock(WeeklyMealCachePort.class);
@@ -99,9 +98,7 @@ class WeeklyMealQueryServiceTest {
 
         assertThat(response.mealSchedules().get(0).menus().get(0).mealMenuId()).isEqualTo(11L);
         verify(cacheRefreshService).loadWeeklyMealCachePayloadFromDb(100L, 10L, LocalDate.of(2026, 4, 20));
-        verify(cachePort).createWeeklyMealCacheKey(100L, 10L, LocalDate.of(2026, 4, 20));
-        verify(cachePort, never()).findWeeklyMealCache(100L, 10L, LocalDate.of(2026, 4, 20));
-        verify(cacheRefreshService, never()).upsertWeeklyMealCachePayload(payload);
+        verify(cacheRefreshService).upsertWeeklyMealCachePayload(payload);
     }
 
     @Test
@@ -142,6 +139,7 @@ class WeeklyMealQueryServiceTest {
         service.getWeeklyMeals(1L, 10L, requestedDate);
 
         verify(cachePort).createWeeklyMealCacheKey(100L, 10L, normalizedMonday);
+        verify(cachePort).findWeeklyMealCache(100L, 10L, normalizedMonday);
         verify(cacheRefreshService).loadWeeklyMealCachePayloadFromDb(100L, 10L, normalizedMonday);
     }
 
@@ -163,8 +161,6 @@ class WeeklyMealQueryServiceTest {
                 .thenReturn("meal:weekly:100:10:2026-04-20");
         when(cachePort.findWeeklyMealCache(100L, 10L, weekStartDate))
                 .thenReturn(Optional.of(serialized));
-        when(cacheRefreshService.loadWeeklyMealCachePayloadFromDb(100L, 10L, weekStartDate))
-                .thenReturn(payload);
         when(assembler.resolveTranslatedMenuNames(payload, samplePreference().languageCode()))
                 .thenReturn(Map.of(11L, "Kimchi Stew EN"));
         when(assembler.assemble(payload, samplePreference(), Map.of(11L, "Kimchi Stew EN")))
