@@ -19,9 +19,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
 import java.util.Set;
 
 @Service
@@ -46,22 +46,23 @@ public class MenuReviewService {
                 .orElseThrow(() -> new ServiceException(ErrorCode.MEAL_MENU_NOT_FOUND));
 
         long total = menuReviewPort.countActiveReviews(target.cafeteriaId(), target.menuId());
-        List<MenuReviewRow> rows = menuReviewPort.findReviewPage(
-                userId,
-                target.cafeteriaId(),
-                target.menuId(),
-                normalizedPage,
-                normalizedSize
-        );
+        List<MenuReviewRow> rows = menuReviewPort.findReviewPage(target.cafeteriaId(), target.menuId(), normalizedPage, normalizedSize);
+        List<Long> reviewIds = rows.stream().map(MenuReviewRow::reviewId).toList();
+        Set<Long> likedIds = menuReviewPort.findLikedReviewIds(userId, reviewIds);
+        Set<Long> writerUserIds = rows.stream()
+                .filter(row -> !row.writerDeleted())
+                .map(MenuReviewRow::userId)
+                .collect(java.util.stream.Collectors.toSet());
+        Map<Long, String> anonymousNames = resolveAnonymousNamesForUsers(target.cafeteriaId(), target.menuId(), writerUserIds);
 
         List<MenuReviewItemResponse> items = rows.stream().map(row -> new MenuReviewItemResponse(
                 row.reviewId(),
-                resolveWriterName(row.userId(), row.writerDeleted(), row.anonymousNo()),
+                resolveWriterName(row.userId(), row.writerDeleted(), anonymousNames),
                 row.content(),
                 row.mealDate(),
                 row.likeCount(),
                 row.commentCount(),
-                row.likedByMe(),
+                likedIds.contains(row.reviewId()),
                 isMine(userId, row.userId(), row.writerDeleted()),
                 row.createdAt(),
                 row.updatedAt()
@@ -170,20 +171,20 @@ public class MenuReviewService {
         int normalizedSize = normalizeSize(size);
         MenuReviewRow review = menuReviewPort.findActiveReviewById(reviewId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.REVIEW_NOT_FOUND));
-        List<MenuReviewCommentRow> commentRows = menuReviewPort.findCommentPage(
-                reviewId,
-                review.cafeteriaId(),
-                review.menuId(),
-                normalizedPage,
-                normalizedSize
-        );
+        List<MenuReviewCommentRow> commentRows = menuReviewPort.findCommentPage(reviewId, normalizedPage, normalizedSize);
+        Set<Long> commentUserIds = commentRows
+                .stream()
+                .filter(row -> !row.writerDeleted())
+                .map(MenuReviewCommentRow::userId)
+                .collect(java.util.stream.Collectors.toSet());
+        Map<Long, String> anonymousNames = resolveAnonymousNamesForUsers(review.cafeteriaId(), review.menuId(), commentUserIds);
 
         long total = menuReviewPort.countActiveComments(reviewId);
         List<ReviewCommentItemResponse> comments = commentRows
                 .stream()
                 .map(row -> new ReviewCommentItemResponse(
                         row.commentId(),
-                        resolveWriterName(row.userId(), row.writerDeleted(), row.anonymousNo()),
+                        resolveWriterName(row.userId(), row.writerDeleted(), anonymousNames),
                         row.content(),
                         isMine(userId, row.userId(), row.writerDeleted()),
                         row.createdAt(),
@@ -360,16 +361,6 @@ public class MenuReviewService {
             return DELETED_USER_NAME;
         }
         return anonymousNames.getOrDefault(writerUserId, ANONYMOUS_FALLBACK_NAME);
-    }
-
-    private String resolveWriterName(Long writerUserId, boolean writerDeleted, Long anonymousNo) {
-        if (writerDeleted || writerUserId == null) {
-            return DELETED_USER_NAME;
-        }
-        if (anonymousNo == null) {
-            return ANONYMOUS_FALLBACK_NAME;
-        }
-        return ANONYMOUS_FALLBACK_NAME + " " + anonymousNo;
     }
 
     private boolean isMine(boolean expectedMine, Long writerUserId, boolean writerDeleted) {

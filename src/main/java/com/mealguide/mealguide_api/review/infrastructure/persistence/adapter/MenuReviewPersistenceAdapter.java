@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -138,8 +139,6 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
                 rs.getString("content"),
                 rs.getLong("like_count"),
                 rs.getLong("comment_count"),
-                false,
-                null,
                 rs.getTimestamp("created_at").toLocalDateTime(),
                 rs.getTimestamp("updated_at").toLocalDateTime()
         ));
@@ -195,48 +194,25 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
             return Map.of();
         }
         String sql = """
-                with targets(cafeteria_id, menu_id) as (
-                    %s
-                )
-                select t.cafeteria_id, t.menu_id, count(mr.id) as review_count
-                from targets t
-                left join menu_review mr
-                  on mr.cafeteria_id = t.cafeteria_id
-                 and mr.menu_id = t.menu_id
-                 and mr.deleted_at is null
-                group by t.cafeteria_id, t.menu_id
+                select cafeteria_id, menu_id, count(*) as review_count
+                from menu_review
+                where deleted_at is null
+                  and cafeteria_id in (:cafeteriaIds)
+                  and menu_id in (:menuIds)
+                group by cafeteria_id, menu_id
                 """;
-        sql = sql.formatted(buildTargetValuesSql(targets));
+        List<Long> cafeteriaIds = targets.stream().map(MenuLikeTarget::cafeteriaId).distinct().toList();
+        List<Long> menuIds = targets.stream().map(MenuLikeTarget::menuId).distinct().toList();
         Map<MenuLikeTarget, Long> map = new HashMap<>();
-        namedParameterJdbcTemplate.query(sql, buildTargetPairParams(targets), rs -> {
+        namedParameterJdbcTemplate.query(sql, new MapSqlParameterSource()
+                .addValue("cafeteriaIds", cafeteriaIds)
+                .addValue("menuIds", menuIds), rs -> {
             MenuLikeTarget key = new MenuLikeTarget(rs.getLong("cafeteria_id"), rs.getLong("menu_id"));
-            map.put(key, rs.getLong("review_count"));
+            if (targets.contains(key)) {
+                map.put(key, rs.getLong("review_count"));
+            }
         });
         return map;
-    }
-
-    private String buildTargetValuesSql(Set<MenuLikeTarget> targets) {
-        StringBuilder values = new StringBuilder("values ");
-        int index = 0;
-        for (MenuLikeTarget ignored : targets) {
-            if (index > 0) {
-                values.append(", ");
-            }
-            values.append("(:cafeteriaId").append(index).append(", :menuId").append(index).append(")");
-            index++;
-        }
-        return values.toString();
-    }
-
-    private MapSqlParameterSource buildTargetPairParams(Set<MenuLikeTarget> targets) {
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        int index = 0;
-        for (MenuLikeTarget target : targets) {
-            params.addValue("cafeteriaId" + index, target.cafeteriaId());
-            params.addValue("menuId" + index, target.menuId());
-            index++;
-        }
-        return params;
     }
 
     @Override
@@ -267,24 +243,14 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
 
     @Override
     @Transactional(readOnly = true)
-    public List<MenuReviewRow> findReviewPage(Long userId, Long cafeteriaId, Long menuId, int page, int size) {
+    public List<MenuReviewRow> findReviewPage(Long cafeteriaId, Long menuId, int page, int size) {
         String sql = """
                 select mr.id as review_id, mr.user_id, cast(null as varchar) as writer_name,
                        (mr.user_id is null or u.id is null or u.status <> 'ACTIVE' or u.deleted_at is not null) as writer_deleted,
                        mr.cafeteria_id, mr.menu_id, mr.meal_menu_id, mr.meal_date,
-                       mr.content, mr.like_count, mr.comment_count,
-                       (mrl.id is not null) as liked_by_me,
-                       anon.anonymous_no,
-                       mr.created_at, mr.updated_at
+                       mr.content, mr.like_count, mr.comment_count, mr.created_at, mr.updated_at
                 from menu_review mr
                 left join users u on u.id = mr.user_id
-                left join menu_review_like mrl
-                    on mrl.review_id = mr.id
-                    and mrl.user_id = :userId
-                left join menu_review_anonymous_participant anon
-                    on anon.cafeteria_id = mr.cafeteria_id
-                    and anon.menu_id = mr.menu_id
-                    and anon.user_id = mr.user_id
                 where mr.cafeteria_id = :cafeteriaId
                   and mr.menu_id = :menuId
                   and mr.deleted_at is null
@@ -292,7 +258,6 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
                 limit :size offset :offset
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("userId", userId)
                 .addValue("cafeteriaId", cafeteriaId)
                 .addValue("menuId", menuId)
                 .addValue("size", size)
@@ -309,11 +274,28 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
                 rs.getString("content"),
                 rs.getLong("like_count"),
                 rs.getLong("comment_count"),
-                rs.getBoolean("liked_by_me"),
-                rs.getObject("anonymous_no", Long.class),
                 rs.getTimestamp("created_at").toLocalDateTime(),
                 rs.getTimestamp("updated_at").toLocalDateTime()
         ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<Long> findLikedReviewIds(Long userId, List<Long> reviewIds) {
+        if (reviewIds == null || reviewIds.isEmpty()) {
+            return Set.of();
+        }
+        String sql = """
+                select review_id
+                from menu_review_like
+                where user_id = :userId
+                  and review_id in (:reviewIds)
+                """;
+        List<Long> likedIdRows = namedParameterJdbcTemplate.query(sql, new MapSqlParameterSource()
+                .addValue("userId", userId)
+                .addValue("reviewIds", reviewIds), (rs, rowNum) -> rs.getLong("review_id"));
+        Set<Long> likedIds = new HashSet<>(likedIdRows);
+        return likedIds;
     }
 
     @Override
@@ -395,18 +377,13 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
 
     @Override
     @Transactional(readOnly = true)
-    public List<MenuReviewCommentRow> findCommentPage(Long reviewId, Long cafeteriaId, Long menuId, int page, int size) {
+    public List<MenuReviewCommentRow> findCommentPage(Long reviewId, int page, int size) {
         String sql = """
                 select c.id as comment_id, c.review_id, c.user_id, cast(null as varchar) as writer_name,
                        (c.user_id is null or u.id is null or u.status <> 'ACTIVE' or u.deleted_at is not null) as writer_deleted,
-                       anon.anonymous_no,
                        c.content, c.created_at, c.updated_at
                 from menu_review_comment c
                 left join users u on u.id = c.user_id
-                left join menu_review_anonymous_participant anon
-                    on anon.cafeteria_id = :cafeteriaId
-                    and anon.menu_id = :menuId
-                    and anon.user_id = c.user_id
                 where c.review_id = :reviewId
                   and c.deleted_at is null
                 order by c.created_at asc, c.id asc
@@ -414,8 +391,6 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("reviewId", reviewId)
-                .addValue("cafeteriaId", cafeteriaId)
-                .addValue("menuId", menuId)
                 .addValue("size", size)
                 .addValue("offset", (long) page * size);
         return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> new MenuReviewCommentRow(
@@ -424,7 +399,6 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
                 rs.getObject("user_id", Long.class),
                 rs.getString("writer_name"),
                 rs.getBoolean("writer_deleted"),
-                rs.getObject("anonymous_no", Long.class),
                 rs.getString("content"),
                 rs.getTimestamp("created_at").toLocalDateTime(),
                 rs.getTimestamp("updated_at").toLocalDateTime()
@@ -469,7 +443,6 @@ public class MenuReviewPersistenceAdapter implements MenuReviewPort {
                         rs.getObject("user_id", Long.class),
                         rs.getString("writer_name"),
                         rs.getBoolean("writer_deleted"),
-                        null,
                         rs.getString("content"),
                         rs.getTimestamp("created_at").toLocalDateTime(),
                         rs.getTimestamp("updated_at").toLocalDateTime()

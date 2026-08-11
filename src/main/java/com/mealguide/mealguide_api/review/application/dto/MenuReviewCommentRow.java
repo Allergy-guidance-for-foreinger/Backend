@@ -8,7 +8,6 @@ public record MenuReviewCommentRow(
         Long userId,
         String writerName,
         boolean writerDeleted,
-        Long anonymousNo,
         String content,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

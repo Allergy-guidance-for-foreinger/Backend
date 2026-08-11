@@ -63,14 +63,6 @@ public class SettingsMasterPersistenceAdapter implements SettingsMasterQueryPort
     }
 
     @Override
-    public boolean existsAllReligiousCodes(Set<String> religiousCodes) {
-        if (religiousCodes.isEmpty()) {
-            return true;
-        }
-        return religiousFoodRestrictionJpaRepository.countByCodeIn(religiousCodes) == religiousCodes.size();
-    }
-
-    @Override
     public List<CountryOption> findCountries() {
         return countryJpaRepository.findAllByOrderByNameAsc().stream()
                 .map(country -> new CountryOption(country.getCode(), country.getName()))
